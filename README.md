@@ -8,6 +8,10 @@ The first supported line is a configurable sequence such as:
 
 The product goal is not a generic AI chat. It is a deterministic dynamic simulator that lets an engineer define equipment, run repeatable scenarios, observe line behavior in virtual time, compare states, and use Gemini to explain results and propose improvements.
 
+## Copy/paste Apps Script files
+
+For the browser-only Apps Script workflow, copy the generated root files directly: [Code.gs](Code.gs) and [Index.html](Index.html). They are self-contained; do not combine them with the older modular files in one Apps Script project.
+
 ## MVP principles
 
 - **Deterministic calculations:** the simulation engine owns all calculations; Gemini never invents process results.
@@ -34,6 +38,7 @@ The product goal is not a generic AI chat. It is a deterministic dynamic simulat
 | [Run Workspace](docs/11_RUN_WORKSPACE.md) | Browser execution, animated playback, noise, and control events |
 | [Real-format line model](docs/12_REAL_FORMAT_LINE_MODEL.md) | 13-object packaging-line data contract and calibration path |
 | [Manual Apps Script update](docs/13_MANUAL_APPS_SCRIPT_UPDATE.md) | Generated Code.gs + Index.html package for browser-only updates |
+| [Public demonstration Case](docs/14_PUBLIC_DEMO_CASE.md) | Complete 13-unit test Case with explicit public/synthetic provenance |
 
 ## Initial technical decision
 
