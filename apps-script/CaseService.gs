@@ -132,7 +132,7 @@ function normalizeEquipmentList_(equipment) {
     var id = requireEquipmentId_(unit.id, path);
     if (seenIds[id]) throw createSimulatorError_('INVALID_CASE', path + '.id must be unique.');
     seenIds[id] = true;
-    if (['BLOWER', 'CONVEYOR', 'PACEMAKER', 'PALLETIZER', 'CUSTOM'].indexOf(unit.type) === -1) {
+    if (supportedEquipmentTypes_().indexOf(unit.type) === -1) {
       throw createSimulatorError_('INVALID_CASE', path + '.type is not supported.');
     }
     if (typeof unit.name !== 'string' || !unit.name.trim()) {
@@ -155,9 +155,22 @@ function normalizeEquipmentList_(equipment) {
       bufferAfterCapacity: Number(unit.bufferAfterCapacity),
       initialMode: unit.initialMode,
       characteristics: normalizeObject_(unit.characteristics),
-      noiseProfile: normalizeObject_(unit.noiseProfile)
+      noiseProfile: normalizeObject_(unit.noiseProfile),
+      processData: normalizeProcessData_(unit.processData)
     };
   });
+}
+
+function supportedEquipmentTypes_() {
+  return ['BLOWER', 'BLOWMOLDER', 'CONVEYOR', 'PACEMAKER', 'PUCKER', 'FILLER', 'DEPUCKER', 'SLEEVER', 'CASE_PACKER', 'PALLETIZER', 'CUSTOM'];
+}
+
+function normalizeProcessData_(processData) {
+  if (processData === undefined) return {};
+  if (!processData || typeof processData !== 'object' || Array.isArray(processData)) {
+    throw createSimulatorError_('INVALID_CASE', 'processData must be an object when provided.');
+  }
+  return processData;
 }
 
 function requireEquipmentId_(id, path) {
