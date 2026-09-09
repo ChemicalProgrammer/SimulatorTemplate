@@ -143,6 +143,16 @@
             <article><span>Back-up control time</span><strong id="metric-backup-stop">—</strong></article>
           </div>
           <canvas id="simulation-chart" height="210" aria-label="Cumulative output chart"></canvas>
+          <section class="equipment-speed-chart-panel" aria-labelledby="equipment-speed-chart-title">
+            <div class="equipment-speed-chart-heading">
+              <div>
+                <h3 id="equipment-speed-chart-title">Actual speed by equipment</h3>
+                <p>Rolling view of the last 60 virtual seconds. Each line is actual speed, not nominal speed.</p>
+              </div>
+            </div>
+            <canvas id="equipment-speed-chart" height="270" aria-label="Rolling actual speed chart for all equipment"></canvas>
+            <div id="equipment-speed-legend" class="equipment-speed-legend" aria-label="Equipment speed chart legend"></div>
+          </section>
           <p class="live-controls-help">Scenario controls apply at the displayed virtual second and deterministically recalculate the run. They are simulation controls only; they never command real equipment.</p>
           <div id="live-equipment" class="live-equipment"></div>
           <details class="raw-viewer">

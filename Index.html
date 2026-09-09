@@ -80,6 +80,16 @@
   .live-equipment-stats div { background: #fff; border-radius: 7px; padding: 7px; }
   .live-equipment-stats span { color: #657187; display: block; font-size: 10px; text-transform: uppercase; }
   .live-equipment-stats b { color: #264ca7; display: block; font-size: 13px; margin-top: 2px; }
+  .equipment-speed-sparkline-heading { align-items: center; color: #657187; display: flex; font-size: 10px; justify-content: space-between; margin-top: 12px; text-transform: uppercase; }
+  .equipment-speed-sparkline-heading b { color: #264ca7; font-size: 10px; }
+  .equipment-speed-sparkline { background: #fff; border: 1px solid #e6ecf5; border-radius: 6px; display: block; height: 56px; margin-top: 5px; width: 100%; }
+  .equipment-speed-chart-panel { background: #f8faff; border: 1px solid #e0e6f0; border-radius: 10px; margin-top: 16px; padding: 14px; }
+  .equipment-speed-chart-heading h3 { color: #264ca7; font-size: 15px; margin: 0; }
+  .equipment-speed-chart-heading p { color: #657187; font-size: 12px; margin: 5px 0 0; }
+  #equipment-speed-chart { background: #fff; border: 1px solid #e0e6f0; border-radius: 8px; display: block; height: 270px; margin-top: 12px; width: 100%; }
+  .equipment-speed-legend { display: flex; flex-wrap: wrap; gap: 7px 12px; margin-top: 10px; }
+  .equipment-speed-legend-item { align-items: center; color: #4f5d72; display: inline-flex; font-size: 11px; gap: 5px; }
+  .equipment-speed-legend-item i { border-radius: 50%; display: inline-block; height: 8px; width: 8px; }
   .live-controls-help { font-size: 12px; margin: 16px 0 0; }
   .live-equipment-controls { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
   .live-equipment-controls button { font-size: 11px; margin: 0; padding: 8px 6px; }
@@ -99,8 +109,8 @@
   .state-failure, .state-emergency-stop { border-left-color: #c63b3b; }
   .state-failure .live-state, .state-emergency-stop .live-state { background: #fce5e5; color: #a12b2b; }
   .state-micro-stop, .state-paused, .state-stopped { border-left-color: #657187; }
-  .state-waiting-for-prime, .state-ramping-up { border-left-color: #2d76c9; }
-  .state-waiting-for-prime .live-state, .state-ramping-up .live-state { background: #e4f1ff; color: #1d5fa8; }
+  .state-starting, .state-waiting-for-prime, .state-ramping-up { border-left-color: #2d76c9; }
+  .state-starting .live-state, .state-waiting-for-prime .live-state, .state-ramping-up .live-state { background: #e4f1ff; color: #1d5fa8; }
   .state-backup-stop, .state-backup-stopping { border-left-color: #9b5dd1; }
   .state-backup-stop .live-state, .state-backup-stopping .live-state { background: #f1e6fc; color: #653497; }
   .accumulation-zone { background: #f2f7ff; border: 1px solid #cfe0fb; border-left: 4px solid #3967d6; border-radius: 8px; margin-top: 12px; padding: 10px; }
@@ -260,6 +270,16 @@
             <article><span>Back-up control time</span><strong id="metric-backup-stop">—</strong></article>
           </div>
           <canvas id="simulation-chart" height="210" aria-label="Cumulative output chart"></canvas>
+          <section class="equipment-speed-chart-panel" aria-labelledby="equipment-speed-chart-title">
+            <div class="equipment-speed-chart-heading">
+              <div>
+                <h3 id="equipment-speed-chart-title">Actual speed by equipment</h3>
+                <p>Rolling view of the last 60 virtual seconds. Each line is actual speed, not nominal speed.</p>
+              </div>
+            </div>
+            <canvas id="equipment-speed-chart" height="270" aria-label="Rolling actual speed chart for all equipment"></canvas>
+            <div id="equipment-speed-legend" class="equipment-speed-legend" aria-label="Equipment speed chart legend"></div>
+          </section>
           <p class="live-controls-help">Scenario controls apply at the displayed virtual second and deterministically recalculate the run. They are simulation controls only; they never command real equipment.</p>
           <div id="live-equipment" class="live-equipment"></div>
           <details class="raw-viewer">
@@ -354,6 +374,7 @@ function validateCase(caseModel, details) {
       details.push(invalid(path + '.initialMode', 'must be AUTO, MANUAL, PAUSE, or STOP'));
     }
     validateNoiseProfile(equipment.noiseProfile, path, details);
+    validateStartProfile(equipment, path, details);
   });
 
   caseModel.equipment.forEach((equipment, index) => {
@@ -361,6 +382,27 @@ function validateCase(caseModel, details) {
       validateAccumulationZone(equipment.accumulationZone, 'case.equipment[' + index + '].accumulationZone', ids, details);
     }
   });
+}
+
+function validateStartProfile(equipment, path, details) {
+  validateOptionalNonNegative(equipment.startupDelaySeconds, path + '.startupDelaySeconds', details);
+  validateOptionalNonNegative(equipment.restartRampUpSeconds, path + '.restartRampUpSeconds', details);
+  validateOptionalNonNegative(
+    equipment.processData?.upstream?.startupTimeSeconds,
+    path + '.processData.upstream.startupTimeSeconds',
+    details
+  );
+  validateOptionalNonNegative(
+    equipment.processData?.downstream?.rampUpTimeSeconds,
+    path + '.processData.downstream.rampUpTimeSeconds',
+    details
+  );
+}
+
+function validateOptionalNonNegative(value, path, details) {
+  if (value !== undefined && value !== null && !nonNegativeNumber(value)) {
+    details.push(invalid(path, 'must be a number greater than or equal to zero'));
+  }
 }
 
 function validateAccumulationZone(zone, path, equipmentIds, details) {
@@ -414,6 +456,17 @@ function validateAccumulationZone(zone, path, equipmentIds, details) {
   if (zone.downstreamRampUpSeconds !== undefined && !nonNegativeNumber(zone.downstreamRampUpSeconds)) {
     details.push(invalid(path + '.downstreamRampUpSeconds', 'must be a number greater than or equal to zero'));
   }
+
+  validateOptionalNonNegative(
+    zone.upstreamRestartDelaySeconds,
+    path + '.upstreamRestartDelaySeconds',
+    details
+  );
+  validateOptionalNonNegative(
+    zone.upstreamRestartRampUpSeconds,
+    path + '.upstreamRestartRampUpSeconds',
+    details
+  );
 
   validateEquipmentReference(zone.upstreamControlEquipmentId, path + '.upstreamControlEquipmentId', equipmentIds, details);
   validateEquipmentReference(zone.downstreamControlEquipmentId, path + '.downstreamControlEquipmentId', equipmentIds, details);
@@ -544,19 +597,22 @@ function createRuntime(input) {
   const equipment = input.case.equipment.map((model) => createEquipmentRuntime(model, random));
   const zones = equipment.slice(0, -1).map((equipment, index) => createAccumulationZoneRuntime(
     equipment,
-    input.case.equipment[index + 1],
-    input.case.equipment
+    input.case.equipment[index + 1]
   ));
 
   equipment.forEach((equipment, index) => {
     const incomingZone = zones.find((zone) => zone.downstreamControlEquipmentId === equipment.id && zone.hasPrimeSensor);
     equipment.primeStartAuthorized = index === 0 || !incomingZone;
-    equipment.autoStartRampDurationSeconds = incomingZone ? incomingZone.downstreamRampUpSeconds : 0;
-    equipment.autoStartRampElapsedSeconds = incomingZone ? 0 : equipment.autoStartRampDurationSeconds;
+    equipment.startupDelaySeconds = resolveStartupDelaySeconds(equipment);
+    equipment.restartRampUpSeconds = resolveRestartRampUpSeconds(equipment);
+    equipment.startDelayRemainingSeconds = 0;
+    equipment.startRampDurationSeconds = 0;
+    equipment.startRampElapsedSeconds = 0;
+    equipment.startReason = null;
     equipment.backupControl = null;
   });
 
-  return {
+  const runtime = {
     caseId: input.case.id,
     unitOfFlow: input.case.unitOfFlow,
     run: input.run,
@@ -570,6 +626,13 @@ function createRuntime(input) {
     commandIndex: 0,
     commands: sortCommands(input.run.commands || [])
   };
+
+  const source = runtime.equipment[0];
+  if (source && isOperationalMode(source) && hasStartProfile(source)) {
+    requestEquipmentStart(runtime, source, 'INITIAL_START');
+  }
+
+  return runtime;
 }
 
 function createEquipmentRuntime(model, random) {
@@ -637,6 +700,8 @@ function createAccumulationZoneRuntime(owner, downstreamModel) {
     backupTriggerCount: 0,
     upstreamStopResponseSeconds: physical?.upstreamStopResponseSeconds || 0,
     bottlesDischargedAtStop: physical?.bottlesDischargedAtStop || 0,
+    upstreamRestartDelaySeconds: physical?.upstreamRestartDelaySeconds ?? null,
+    upstreamRestartRampUpSeconds: physical?.upstreamRestartRampUpSeconds ?? null,
     transit: [],
     waitingUnits: 0,
     overflowUnits: 0,
@@ -676,7 +741,9 @@ function normalizePhysicalZone(definition) {
       : null,
     upstreamStopResponseSeconds: definition.upstreamStopResponseSeconds || 0,
     bottlesDischargedAtStop: definition.bottlesDischargedAtStop || 0,
-    downstreamRampUpSeconds: definition.downstreamRampUpSeconds || 0
+    downstreamRampUpSeconds: definition.downstreamRampUpSeconds || 0,
+    upstreamRestartDelaySeconds: definition.upstreamRestartDelaySeconds ?? null,
+    upstreamRestartRampUpSeconds: definition.upstreamRestartRampUpSeconds ?? null
   };
 }
 
@@ -705,6 +772,10 @@ function initializeInitialMaterialStates(runtime) {
       equipment.availabilityState = 'STOPPED';
     } else if (requiresPrime(equipment)) {
       equipment.availabilityState = 'WAITING_FOR_PRIME';
+    } else if (isStartDelayed(equipment)) {
+      equipment.availabilityState = 'STARTING';
+    } else if (isRampingUp(equipment)) {
+      equipment.availabilityState = 'RAMPING_UP';
     } else if (index === 0) {
       equipment.availabilityState = 'READY';
     } else {
@@ -739,8 +810,9 @@ function triggerPrimeSensor(runtime, zone) {
   const downstream = getEquipment(runtime, zone.downstreamControlEquipmentId);
   if (downstream) {
     downstream.primeStartAuthorized = true;
-    downstream.autoStartRampDurationSeconds = zone.downstreamRampUpSeconds;
-    downstream.autoStartRampElapsedSeconds = 0;
+    requestEquipmentStart(runtime, downstream, 'PRIME_SENSOR', {
+      rampUpSeconds: zone.downstreamRampUpSeconds
+    });
   }
   runtime.events.push({
     type: 'PRIME_SENSOR_TRIGGERED',
@@ -781,8 +853,16 @@ function updateBackupSensor(runtime, zone) {
     zone.backupActive = false;
     const upstream = getEquipment(runtime, zone.upstreamControlEquipmentId);
     if (upstream && upstream.backupControl?.zoneId === zone.id) {
+      const completedBackupStop = upstream.backupControl.responseRemainingSeconds <= 0 &&
+        upstream.backupControl.residualRemainingUnits <= 0;
       upstream.backupControl.active = false;
       upstream.backupControl = null;
+      if (completedBackupStop && isOperationalMode(upstream) && !upstream.emergencyStopLatched) {
+        requestEquipmentStart(runtime, upstream, 'BACKUP_SENSOR_CLEAR', {
+          delaySeconds: zone.upstreamRestartDelaySeconds,
+          rampUpSeconds: zone.upstreamRestartRampUpSeconds
+        });
+      }
     }
     runtime.events.push({
       type: 'BACKUP_SENSOR_CLEARED',
@@ -810,13 +890,7 @@ function advanceEquipmentControlTimers(runtime) {
       }
     }
 
-    if (equipment.mode === 'AUTO' && equipment.primeStartAuthorized &&
-      equipment.autoStartRampElapsedSeconds < equipment.autoStartRampDurationSeconds) {
-      equipment.autoStartRampElapsedSeconds = Math.min(
-        equipment.autoStartRampDurationSeconds,
-        equipment.autoStartRampElapsedSeconds + runtime.run.tickSeconds
-      );
-    }
+    advanceEquipmentStart(runtime, equipment);
   });
 }
 
@@ -871,6 +945,7 @@ function applyCommand(runtime, equipment, action) {
   if (action === 'EMERGENCY_STOP') {
     equipment.emergencyStopLatched = true;
     equipment.mode = 'STOP';
+    cancelEquipmentStart(equipment);
     runtime.events.push({ type: 'EMERGENCY_STOP_APPLIED', atVirtualSecond: runtime.virtualSecond, equipmentId: equipment.id });
     return;
   }
@@ -882,6 +957,7 @@ function applyCommand(runtime, equipment, action) {
     }
     equipment.emergencyStopLatched = false;
     equipment.mode = 'STOP';
+    cancelEquipmentStart(equipment);
     runtime.events.push({ type: 'EMERGENCY_STOP_RESET', atVirtualSecond: runtime.virtualSecond, equipmentId: equipment.id });
     return;
   }
@@ -891,8 +967,14 @@ function applyCommand(runtime, equipment, action) {
     return;
   }
 
+  const wasOperational = isOperationalMode(equipment);
   equipment.mode = action === 'RUN' ? 'AUTO' : action;
+  if (!isOperationalMode(equipment)) cancelEquipmentStart(equipment);
   runtime.events.push({ type: 'COMMAND_APPLIED', atVirtualSecond: runtime.virtualSecond, equipmentId: equipment.id, action });
+
+  if (isOperationalMode(equipment) && !wasOperational) {
+    requestEquipmentStart(runtime, equipment, 'COMMAND_' + action);
+  }
 }
 
 function updateMicroStops(runtime) {
@@ -943,6 +1025,12 @@ function processEquipment(runtime, index) {
     return;
   }
 
+  if (isStartDelayed(equipment)) {
+    equipment.actualRatePerSecond = 0;
+    equipment.availabilityState = 'STARTING';
+    return;
+  }
+
   const residualDischarge = Boolean(control && control.responseRemainingSeconds <= 0 && control.residualRemainingUnits > 0);
   const requestedFlow = residualDischarge
     ? Math.min(equipment.nominalRatePerSecond * tickSeconds, control.residualRemainingUnits)
@@ -968,13 +1056,87 @@ function processEquipment(runtime, index) {
 }
 
 function getRequestedFlow(equipment, tickSeconds) {
-  if (equipment.mode === 'AUTO' && equipment.autoStartRampElapsedSeconds < equipment.autoStartRampDurationSeconds) {
-    const rampFactor = equipment.autoStartRampDurationSeconds <= 0
+  if (isStartDelayed(equipment)) return 0;
+  if (isRampingUp(equipment)) {
+    const rampFactor = equipment.startRampDurationSeconds <= 0
       ? 1
-      : equipment.autoStartRampElapsedSeconds / equipment.autoStartRampDurationSeconds;
+      : equipment.startRampElapsedSeconds / equipment.startRampDurationSeconds;
     return equipment.nominalRatePerSecond * tickSeconds * rampFactor;
   }
   return equipment.nominalRatePerSecond * tickSeconds;
+}
+
+function hasStartProfile(equipment) {
+  return equipment.startupDelaySeconds > 0 || equipment.restartRampUpSeconds > 0;
+}
+
+function requestEquipmentStart(runtime, equipment, reason, options = {}) {
+  if (!equipment || equipment.emergencyStopLatched || !isOperationalMode(equipment)) return false;
+  const delaySeconds = firstNonNegative(options.delaySeconds, equipment.startupDelaySeconds);
+  const rampUpSeconds = firstNonNegative(options.rampUpSeconds, equipment.restartRampUpSeconds);
+  equipment.startDelayRemainingSeconds = delaySeconds;
+  equipment.startRampDurationSeconds = rampUpSeconds;
+  equipment.startRampElapsedSeconds = 0;
+  equipment.startReason = reason;
+  runtime.events.push({
+    type: 'EQUIPMENT_START_SEQUENCE_REQUESTED',
+    atVirtualSecond: runtime.virtualSecond,
+    equipmentId: equipment.id,
+    reason,
+    delaySeconds,
+    rampUpSeconds
+  });
+  return true;
+}
+
+function cancelEquipmentStart(equipment) {
+  equipment.startDelayRemainingSeconds = 0;
+  equipment.startRampDurationSeconds = 0;
+  equipment.startRampElapsedSeconds = 0;
+  equipment.startReason = null;
+}
+
+function advanceEquipmentStart(runtime, equipment) {
+  if (!isAvailable(equipment) || activeBackupControl(equipment)) return;
+  if (isStartDelayed(equipment)) {
+    equipment.startDelayRemainingSeconds = Math.max(0, equipment.startDelayRemainingSeconds - runtime.run.tickSeconds);
+    return;
+  }
+  if (isRampingUp(equipment)) {
+    equipment.startRampElapsedSeconds = Math.min(
+      equipment.startRampDurationSeconds,
+      equipment.startRampElapsedSeconds + runtime.run.tickSeconds
+    );
+  }
+}
+
+function isStartDelayed(equipment) {
+  return equipment.startDelayRemainingSeconds > 0;
+}
+
+function isRampingUp(equipment) {
+  return equipment.startRampElapsedSeconds < equipment.startRampDurationSeconds;
+}
+
+function resolveStartupDelaySeconds(equipment) {
+  return firstNonNegative(
+    equipment.startupDelaySeconds,
+    equipment.processData?.upstream?.startupTimeSeconds
+  );
+}
+
+function resolveRestartRampUpSeconds(equipment) {
+  return firstNonNegative(
+    equipment.restartRampUpSeconds,
+    equipment.processData?.downstream?.rampUpTimeSeconds
+  );
+}
+
+function firstNonNegative(...values) {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return value;
+  }
+  return 0;
 }
 
 function getDownstreamSpace(runtime, index) {
@@ -1038,7 +1200,7 @@ function recordMaterialState(equipment, requestedFlow, inputAvailable, downstrea
       equipment.availabilityState = control.responseRemainingSeconds > 0 || residualDischarge
         ? 'BACKUP_STOPPING'
         : 'BACKUP_STOP';
-    } else if (equipment.mode === 'AUTO' && equipment.autoStartRampElapsedSeconds < equipment.autoStartRampDurationSeconds) {
+    } else if (isRampingUp(equipment)) {
       equipment.availabilityState = 'RAMPING_UP';
     } else {
       equipment.availabilityState = 'RUNNING';
@@ -1194,7 +1356,7 @@ function createResult(runtime) {
   return {
     caseId: runtime.caseId,
     unitOfFlow: runtime.unitOfFlow,
-    engineVersion: '0.5.0',
+    engineVersion: '0.6.0',
     seed: runtime.run.seed,
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),
@@ -1845,6 +2007,7 @@ window.SimulatorEngine = { simulateLine: simulateLine };
       setPlaybackStatus((state.run.playing ? 'Playing' : 'At') + ' ' + time + ' s · frame ' + state.run.sampleIndex + ' / ' + (state.run.result.samples.length - 1));
       renderLiveEquipment(sample);
       drawSimulationChart();
+      drawEquipmentSpeedChart();
     }
 
     function formatInstantaneousOutputRate() {
@@ -1864,7 +2027,7 @@ window.SimulatorEngine = { simulateLine: simulateLine };
         var card = document.createElement('article');
         var availabilityState = unit.availabilityState || unit.mode || 'UNKNOWN';
         card.className = 'live-equipment-card state-' + availabilityState.toLowerCase().replace(/_/g, '-');
-        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Waiting for Prime</span><b class="live-waiting-prime"></b></div><div><span>Back-up stop</span><b class="live-backup-stop"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div><div class="live-equipment-controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div>';
+        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Waiting for Prime</span><b class="live-waiting-prime"></b></div><div><span>Back-up stop</span><b class="live-backup-stop"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div><div class="equipment-speed-sparkline-heading"><span>Actual speed · last 60 virtual s</span><b class="live-nominal-rate"></b></div><canvas class="equipment-speed-sparkline" height="56" aria-label="Rolling actual-speed chart"></canvas><div class="live-equipment-controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div>';
         card.querySelector('strong').textContent = model.name || unit.id;
         card.querySelector('.live-state').textContent = availabilityState;
         card.querySelector('.live-command').textContent = 'Command: ' + unit.mode;
@@ -1877,6 +2040,7 @@ window.SimulatorEngine = { simulateLine: simulateLine };
         card.querySelector('.live-backup-stop').textContent = formatMinutes(unit.backupStopSeconds);
         card.querySelector('.live-failure').textContent = formatMinutes(unit.failureSeconds);
         card.querySelector('.live-emergency').textContent = formatMinutes(unit.emergencyStopSeconds);
+        card.querySelector('.live-nominal-rate').textContent = 'Nominal ' + formatRatePerMinute(model.nominalRatePerSecond);
         bindLiveEquipmentControl(card.querySelector('.live-control-run'), unit.id, 'RUN');
         bindLiveEquipmentControl(card.querySelector('.live-control-pause'), unit.id, 'PAUSE');
         bindLiveEquipmentControl(card.querySelector('.live-control-stop'), unit.id, 'STOP');
@@ -1888,6 +2052,7 @@ window.SimulatorEngine = { simulateLine: simulateLine };
           card.appendChild(createAccumulationZonePanel(zone));
         }
         target.appendChild(card);
+        drawEquipmentSpeedSparkline(card.querySelector('.equipment-speed-sparkline'), index, model);
       });
     }
 
@@ -1986,6 +2151,159 @@ window.SimulatorEngine = { simulateLine: simulateLine };
       context.fillText('0', padding.left - 8, padding.top + plotHeight + 16);
       context.fillText(formatNumber(maxOutput), padding.left - 34, padding.top + 6);
       context.fillText(maxTime + ' s', padding.left + plotWidth - 24, padding.top + plotHeight + 20);
+    }
+
+    function drawEquipmentSpeedChart() {
+      var canvas = document.getElementById('equipment-speed-chart');
+      var legend = document.getElementById('equipment-speed-legend');
+      if (!canvas || !legend || !state.run.result || !state.activeCase) return;
+
+      var samples = getRollingSpeedSamples();
+      var models = state.activeCase.equipment || [];
+      var drawing = prepareLineCanvas(canvas, 270);
+      if (!drawing) return;
+      var context = drawing.context;
+      var padding = { left: 46, right: 16, top: 22, bottom: 32 };
+      var plotWidth = drawing.width - padding.left - padding.right;
+      var plotHeight = drawing.height - padding.top - padding.bottom;
+      var endTime = samples.length ? samples[samples.length - 1].virtualSecond : 0;
+      var startTime = samples.length ? samples[0].virtualSecond : 0;
+      var timeRange = Math.max(1, endTime - startTime);
+      var maxRate = Math.max(1, models.reduce(function(maximum, model) {
+        return Math.max(maximum, Number(model.nominalRatePerSecond || 0) * 60);
+      }, 0));
+      samples.forEach(function(sample) {
+        sample.equipment.forEach(function(unit) {
+          maxRate = Math.max(maxRate, Number(unit.actualRatePerSecond || 0) * 60);
+        });
+      });
+      maxRate = Math.ceil(maxRate / 25) * 25 || 25;
+
+      context.strokeStyle = '#d9e1ef';
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(padding.left, padding.top);
+      context.lineTo(padding.left, padding.top + plotHeight);
+      context.lineTo(padding.left + plotWidth, padding.top + plotHeight);
+      context.stroke();
+      for (var grid = 1; grid < 4; grid += 1) {
+        var gridY = padding.top + plotHeight - grid / 4 * plotHeight;
+        context.strokeStyle = '#edf1f7';
+        context.beginPath();
+        context.moveTo(padding.left, gridY);
+        context.lineTo(padding.left + plotWidth, gridY);
+        context.stroke();
+      }
+
+      models.forEach(function(model, index) {
+        drawSpeedSeries(
+          context,
+          samples,
+          index,
+          function(sample) { return padding.left + (sample.virtualSecond - startTime) / timeRange * plotWidth; },
+          function(ratePerSecond) { return padding.top + plotHeight - Math.min(maxRate, Number(ratePerSecond || 0) * 60) / maxRate * plotHeight; },
+          speedColor(index),
+          1.8
+        );
+      });
+
+      context.fillStyle = '#657187';
+      context.font = '12px Arial';
+      context.fillText('Actual BPM', padding.left, 13);
+      context.fillText('0', padding.left - 10, padding.top + plotHeight + 16);
+      context.fillText(formatNumber(maxRate), padding.left - 38, padding.top + 8);
+      context.fillText(startTime + '–' + endTime + ' s', Math.max(padding.left, padding.left + plotWidth - 70), padding.top + plotHeight + 20);
+
+      legend.textContent = '';
+      models.forEach(function(model, index) {
+        var item = document.createElement('span');
+        item.className = 'equipment-speed-legend-item';
+        var swatch = document.createElement('i');
+        swatch.style.backgroundColor = speedColor(index);
+        item.appendChild(swatch);
+        item.appendChild(document.createTextNode(model.name || model.id || ('Unit ' + (index + 1))));
+        legend.appendChild(item);
+      });
+    }
+
+    function drawEquipmentSpeedSparkline(canvas, equipmentIndex, model) {
+      if (!canvas) return;
+      var samples = getRollingSpeedSamples();
+      var drawing = prepareLineCanvas(canvas, 56);
+      if (!drawing) return;
+      var context = drawing.context;
+      var padding = { left: 2, right: 2, top: 4, bottom: 4 };
+      var plotWidth = drawing.width - padding.left - padding.right;
+      var plotHeight = drawing.height - padding.top - padding.bottom;
+      var endTime = samples.length ? samples[samples.length - 1].virtualSecond : 0;
+      var startTime = samples.length ? samples[0].virtualSecond : 0;
+      var timeRange = Math.max(1, endTime - startTime);
+      var maxRate = Math.max(1, Number(model.nominalRatePerSecond || 0) * 60);
+      samples.forEach(function(sample) {
+        var unit = sample.equipment[equipmentIndex];
+        maxRate = Math.max(maxRate, Number(unit && unit.actualRatePerSecond || 0) * 60);
+      });
+      maxRate *= 1.05;
+
+      context.strokeStyle = '#e5ebf4';
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(padding.left, padding.top + plotHeight);
+      context.lineTo(padding.left + plotWidth, padding.top + plotHeight);
+      context.stroke();
+      drawSpeedSeries(
+        context,
+        samples,
+        equipmentIndex,
+        function(sample) { return padding.left + (sample.virtualSecond - startTime) / timeRange * plotWidth; },
+        function(ratePerSecond) { return padding.top + plotHeight - Math.min(maxRate, Number(ratePerSecond || 0) * 60) / maxRate * plotHeight; },
+        speedColor(equipmentIndex),
+        1.8
+      );
+    }
+
+    function drawSpeedSeries(context, samples, equipmentIndex, xForSample, yForRate, color, lineWidth) {
+      if (!samples.length) return;
+      context.strokeStyle = color;
+      context.lineWidth = lineWidth;
+      context.lineJoin = 'round';
+      context.lineCap = 'round';
+      context.beginPath();
+      samples.forEach(function(sample, sampleIndex) {
+        var unit = sample.equipment[equipmentIndex];
+        var x = xForSample(sample);
+        var y = yForRate(unit ? unit.actualRatePerSecond : 0);
+        if (sampleIndex === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      });
+      context.stroke();
+    }
+
+    function getRollingSpeedSamples() {
+      if (!state.run.result || !state.run.result.samples) return [];
+      var allSamples = state.run.result.samples.slice(0, state.run.sampleIndex + 1);
+      if (!allSamples.length) return [];
+      var endTime = allSamples[allSamples.length - 1].virtualSecond;
+      var startTime = Math.max(0, endTime - 60);
+      return allSamples.filter(function(sample) { return sample.virtualSecond >= startTime; });
+    }
+
+    function prepareLineCanvas(canvas, height) {
+      var bounds = canvas.getBoundingClientRect();
+      var width = Math.max(1, Math.floor(bounds.width));
+      if (width <= 1) return null;
+      var ratio = window.devicePixelRatio || 1;
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+      var context = canvas.getContext('2d');
+      context.scale(ratio, ratio);
+      context.clearRect(0, 0, width, height);
+      return { context: context, width: width, height: height };
+    }
+
+    function speedColor(index) {
+      var colors = ['#3967d6', '#268355', '#b05b12', '#8d4ec4', '#ca3d61', '#187f91', '#7a6c18', '#d05d2b', '#2a62a5', '#4f803f', '#aa4e9b', '#5d6f7c', '#b13838'];
+      return colors[index % colors.length];
     }
 
     function setPlaybackStatus(message) {

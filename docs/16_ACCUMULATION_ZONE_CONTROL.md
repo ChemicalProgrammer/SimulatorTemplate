@@ -46,11 +46,30 @@ The engine separates:
 
 The model uses one-second calculation ticks. Therefore it is a control-oriented approximation, not an individual-bottle PLC or collision model.
 
+## Controlled recovery after a Back-up clear
+
+A Back-up clear does **not** make all upstream equipment instantly run at nominal rate.
+
+1. The downstream machine must first consume enough material for the Back-up reset position to clear.
+2. The affected upstream machine then receives a start request.
+3. It applies its configured start delay and speed ramp.
+4. As each accumulation zone drains and its own sensor clears, the preceding machine receives its own start request.
+
+By default, the controlled machine uses:
+
+- `processData.upstream.startupTimeSeconds` as its start/restart delay.
+- `processData.downstream.rampUpTimeSeconds` as its speed-ramp duration.
+
+A Case may override these with equipment-level `startupDelaySeconds` / `restartRampUpSeconds`, or with zone-level `upstreamRestartDelaySeconds` / `upstreamRestartRampUpSeconds` for a particular Back-up interface.
+
+The new live state `STARTING` means the delay is running at zero effective speed; `RAMPING_UP` means the machine is accelerating. This models a controlled recovery cascade, but it is still a deterministic approximation—not a PLC logic replica.
+
 ## Equipment and zone states
 
 A live equipment card can now show:
 
 - `WAITING_FOR_PRIME`
+- `STARTING`
 - `RAMPING_UP`
 - `RUNNING`
 - `STARVED`
@@ -60,6 +79,12 @@ A live equipment card can now show:
 - `FAILURE`, `MICRO_STOP`, `PAUSED`, and `EMERGENCY_STOP`
 
 Every physical zone on the card that owns it shows inventory/capacity, in-transit units, Prime, Back-up, and overflow loss. The machine selected by `upstreamControlEquipmentId` shows its accumulated Back-up control time.
+
+## Rolling speed traces
+
+Every live equipment card includes a small rolling chart of its **actual** rate over the last 60 virtual seconds. The consolidated chart above the cards overlays the actual rates of every equipment unit, with a colour legend.
+
+The X-axis moves with the current virtual time; 1× affects playback only, not the calculated rate. A zero in either chart can mean a commanded stop, failure, starvation, Back-up control, start delay, or ramp phase; use the state chip and the accumulated time metrics on the same card to identify the cause.
 
 ## Public demonstration Case
 

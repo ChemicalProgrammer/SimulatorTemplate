@@ -99,6 +99,16 @@
         },
         "accumulationZone": {
           "$ref": "#/$defs/accumulationZone"
+        },
+        "startupDelaySeconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Optional machine start/restart delay. When omitted, the engine may use processData.upstream.startupTimeSeconds."
+        },
+        "restartRampUpSeconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Optional machine start/restart ramp duration. When omitted, the engine may use processData.downstream.rampUpTimeSeconds."
         }
       }
     },
@@ -282,6 +292,16 @@
         "downstreamRampUpSeconds": {
           "type": "number",
           "minimum": 0
+        },
+        "upstreamRestartDelaySeconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Optional override for the controlled upstream equipment after this Back-up sensor clears."
+        },
+        "upstreamRestartRampUpSeconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Optional ramp-up override for the controlled upstream equipment after this Back-up sensor clears."
         }
       },
       "anyOf": [

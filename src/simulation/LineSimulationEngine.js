@@ -18,19 +18,22 @@ function createRuntime(input) {
   const equipment = input.case.equipment.map((model) => createEquipmentRuntime(model, random));
   const zones = equipment.slice(0, -1).map((equipment, index) => createAccumulationZoneRuntime(
     equipment,
-    input.case.equipment[index + 1],
-    input.case.equipment
+    input.case.equipment[index + 1]
   ));
 
   equipment.forEach((equipment, index) => {
     const incomingZone = zones.find((zone) => zone.downstreamControlEquipmentId === equipment.id && zone.hasPrimeSensor);
     equipment.primeStartAuthorized = index === 0 || !incomingZone;
-    equipment.autoStartRampDurationSeconds = incomingZone ? incomingZone.downstreamRampUpSeconds : 0;
-    equipment.autoStartRampElapsedSeconds = incomingZone ? 0 : equipment.autoStartRampDurationSeconds;
+    equipment.startupDelaySeconds = resolveStartupDelaySeconds(equipment);
+    equipment.restartRampUpSeconds = resolveRestartRampUpSeconds(equipment);
+    equipment.startDelayRemainingSeconds = 0;
+    equipment.startRampDurationSeconds = 0;
+    equipment.startRampElapsedSeconds = 0;
+    equipment.startReason = null;
     equipment.backupControl = null;
   });
 
-  return {
+  const runtime = {
     caseId: input.case.id,
     unitOfFlow: input.case.unitOfFlow,
     run: input.run,
@@ -44,6 +47,13 @@ function createRuntime(input) {
     commandIndex: 0,
     commands: sortCommands(input.run.commands || [])
   };
+
+  const source = runtime.equipment[0];
+  if (source && isOperationalMode(source) && hasStartProfile(source)) {
+    requestEquipmentStart(runtime, source, 'INITIAL_START');
+  }
+
+  return runtime;
 }
 
 function createEquipmentRuntime(model, random) {
@@ -111,6 +121,8 @@ function createAccumulationZoneRuntime(owner, downstreamModel) {
     backupTriggerCount: 0,
     upstreamStopResponseSeconds: physical?.upstreamStopResponseSeconds || 0,
     bottlesDischargedAtStop: physical?.bottlesDischargedAtStop || 0,
+    upstreamRestartDelaySeconds: physical?.upstreamRestartDelaySeconds ?? null,
+    upstreamRestartRampUpSeconds: physical?.upstreamRestartRampUpSeconds ?? null,
     transit: [],
     waitingUnits: 0,
     overflowUnits: 0,
@@ -150,7 +162,9 @@ function normalizePhysicalZone(definition) {
       : null,
     upstreamStopResponseSeconds: definition.upstreamStopResponseSeconds || 0,
     bottlesDischargedAtStop: definition.bottlesDischargedAtStop || 0,
-    downstreamRampUpSeconds: definition.downstreamRampUpSeconds || 0
+    downstreamRampUpSeconds: definition.downstreamRampUpSeconds || 0,
+    upstreamRestartDelaySeconds: definition.upstreamRestartDelaySeconds ?? null,
+    upstreamRestartRampUpSeconds: definition.upstreamRestartRampUpSeconds ?? null
   };
 }
 
@@ -179,6 +193,10 @@ function initializeInitialMaterialStates(runtime) {
       equipment.availabilityState = 'STOPPED';
     } else if (requiresPrime(equipment)) {
       equipment.availabilityState = 'WAITING_FOR_PRIME';
+    } else if (isStartDelayed(equipment)) {
+      equipment.availabilityState = 'STARTING';
+    } else if (isRampingUp(equipment)) {
+      equipment.availabilityState = 'RAMPING_UP';
     } else if (index === 0) {
       equipment.availabilityState = 'READY';
     } else {
@@ -213,8 +231,9 @@ function triggerPrimeSensor(runtime, zone) {
   const downstream = getEquipment(runtime, zone.downstreamControlEquipmentId);
   if (downstream) {
     downstream.primeStartAuthorized = true;
-    downstream.autoStartRampDurationSeconds = zone.downstreamRampUpSeconds;
-    downstream.autoStartRampElapsedSeconds = 0;
+    requestEquipmentStart(runtime, downstream, 'PRIME_SENSOR', {
+      rampUpSeconds: zone.downstreamRampUpSeconds
+    });
   }
   runtime.events.push({
     type: 'PRIME_SENSOR_TRIGGERED',
@@ -255,8 +274,16 @@ function updateBackupSensor(runtime, zone) {
     zone.backupActive = false;
     const upstream = getEquipment(runtime, zone.upstreamControlEquipmentId);
     if (upstream && upstream.backupControl?.zoneId === zone.id) {
+      const completedBackupStop = upstream.backupControl.responseRemainingSeconds <= 0 &&
+        upstream.backupControl.residualRemainingUnits <= 0;
       upstream.backupControl.active = false;
       upstream.backupControl = null;
+      if (completedBackupStop && isOperationalMode(upstream) && !upstream.emergencyStopLatched) {
+        requestEquipmentStart(runtime, upstream, 'BACKUP_SENSOR_CLEAR', {
+          delaySeconds: zone.upstreamRestartDelaySeconds,
+          rampUpSeconds: zone.upstreamRestartRampUpSeconds
+        });
+      }
     }
     runtime.events.push({
       type: 'BACKUP_SENSOR_CLEARED',
@@ -284,13 +311,7 @@ function advanceEquipmentControlTimers(runtime) {
       }
     }
 
-    if (equipment.mode === 'AUTO' && equipment.primeStartAuthorized &&
-      equipment.autoStartRampElapsedSeconds < equipment.autoStartRampDurationSeconds) {
-      equipment.autoStartRampElapsedSeconds = Math.min(
-        equipment.autoStartRampDurationSeconds,
-        equipment.autoStartRampElapsedSeconds + runtime.run.tickSeconds
-      );
-    }
+    advanceEquipmentStart(runtime, equipment);
   });
 }
 
@@ -345,6 +366,7 @@ function applyCommand(runtime, equipment, action) {
   if (action === 'EMERGENCY_STOP') {
     equipment.emergencyStopLatched = true;
     equipment.mode = 'STOP';
+    cancelEquipmentStart(equipment);
     runtime.events.push({ type: 'EMERGENCY_STOP_APPLIED', atVirtualSecond: runtime.virtualSecond, equipmentId: equipment.id });
     return;
   }
@@ -356,6 +378,7 @@ function applyCommand(runtime, equipment, action) {
     }
     equipment.emergencyStopLatched = false;
     equipment.mode = 'STOP';
+    cancelEquipmentStart(equipment);
     runtime.events.push({ type: 'EMERGENCY_STOP_RESET', atVirtualSecond: runtime.virtualSecond, equipmentId: equipment.id });
     return;
   }
@@ -365,8 +388,14 @@ function applyCommand(runtime, equipment, action) {
     return;
   }
 
+  const wasOperational = isOperationalMode(equipment);
   equipment.mode = action === 'RUN' ? 'AUTO' : action;
+  if (!isOperationalMode(equipment)) cancelEquipmentStart(equipment);
   runtime.events.push({ type: 'COMMAND_APPLIED', atVirtualSecond: runtime.virtualSecond, equipmentId: equipment.id, action });
+
+  if (isOperationalMode(equipment) && !wasOperational) {
+    requestEquipmentStart(runtime, equipment, 'COMMAND_' + action);
+  }
 }
 
 function updateMicroStops(runtime) {
@@ -417,6 +446,12 @@ function processEquipment(runtime, index) {
     return;
   }
 
+  if (isStartDelayed(equipment)) {
+    equipment.actualRatePerSecond = 0;
+    equipment.availabilityState = 'STARTING';
+    return;
+  }
+
   const residualDischarge = Boolean(control && control.responseRemainingSeconds <= 0 && control.residualRemainingUnits > 0);
   const requestedFlow = residualDischarge
     ? Math.min(equipment.nominalRatePerSecond * tickSeconds, control.residualRemainingUnits)
@@ -442,13 +477,87 @@ function processEquipment(runtime, index) {
 }
 
 function getRequestedFlow(equipment, tickSeconds) {
-  if (equipment.mode === 'AUTO' && equipment.autoStartRampElapsedSeconds < equipment.autoStartRampDurationSeconds) {
-    const rampFactor = equipment.autoStartRampDurationSeconds <= 0
+  if (isStartDelayed(equipment)) return 0;
+  if (isRampingUp(equipment)) {
+    const rampFactor = equipment.startRampDurationSeconds <= 0
       ? 1
-      : equipment.autoStartRampElapsedSeconds / equipment.autoStartRampDurationSeconds;
+      : equipment.startRampElapsedSeconds / equipment.startRampDurationSeconds;
     return equipment.nominalRatePerSecond * tickSeconds * rampFactor;
   }
   return equipment.nominalRatePerSecond * tickSeconds;
+}
+
+function hasStartProfile(equipment) {
+  return equipment.startupDelaySeconds > 0 || equipment.restartRampUpSeconds > 0;
+}
+
+function requestEquipmentStart(runtime, equipment, reason, options = {}) {
+  if (!equipment || equipment.emergencyStopLatched || !isOperationalMode(equipment)) return false;
+  const delaySeconds = firstNonNegative(options.delaySeconds, equipment.startupDelaySeconds);
+  const rampUpSeconds = firstNonNegative(options.rampUpSeconds, equipment.restartRampUpSeconds);
+  equipment.startDelayRemainingSeconds = delaySeconds;
+  equipment.startRampDurationSeconds = rampUpSeconds;
+  equipment.startRampElapsedSeconds = 0;
+  equipment.startReason = reason;
+  runtime.events.push({
+    type: 'EQUIPMENT_START_SEQUENCE_REQUESTED',
+    atVirtualSecond: runtime.virtualSecond,
+    equipmentId: equipment.id,
+    reason,
+    delaySeconds,
+    rampUpSeconds
+  });
+  return true;
+}
+
+function cancelEquipmentStart(equipment) {
+  equipment.startDelayRemainingSeconds = 0;
+  equipment.startRampDurationSeconds = 0;
+  equipment.startRampElapsedSeconds = 0;
+  equipment.startReason = null;
+}
+
+function advanceEquipmentStart(runtime, equipment) {
+  if (!isAvailable(equipment) || activeBackupControl(equipment)) return;
+  if (isStartDelayed(equipment)) {
+    equipment.startDelayRemainingSeconds = Math.max(0, equipment.startDelayRemainingSeconds - runtime.run.tickSeconds);
+    return;
+  }
+  if (isRampingUp(equipment)) {
+    equipment.startRampElapsedSeconds = Math.min(
+      equipment.startRampDurationSeconds,
+      equipment.startRampElapsedSeconds + runtime.run.tickSeconds
+    );
+  }
+}
+
+function isStartDelayed(equipment) {
+  return equipment.startDelayRemainingSeconds > 0;
+}
+
+function isRampingUp(equipment) {
+  return equipment.startRampElapsedSeconds < equipment.startRampDurationSeconds;
+}
+
+function resolveStartupDelaySeconds(equipment) {
+  return firstNonNegative(
+    equipment.startupDelaySeconds,
+    equipment.processData?.upstream?.startupTimeSeconds
+  );
+}
+
+function resolveRestartRampUpSeconds(equipment) {
+  return firstNonNegative(
+    equipment.restartRampUpSeconds,
+    equipment.processData?.downstream?.rampUpTimeSeconds
+  );
+}
+
+function firstNonNegative(...values) {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return value;
+  }
+  return 0;
 }
 
 function getDownstreamSpace(runtime, index) {
@@ -512,7 +621,7 @@ function recordMaterialState(equipment, requestedFlow, inputAvailable, downstrea
       equipment.availabilityState = control.responseRemainingSeconds > 0 || residualDischarge
         ? 'BACKUP_STOPPING'
         : 'BACKUP_STOP';
-    } else if (equipment.mode === 'AUTO' && equipment.autoStartRampElapsedSeconds < equipment.autoStartRampDurationSeconds) {
+    } else if (isRampingUp(equipment)) {
       equipment.availabilityState = 'RAMPING_UP';
     } else {
       equipment.availabilityState = 'RUNNING';
@@ -668,7 +777,7 @@ function createResult(runtime) {
   return {
     caseId: runtime.caseId,
     unitOfFlow: runtime.unitOfFlow,
-    engineVersion: '0.5.0',
+    engineVersion: '0.6.0',
     seed: runtime.run.seed,
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),

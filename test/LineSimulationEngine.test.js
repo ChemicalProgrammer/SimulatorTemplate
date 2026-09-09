@@ -296,3 +296,115 @@ test('rejects a physical zone that refers to an unknown controlled equipment uni
   assert.equal(response.ok, false);
   assert.ok(response.error.details.some((detail) => detail.path === 'case.equipment[0].accumulationZone.upstreamControlEquipmentId'));
 });
+
+
+test('applies the configured start delay and ramp instead of resuming at nominal speed', () => {
+  const input = {
+    case: {
+      id: 'start-profile',
+      unitOfFlow: 'bottles',
+      equipment: [
+        {
+          id: 'source',
+          nominalRatePerSecond: 10,
+          bufferAfterCapacity: 100,
+          initialMode: 'STOP',
+          processData: {
+            upstream: { startupTimeSeconds: 2 },
+            downstream: { rampUpTimeSeconds: 4 }
+          }
+        },
+        { id: 'downstream', nominalRatePerSecond: 10, bufferAfterCapacity: 0, initialMode: 'AUTO' }
+      ]
+    },
+    run: {
+      durationSeconds: 8,
+      tickSeconds: 1,
+      sampleEverySeconds: 1,
+      seed: 11,
+      commands: [{ atVirtualSecond: 0, equipmentId: 'source', action: 'RUN' }]
+    }
+  };
+
+  const response = simulateLine(input);
+  const samples = response.result.samples;
+  const sourceAtOneSecond = samples.find((sample) => sample.virtualSecond === 1).equipment[0];
+  const sourceDuringRamp = samples.find((sample) => sample.virtualSecond === 5).equipment[0];
+  const sourceAfterRamp = samples.find((sample) => sample.virtualSecond === 8).equipment[0];
+
+  assert.equal(response.ok, true);
+  assert.equal(sourceAtOneSecond.availabilityState, 'STARTING');
+  assert.equal(sourceAtOneSecond.actualRatePerSecond, 0);
+  assert.equal(sourceDuringRamp.availabilityState, 'RAMPING_UP');
+  assert.ok(sourceDuringRamp.actualRatePerSecond > 0);
+  assert.ok(sourceDuringRamp.actualRatePerSecond < 10);
+  assert.equal(sourceAfterRamp.availabilityState, 'RUNNING');
+  assert.equal(sourceAfterRamp.actualRatePerSecond, 10);
+});
+
+test('Back-up recovery waits for the sensor clear and then uses the upstream start profile', () => {
+  const input = {
+    case: {
+      id: 'backup-controlled-restart',
+      unitOfFlow: 'bottles',
+      equipment: [
+        {
+          id: 'source',
+          nominalRatePerSecond: 5,
+          bufferAfterCapacity: 1,
+          initialMode: 'AUTO',
+          processData: {
+            upstream: { startupTimeSeconds: 2 },
+            downstream: { rampUpTimeSeconds: 3 }
+          },
+          accumulationZone: {
+            usableLengthMm: 100,
+            productPitchMm: 10,
+            conveyorSpeedMmPerSecond: 100,
+            backupSensorPositionMm: 50,
+            backupRestartPositionMm: 60,
+            upstreamControlEquipmentId: 'source',
+            downstreamControlEquipmentId: 'downstream',
+            upstreamStopResponseSeconds: 0,
+            bottlesDischargedAtStop: 0
+          }
+        },
+        {
+          id: 'downstream',
+          nominalRatePerSecond: 5,
+          bufferAfterCapacity: 0,
+          initialMode: 'STOP',
+          processData: {
+            upstream: { startupTimeSeconds: 1 },
+            downstream: { rampUpTimeSeconds: 2 }
+          }
+        }
+      ]
+    },
+    run: {
+      durationSeconds: 12,
+      tickSeconds: 1,
+      sampleEverySeconds: 1,
+      seed: 7,
+      commands: [{ atVirtualSecond: 5, equipmentId: 'downstream', action: 'RUN' }]
+    }
+  };
+
+  const response = simulateLine(input);
+  const clearEvent = response.result.events.find((event) => event.type === 'BACKUP_SENSOR_CLEARED');
+  const recoveryRequest = response.result.events.find((event) =>
+    event.type === 'EQUIPMENT_START_SEQUENCE_REQUESTED' &&
+    event.equipmentId === 'source' &&
+    event.reason === 'BACKUP_SENSOR_CLEAR'
+  );
+  const sourceAfterClear = response.result.samples.find(
+    (sample) => sample.virtualSecond === clearEvent.atVirtualSecond + 1
+  ).equipment[0];
+
+  assert.equal(response.ok, true);
+  assert.ok(clearEvent);
+  assert.ok(recoveryRequest);
+  assert.equal(recoveryRequest.atVirtualSecond, clearEvent.atVirtualSecond);
+  assert.equal(sourceAfterClear.availabilityState, 'STARTING');
+  assert.equal(sourceAfterClear.actualRatePerSecond, 0);
+});

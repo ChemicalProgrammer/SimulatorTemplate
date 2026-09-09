@@ -50,6 +50,7 @@ function validateCase(caseModel, details) {
       details.push(invalid(path + '.initialMode', 'must be AUTO, MANUAL, PAUSE, or STOP'));
     }
     validateNoiseProfile(equipment.noiseProfile, path, details);
+    validateStartProfile(equipment, path, details);
   });
 
   caseModel.equipment.forEach((equipment, index) => {
@@ -57,6 +58,27 @@ function validateCase(caseModel, details) {
       validateAccumulationZone(equipment.accumulationZone, 'case.equipment[' + index + '].accumulationZone', ids, details);
     }
   });
+}
+
+function validateStartProfile(equipment, path, details) {
+  validateOptionalNonNegative(equipment.startupDelaySeconds, path + '.startupDelaySeconds', details);
+  validateOptionalNonNegative(equipment.restartRampUpSeconds, path + '.restartRampUpSeconds', details);
+  validateOptionalNonNegative(
+    equipment.processData?.upstream?.startupTimeSeconds,
+    path + '.processData.upstream.startupTimeSeconds',
+    details
+  );
+  validateOptionalNonNegative(
+    equipment.processData?.downstream?.rampUpTimeSeconds,
+    path + '.processData.downstream.rampUpTimeSeconds',
+    details
+  );
+}
+
+function validateOptionalNonNegative(value, path, details) {
+  if (value !== undefined && value !== null && !nonNegativeNumber(value)) {
+    details.push(invalid(path, 'must be a number greater than or equal to zero'));
+  }
 }
 
 function validateAccumulationZone(zone, path, equipmentIds, details) {
@@ -110,6 +132,17 @@ function validateAccumulationZone(zone, path, equipmentIds, details) {
   if (zone.downstreamRampUpSeconds !== undefined && !nonNegativeNumber(zone.downstreamRampUpSeconds)) {
     details.push(invalid(path + '.downstreamRampUpSeconds', 'must be a number greater than or equal to zero'));
   }
+
+  validateOptionalNonNegative(
+    zone.upstreamRestartDelaySeconds,
+    path + '.upstreamRestartDelaySeconds',
+    details
+  );
+  validateOptionalNonNegative(
+    zone.upstreamRestartRampUpSeconds,
+    path + '.upstreamRestartRampUpSeconds',
+    details
+  );
 
   validateEquipmentReference(zone.upstreamControlEquipmentId, path + '.upstreamControlEquipmentId', equipmentIds, details);
   validateEquipmentReference(zone.downstreamControlEquipmentId, path + '.downstreamControlEquipmentId', equipmentIds, details);

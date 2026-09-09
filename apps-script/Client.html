@@ -566,6 +566,7 @@
       setPlaybackStatus((state.run.playing ? 'Playing' : 'At') + ' ' + time + ' s · frame ' + state.run.sampleIndex + ' / ' + (state.run.result.samples.length - 1));
       renderLiveEquipment(sample);
       drawSimulationChart();
+      drawEquipmentSpeedChart();
     }
 
     function formatInstantaneousOutputRate() {
@@ -585,7 +586,7 @@
         var card = document.createElement('article');
         var availabilityState = unit.availabilityState || unit.mode || 'UNKNOWN';
         card.className = 'live-equipment-card state-' + availabilityState.toLowerCase().replace(/_/g, '-');
-        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Waiting for Prime</span><b class="live-waiting-prime"></b></div><div><span>Back-up stop</span><b class="live-backup-stop"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div><div class="live-equipment-controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div>';
+        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Waiting for Prime</span><b class="live-waiting-prime"></b></div><div><span>Back-up stop</span><b class="live-backup-stop"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div><div class="equipment-speed-sparkline-heading"><span>Actual speed · last 60 virtual s</span><b class="live-nominal-rate"></b></div><canvas class="equipment-speed-sparkline" height="56" aria-label="Rolling actual-speed chart"></canvas><div class="live-equipment-controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div>';
         card.querySelector('strong').textContent = model.name || unit.id;
         card.querySelector('.live-state').textContent = availabilityState;
         card.querySelector('.live-command').textContent = 'Command: ' + unit.mode;
@@ -598,6 +599,7 @@
         card.querySelector('.live-backup-stop').textContent = formatMinutes(unit.backupStopSeconds);
         card.querySelector('.live-failure').textContent = formatMinutes(unit.failureSeconds);
         card.querySelector('.live-emergency').textContent = formatMinutes(unit.emergencyStopSeconds);
+        card.querySelector('.live-nominal-rate').textContent = 'Nominal ' + formatRatePerMinute(model.nominalRatePerSecond);
         bindLiveEquipmentControl(card.querySelector('.live-control-run'), unit.id, 'RUN');
         bindLiveEquipmentControl(card.querySelector('.live-control-pause'), unit.id, 'PAUSE');
         bindLiveEquipmentControl(card.querySelector('.live-control-stop'), unit.id, 'STOP');
@@ -609,6 +611,7 @@
           card.appendChild(createAccumulationZonePanel(zone));
         }
         target.appendChild(card);
+        drawEquipmentSpeedSparkline(card.querySelector('.equipment-speed-sparkline'), index, model);
       });
     }
 
@@ -707,6 +710,159 @@
       context.fillText('0', padding.left - 8, padding.top + plotHeight + 16);
       context.fillText(formatNumber(maxOutput), padding.left - 34, padding.top + 6);
       context.fillText(maxTime + ' s', padding.left + plotWidth - 24, padding.top + plotHeight + 20);
+    }
+
+    function drawEquipmentSpeedChart() {
+      var canvas = document.getElementById('equipment-speed-chart');
+      var legend = document.getElementById('equipment-speed-legend');
+      if (!canvas || !legend || !state.run.result || !state.activeCase) return;
+
+      var samples = getRollingSpeedSamples();
+      var models = state.activeCase.equipment || [];
+      var drawing = prepareLineCanvas(canvas, 270);
+      if (!drawing) return;
+      var context = drawing.context;
+      var padding = { left: 46, right: 16, top: 22, bottom: 32 };
+      var plotWidth = drawing.width - padding.left - padding.right;
+      var plotHeight = drawing.height - padding.top - padding.bottom;
+      var endTime = samples.length ? samples[samples.length - 1].virtualSecond : 0;
+      var startTime = samples.length ? samples[0].virtualSecond : 0;
+      var timeRange = Math.max(1, endTime - startTime);
+      var maxRate = Math.max(1, models.reduce(function(maximum, model) {
+        return Math.max(maximum, Number(model.nominalRatePerSecond || 0) * 60);
+      }, 0));
+      samples.forEach(function(sample) {
+        sample.equipment.forEach(function(unit) {
+          maxRate = Math.max(maxRate, Number(unit.actualRatePerSecond || 0) * 60);
+        });
+      });
+      maxRate = Math.ceil(maxRate / 25) * 25 || 25;
+
+      context.strokeStyle = '#d9e1ef';
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(padding.left, padding.top);
+      context.lineTo(padding.left, padding.top + plotHeight);
+      context.lineTo(padding.left + plotWidth, padding.top + plotHeight);
+      context.stroke();
+      for (var grid = 1; grid < 4; grid += 1) {
+        var gridY = padding.top + plotHeight - grid / 4 * plotHeight;
+        context.strokeStyle = '#edf1f7';
+        context.beginPath();
+        context.moveTo(padding.left, gridY);
+        context.lineTo(padding.left + plotWidth, gridY);
+        context.stroke();
+      }
+
+      models.forEach(function(model, index) {
+        drawSpeedSeries(
+          context,
+          samples,
+          index,
+          function(sample) { return padding.left + (sample.virtualSecond - startTime) / timeRange * plotWidth; },
+          function(ratePerSecond) { return padding.top + plotHeight - Math.min(maxRate, Number(ratePerSecond || 0) * 60) / maxRate * plotHeight; },
+          speedColor(index),
+          1.8
+        );
+      });
+
+      context.fillStyle = '#657187';
+      context.font = '12px Arial';
+      context.fillText('Actual BPM', padding.left, 13);
+      context.fillText('0', padding.left - 10, padding.top + plotHeight + 16);
+      context.fillText(formatNumber(maxRate), padding.left - 38, padding.top + 8);
+      context.fillText(startTime + '–' + endTime + ' s', Math.max(padding.left, padding.left + plotWidth - 70), padding.top + plotHeight + 20);
+
+      legend.textContent = '';
+      models.forEach(function(model, index) {
+        var item = document.createElement('span');
+        item.className = 'equipment-speed-legend-item';
+        var swatch = document.createElement('i');
+        swatch.style.backgroundColor = speedColor(index);
+        item.appendChild(swatch);
+        item.appendChild(document.createTextNode(model.name || model.id || ('Unit ' + (index + 1))));
+        legend.appendChild(item);
+      });
+    }
+
+    function drawEquipmentSpeedSparkline(canvas, equipmentIndex, model) {
+      if (!canvas) return;
+      var samples = getRollingSpeedSamples();
+      var drawing = prepareLineCanvas(canvas, 56);
+      if (!drawing) return;
+      var context = drawing.context;
+      var padding = { left: 2, right: 2, top: 4, bottom: 4 };
+      var plotWidth = drawing.width - padding.left - padding.right;
+      var plotHeight = drawing.height - padding.top - padding.bottom;
+      var endTime = samples.length ? samples[samples.length - 1].virtualSecond : 0;
+      var startTime = samples.length ? samples[0].virtualSecond : 0;
+      var timeRange = Math.max(1, endTime - startTime);
+      var maxRate = Math.max(1, Number(model.nominalRatePerSecond || 0) * 60);
+      samples.forEach(function(sample) {
+        var unit = sample.equipment[equipmentIndex];
+        maxRate = Math.max(maxRate, Number(unit && unit.actualRatePerSecond || 0) * 60);
+      });
+      maxRate *= 1.05;
+
+      context.strokeStyle = '#e5ebf4';
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(padding.left, padding.top + plotHeight);
+      context.lineTo(padding.left + plotWidth, padding.top + plotHeight);
+      context.stroke();
+      drawSpeedSeries(
+        context,
+        samples,
+        equipmentIndex,
+        function(sample) { return padding.left + (sample.virtualSecond - startTime) / timeRange * plotWidth; },
+        function(ratePerSecond) { return padding.top + plotHeight - Math.min(maxRate, Number(ratePerSecond || 0) * 60) / maxRate * plotHeight; },
+        speedColor(equipmentIndex),
+        1.8
+      );
+    }
+
+    function drawSpeedSeries(context, samples, equipmentIndex, xForSample, yForRate, color, lineWidth) {
+      if (!samples.length) return;
+      context.strokeStyle = color;
+      context.lineWidth = lineWidth;
+      context.lineJoin = 'round';
+      context.lineCap = 'round';
+      context.beginPath();
+      samples.forEach(function(sample, sampleIndex) {
+        var unit = sample.equipment[equipmentIndex];
+        var x = xForSample(sample);
+        var y = yForRate(unit ? unit.actualRatePerSecond : 0);
+        if (sampleIndex === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      });
+      context.stroke();
+    }
+
+    function getRollingSpeedSamples() {
+      if (!state.run.result || !state.run.result.samples) return [];
+      var allSamples = state.run.result.samples.slice(0, state.run.sampleIndex + 1);
+      if (!allSamples.length) return [];
+      var endTime = allSamples[allSamples.length - 1].virtualSecond;
+      var startTime = Math.max(0, endTime - 60);
+      return allSamples.filter(function(sample) { return sample.virtualSecond >= startTime; });
+    }
+
+    function prepareLineCanvas(canvas, height) {
+      var bounds = canvas.getBoundingClientRect();
+      var width = Math.max(1, Math.floor(bounds.width));
+      if (width <= 1) return null;
+      var ratio = window.devicePixelRatio || 1;
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+      var context = canvas.getContext('2d');
+      context.scale(ratio, ratio);
+      context.clearRect(0, 0, width, height);
+      return { context: context, width: width, height: height };
+    }
+
+    function speedColor(index) {
+      var colors = ['#3967d6', '#268355', '#b05b12', '#8d4ec4', '#ca3d61', '#187f91', '#7a6c18', '#d05d2b', '#2a62a5', '#4f803f', '#aa4e9b', '#5d6f7c', '#b13838'];
+      return colors[index % colors.length];
     }
 
     function setPlaybackStatus(message) {
