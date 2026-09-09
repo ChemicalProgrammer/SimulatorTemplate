@@ -376,7 +376,7 @@
     function createControlEventRow(command, index) {
       var row = document.createElement('article');
       row.className = 'control-event';
-      row.innerHTML = '<label>At virtual second<input class="command-time" type="number" min="0" step="any"></label><label>Equipment<select class="command-equipment"></select></label><label>Action<select class="command-action"><option value="RUN">Run</option><option value="PAUSE">Pause</option><option value="STOP">Stop</option><option value="MANUAL">Manual</option><option value="AUTO">Automatic</option></select></label><button class="remove-command danger" type="button">Remove</button>';
+      row.innerHTML = '<label>At virtual second<input class="command-time" type="number" min="0" step="any"></label><label>Equipment<select class="command-equipment"></select></label><label>Action<select class="command-action"><option value="RUN">Run</option><option value="PAUSE">Pause</option><option value="STOP">Planned stop</option><option value="EMERGENCY_STOP">Emergency stop</option><option value="RESET">Reset emergency stop</option><option value="MANUAL">Manual</option><option value="AUTO">Automatic</option></select></label><button class="remove-command danger" type="button">Remove</button>';
       var equipmentSelect = row.querySelector('.command-equipment');
       state.activeCase.equipment.forEach(function(equipment) {
         var option = document.createElement('option');
@@ -507,12 +507,19 @@
       sample.equipment.forEach(function(unit, index) {
         var model = state.activeCase.equipment[index] || {};
         var card = document.createElement('article');
-        card.className = 'live-equipment-card';
-        card.innerHTML = '<strong></strong><span></span><span></span><span></span>';
+        var availabilityState = unit.availabilityState || unit.mode || 'UNKNOWN';
+        card.className = 'live-equipment-card state-' + availabilityState.toLowerCase().replace(/_/g, '-');
+        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div>';
         card.querySelector('strong').textContent = model.name || unit.id;
-        card.querySelectorAll('span')[0].textContent = unit.availabilityState || unit.mode;
-        card.querySelectorAll('span')[1].textContent = 'Command: ' + unit.mode;
-        card.querySelectorAll('span')[2].textContent = formatNumber(unit.outputCount) + ' output';
+        card.querySelector('.live-state').textContent = availabilityState;
+        card.querySelector('.live-command').textContent = 'Command: ' + unit.mode;
+        card.querySelector('.live-flow-label').textContent = index === 0 ? 'Produced' : 'Processed';
+        card.querySelector('.live-processed').textContent = formatNumber(unit.processedUnits === undefined ? unit.outputCount : unit.processedUnits);
+        card.querySelector('.live-rate').textContent = formatRatePerMinute(unit.actualRatePerSecond);
+        card.querySelector('.live-starved').textContent = formatMinutes(unit.starvedSeconds);
+        card.querySelector('.live-blocked').textContent = formatMinutes(unit.blockedSeconds);
+        card.querySelector('.live-failure').textContent = formatMinutes(unit.failureSeconds);
+        card.querySelector('.live-emergency').textContent = formatMinutes(unit.emergencyStopSeconds);
         target.appendChild(card);
       });
     }
@@ -572,6 +579,14 @@
 
     function formatNumber(value) {
       return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    function formatRatePerMinute(ratePerSecond) {
+      return formatNumber(Number(ratePerSecond || 0) * 60) + ' /min';
+    }
+
+    function formatMinutes(seconds) {
+      return formatNumber(Number(seconds || 0) / 60) + ' min';
     }
 
     function callServer(name, args, onSuccess) {
