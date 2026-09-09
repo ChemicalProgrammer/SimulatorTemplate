@@ -12,6 +12,7 @@ const serverFiles = [
   'DriveService.gs',
   'CaseService.gs',
   'ReferenceCaseFactory.gs',
+  'PublicDemoCaseFactory.gs',
   'Main.gs'
 ];
 
@@ -60,11 +61,15 @@ export function buildManualAppsScriptBundle(rootDirectory = repositoryRoot) {
   index = '<!-- GENERATED FILE — edit the modular sources in apps-script/, not this file. -->\n' + index + '\n';
 
   fs.mkdirSync(manualDirectory, { recursive: true });
-  const codePath = path.join(manualDirectory, 'Code.gs');
-  const indexPath = path.join(manualDirectory, 'Index.html');
+  const codePath = path.join(rootDirectory, 'Code.gs');
+  const indexPath = path.join(rootDirectory, 'Index.html');
+  const manualCodePath = path.join(manualDirectory, 'Code.gs');
+  const manualIndexPath = path.join(manualDirectory, 'Index.html');
   fs.writeFileSync(codePath, code);
   fs.writeFileSync(indexPath, index);
-  return { codePath, indexPath };
+  fs.writeFileSync(manualCodePath, code);
+  fs.writeFileSync(manualIndexPath, index);
+  return { codePath, indexPath, manualCodePath, manualIndexPath };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
