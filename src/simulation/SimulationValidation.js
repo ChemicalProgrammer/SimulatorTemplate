@@ -81,8 +81,11 @@ function validateNoiseProfile(noiseProfile, equipmentPath, details) {
     details.push(invalid(`${equipmentPath}.noiseProfile`, 'must be an object'));
     return;
   }
-  if (noiseProfile.microStop === undefined) return;
-  const microStop = noiseProfile.microStop;
+  if (noiseProfile.microStop !== undefined) validateMicroStop(noiseProfile.microStop, equipmentPath, details);
+  if (noiseProfile.reliability !== undefined) validateReliability(noiseProfile.reliability, equipmentPath, details);
+}
+
+function validateMicroStop(microStop, equipmentPath, details) {
   const path = `${equipmentPath}.noiseProfile.microStop`;
   if (!microStop || typeof microStop !== 'object' || Array.isArray(microStop)) {
     details.push(invalid(path, 'must be an object'));
@@ -99,6 +102,20 @@ function validateNoiseProfile(noiseProfile, equipmentPath, details) {
   }
   if (nonNegativeNumber(microStop.minDurationSeconds) && nonNegativeNumber(microStop.maxDurationSeconds) && microStop.minDurationSeconds > microStop.maxDurationSeconds) {
     details.push(invalid(`${path}.maxDurationSeconds`, 'must be greater than or equal to minDurationSeconds'));
+  }
+}
+
+function validateReliability(reliability, equipmentPath, details) {
+  const path = `${equipmentPath}.noiseProfile.reliability`;
+  if (!reliability || typeof reliability !== 'object' || Array.isArray(reliability)) {
+    details.push(invalid(path, 'must be an object'));
+    return;
+  }
+  if (!positiveNumber(reliability.mtbfMinutes)) {
+    details.push(invalid(`${path}.mtbfMinutes`, 'must be a number greater than zero'));
+  }
+  if (!positiveNumber(reliability.mttrMinutes)) {
+    details.push(invalid(`${path}.mttrMinutes`, 'must be a number greater than zero'));
   }
 }
 
