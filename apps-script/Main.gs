@@ -49,6 +49,12 @@ function createReferenceCase() {
   });
 }
 
+function createPublicDemoCase() {
+  return executeServerAction_(function(user) {
+    return createCase_(createPublicDemoCaseRequest_(), user);
+  });
+}
+
 function executeServerAction_(action) {
   try {
     var user = requireCurrentUser_();
