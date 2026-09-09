@@ -29,6 +29,7 @@ The product goal is not a generic AI chat. It is a deterministic dynamic simulat
 | [Initial roadmap](docs/06_INITIAL_ROADMAP.md) | Staged implementation plan |
 | [Open decisions](docs/07_OPEN_DECISIONS.md) | Decisions to validate before code implementation |
 | [Reference engine](docs/08_REFERENCE_ENGINE.md) | Runnable deterministic MVP and JSON contracts |
+| [Apps Script scaffold](docs/09_APPS_SCRIPT_SCAFFOLD.md) | Authentication, Drive workspace, and minimal console |
 
 ## Initial technical decision
 
