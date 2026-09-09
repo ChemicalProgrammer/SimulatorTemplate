@@ -28,6 +28,7 @@ The product goal is not a generic AI chat. It is a deterministic dynamic simulat
 | [Security and data](docs/05_SECURITY_AND_DATA.md) | Authentication, authorization, data separation, and Gemini safety |
 | [Initial roadmap](docs/06_INITIAL_ROADMAP.md) | Staged implementation plan |
 | [Open decisions](docs/07_OPEN_DECISIONS.md) | Decisions to validate before code implementation |
+| [Reference engine](docs/08_REFERENCE_ENGINE.md) | Runnable deterministic MVP and JSON contracts |
 
 ## Initial technical decision
 
@@ -37,4 +38,4 @@ Introduce a separate Python service only when validated requirements need high-f
 
 ## Status
 
-Architecture documentation scaffold created. The next implementation artifact should be a JSON schema and a small, seeded reference line before any Gemini workflow or polished UI.
+The first runnable reference engine is now included. From the repository root, run `node --test` to validate its deterministic behavior without installing dependencies.
