@@ -61,6 +61,7 @@ function createNewCaseRecord_(request, user) {
     unitOfFlow: normalizeUnitOfFlow_(request.unitOfFlow),
     equipment: equipment,
     engineConfig: normalizeObject_(request.engineConfig),
+    metadata: normalizeCaseMetadata_(request.metadata),
     stateIds: normalizeStringList_(request.stateIds),
     ownerEmail: user.email,
     revision: 1,
@@ -77,6 +78,7 @@ function buildUpdatedCase_(request, current, user) {
     unitOfFlow: normalizeUnitOfFlow_(request.unitOfFlow),
     equipment: normalizeEquipmentList_(request.equipment),
     engineConfig: normalizeObject_(request.engineConfig || current.engineConfig),
+    metadata: request.metadata === undefined ? normalizeCaseMetadata_(current.metadata) : normalizeCaseMetadata_(request.metadata),
     stateIds: normalizeStringList_(current.stateIds),
     ownerEmail: user.email,
     revision: Number(current.revision || 0) + 1,
@@ -173,6 +175,14 @@ function normalizeProcessData_(processData) {
   return processData;
 }
 
+function normalizeCaseMetadata_(metadata) {
+  if (metadata === undefined) return {};
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    throw createSimulatorError_('INVALID_CASE', 'metadata must be an object when provided.');
+  }
+  return metadata;
+}
+
 function requireEquipmentId_(id, path) {
   if (typeof id !== 'string' || !/^[a-z0-9-]+$/i.test(id)) {
     throw createSimulatorError_('INVALID_CASE', path + '.id must contain only letters, numbers, and hyphens.');
@@ -210,6 +220,7 @@ function tryReadCaseFile_(file) {
 }
 
 function toCaseSummary_(caseData, file) {
+  var metadata = caseData.metadata && typeof caseData.metadata === 'object' && !Array.isArray(caseData.metadata) ? caseData.metadata : {};
   return {
     id: caseData.id,
     name: caseData.name,
@@ -217,6 +228,7 @@ function toCaseSummary_(caseData, file) {
     isSimulationReady: Array.isArray(caseData.equipment) && caseData.equipment.length >= 2,
     revision: Number(caseData.revision || 1),
     updatedAt: caseData.updatedAt,
-    fileId: file.getId()
+    fileId: file.getId(),
+    dataClassification: typeof metadata.dataClassification === 'string' ? metadata.dataClassification : null
   };
 }
