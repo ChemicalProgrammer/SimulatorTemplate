@@ -1,5 +1,5 @@
 function doGet() {
-  return HtmlService.createTemplateFromFile('Index')
+  return HtmlService.createTemplateFromFile('WebApp')
     .evaluate()
     .setTitle('SimulatorTemplate');
 }

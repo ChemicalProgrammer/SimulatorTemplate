@@ -39,6 +39,8 @@ Every object carries the known field names, all expressed in the stated units:
 
 No physical interpretation is assigned to LACT or LP Prime yet. Their labels are preserved literally and their values remain null until their meaning and measurement basis are confirmed.
 
+`packageLengthMm` and `dischargePitchMm` are preserved, but they are not yet used by the engine. There is no independent `gapMm` input in the current contract. A derived gap of `pitch − length` is only valid when both values use the same longitudinal datum and pitch is centre-to-centre; it must not be silently assumed for every machine interface. A geometry-aware model will additionally need the usable conveyor/accumulation length and the belt or discharge velocity to calculate physical capacity and transit time.
+
 ## Unknown information
 
 The four remaining Speed & sensors fields are not represented as guessed names. They remain a documented known gap and additionalParameters is intentionally empty. Add them only after their exact names, units, and effect on the process are known.

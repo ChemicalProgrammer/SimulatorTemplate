@@ -49,6 +49,7 @@
   .raw-viewer summary { color: #264ca7; cursor: pointer; font-weight: 700; }
   .raw-viewer textarea { font-family: Consolas, monospace; margin-top: 12px; min-height: 260px; }
   .notice { background: #fff6d9; border: 1px solid #f1d67a; border-radius: 8px; color: #785a00; margin: 18px 0; padding: 12px; }
+  .model-boundary { font-size: 13px; margin: 14px 0; }
   .run-config { margin-top: 20px; }
   .run-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; }
   .compact-heading { margin-top: 18px; }
@@ -59,7 +60,7 @@
   .playback-toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 14px; }
   .playback-toolbar button { margin: 0; }
   #playback-status { color: #576275; font-size: 13px; margin-left: 4px; }
-  .metrics-grid { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .metrics-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .metrics-grid article { background: #f8faff; border: 1px solid #e0e6f0; border-radius: 10px; padding: 14px; }
   .metrics-grid span { color: #657187; display: block; font-size: 12px; }
   .metrics-grid strong { color: #264ca7; display: block; font-size: 20px; margin-top: 6px; }
@@ -74,6 +75,16 @@
   .live-equipment-stats div { background: #fff; border-radius: 7px; padding: 7px; }
   .live-equipment-stats span { color: #657187; display: block; font-size: 10px; text-transform: uppercase; }
   .live-equipment-stats b { color: #264ca7; display: block; font-size: 13px; margin-top: 2px; }
+  .live-controls-help { font-size: 12px; margin: 16px 0 0; }
+  .live-equipment-controls { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
+  .live-equipment-controls button { font-size: 11px; margin: 0; padding: 8px 6px; }
+  .live-equipment-controls .live-control-stop { background: #f3ecdc; color: #765f19; }
+  .live-equipment-controls .live-control-stop:hover { background: #eadfbe; }
+  .live-equipment-controls .live-control-emergency { background: #fce5e5; color: #a12b2b; }
+  .live-equipment-controls .live-control-emergency:hover { background: #f4d2d2; }
+  .live-equipment-controls .live-control-run { grid-column: span 2; }
+  .state-ready { border-left-color: #657187; }
+  .state-ready .live-state { background: #edf1f7; color: #3d485a; }
   .state-running { border-left-color: #268355; }
   .state-running .live-state { background: #e2f5e9; color: #17633d; }
   .state-starved { border-left-color: #d28b19; }
@@ -85,5 +96,5 @@
   .state-micro-stop, .state-paused, .state-stopped { border-left-color: #657187; }
   .sr-only { height: 1px; margin: -1px; overflow: hidden; position: absolute; width: 1px; }
   @media (max-width: 760px) { .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .run-fields, .control-event { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 600px) { .topbar, .section-heading, .editor-subheading, .equipment-header { align-items: flex-start; flex-direction: column; } .field-grid, .equipment-grid, .new-case-form, .run-fields, .control-event, .metrics-grid { grid-template-columns: 1fr; } .case-row, .case-actions { align-items: flex-start; flex-direction: column; } }
+  @media (max-width: 600px) { .topbar, .section-heading, .editor-subheading, .equipment-header { align-items: flex-start; flex-direction: column; } .field-grid, .equipment-grid, .new-case-form, .run-fields, .control-event, .metrics-grid { grid-template-columns: 1fr; } .case-row, .case-actions { align-items: flex-start; flex-direction: column; } .live-equipment-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-equipment-controls .live-control-run { grid-column: span 1; } }
 </style>

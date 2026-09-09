@@ -24,10 +24,10 @@ Whenever a source file under `src/simulation/` changes, regenerate the bundle be
 |---|---|
 | Duration mode | Fixed virtual duration, or an indefinite run represented by an explicit virtual safety ceiling |
 | Duration / safety ceiling | Required number of virtual seconds the engine may calculate |
-| Sample interval | Frequency of stored display samples; it does not change the deterministic engine tick |
+| Display sample interval | Frequency of stored display samples; it does not change the deterministic engine tick. The default is 1 virtual second. |
 | Random seed | Required integer that makes noise and events reproducible |
-| Playback speed | Controls only how quickly already-calculated samples move on screen: 0.5× to 10× |
-| Control events | Scheduled `RUN`, `PAUSE`, `STOP`, `MANUAL`, and `AUTO` commands for a selected equipment unit |
+| Playback speed | Controls only how quickly already-calculated samples move on screen: at 1×, one virtual second takes one wall-clock second; 0.5× to 10× scale that duration. |
+| Control events | Scheduled `RUN`, `PAUSE`, `STOP`, `MANUAL`, `AUTO`, `EMERGENCY_STOP`, and `RESET` commands for a selected equipment unit |
 
 The initial engine tick remains one virtual second in this workspace. It can be made configurable after calibration establishes an appropriate resolution.
 
@@ -35,7 +35,7 @@ The initial engine tick remains one virtual second in this workspace. It can be 
 
 1. The browser calculates the full virtual run immediately.
 2. The result contains sampled equipment states, buffer levels, cumulative output, and events.
-3. The playback layer advances through those samples on a timer, updating metric cards, the chart, and each equipment card.
+3. The playback layer advances through those samples on a timer, updating metric cards, the chart, and each equipment card. The timer uses the actual virtual-time difference between samples, so a coarse interval creates coarser visual steps but does not make 1× run faster.
 4. Play, Pause, and Reset affect playback only; they never alter the deterministic result.
 
 This approach lets a 5× or 10× visual simulation remain responsive without relying on long-running Apps Script requests.
@@ -54,10 +54,12 @@ Equipment can include an optional `noiseProfile.microStop` object with:
 
 Noise and scheduled controls are validated as part of the simulation input. An unknown equipment ID, unsupported action, invalid duration, or malformed noise profile produces a structured error rather than being silently ignored.
 
+Each live equipment card also exposes **Run / resume**, **Pause**, **Planned stop**, **Emergency stop**, and **Reset + run**. A card control adds its command at the currently displayed virtual second, then recomputes the deterministic scenario from its beginning with the same Case, seed, duration, and existing commands. This makes the propagation after an intervention inspectable without pretending that the web app is a real-time PLC connection.
+
 ## Current boundary
 
 - Results are available in the in-console raw JSON viewer but are not yet saved as State/Run artifacts in Drive.
 - “Indefinite” is currently bounded by the safety ceiling; true open-ended operation will use an incremental engine stepper.
-- Control events are scheduled before the calculation. Live intervention during playback is intentionally deferred until the engine supports stepwise recomputation.
+- Card interventions recalculate the complete deterministic run; they do not incrementally execute a PLC-like engine or command real machinery.
 
 The next step is persistence: save a completed run as a State/Run artifact, then compare a baseline with a What-If scenario under the same seed and duration.

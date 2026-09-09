@@ -5,9 +5,7 @@ The repository remains modular for maintenance and testing. For a manual Apps Sc
 - `Code.gs`
 - `Index.html`
 
-They contain the same tested code as the modular sources, including the Case Editor, Run Workspace, and the real-format `processData` support.
-
-The same files are also mirrored under `apps-script/manual/` for tooling compatibility. The root files are the intended direct copy/paste entry point.
+They contain the same tested code as the modular sources, including the Case Editor, Run Workspace, and the real-format `processData` support. These two root files are the **only** manual copy/paste entry point.
 
 ## Safe update path
 
@@ -27,4 +25,4 @@ For a test deployment, use the editor's current saved code. For the stable `/exe
 
 ## Source of truth
 
-Do not hand-edit the generated files in GitHub. The editable sources are the modular files in `apps-script/`; the generated bundle is rebuilt and verified by the repository tests.
+Do not hand-edit the generated root files in GitHub. The editable sources are the modular files in `apps-script/`; its page template is named `WebApp.html` specifically so it is not confused with the manual `Index.html`. The generated bundle is rebuilt and verified by the repository tests.

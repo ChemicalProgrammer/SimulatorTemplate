@@ -16,6 +16,8 @@ test('manual Apps Script bundle contains all server modules and resolved HTML in
     assert.match(code, new RegExp(`Source: apps-script/${sourceFile.replace('.', '\\.')}`));
   }
   assert.match(code, /function doGet\(\)/);
+  assert.match(code, /createTemplateFromFile\('Index'\)/);
+  assert.doesNotMatch(code, /createTemplateFromFile\('WebApp'\)/);
   assert.doesNotMatch(code, /function include_\(/);
   assert.doesNotMatch(index, /<\?!=\s*include_/);
   assert.doesNotMatch(index, /<\?\s*include_/);
@@ -24,6 +26,19 @@ test('manual Apps Script bundle contains all server modules and resolved HTML in
   assert.equal(scripts.length, 2);
   for (const script of scripts) new Function(script);
   new Function(code);
-  assert.equal(fs.readFileSync(output.manualCodePath, 'utf8'), code);
-  assert.equal(fs.readFileSync(output.manualIndexPath, 'utf8'), index);
+  assert.match(code, /MANUAL APPS SCRIPT DEPLOYMENT FILE/);
+  assert.match(index, /MANUAL APPS SCRIPT DEPLOYMENT FILE/);
+});
+
+test('manual bundle keeps time-faithful playback and direct equipment scenario controls', () => {
+  const output = buildManualAppsScriptBundle(repositoryRoot);
+  const index = fs.readFileSync(output.indexPath, 'utf8');
+
+  assert.match(index, /At 1×, one virtual second takes one real second\./);
+  assert.match(index, /virtualSeconds \* 1000 \/ playbackRate/);
+  assert.match(index, /Run \/ resume/);
+  assert.match(index, /Planned stop/);
+  assert.match(index, /Emergency stop/);
+  assert.match(index, /Reset \+ run/);
+  assert.match(index, /function applyLiveScenarioControl\(/);
 });

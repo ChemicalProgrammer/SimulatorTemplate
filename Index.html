@@ -1,4 +1,4 @@
-<!-- GENERATED FILE — edit the modular sources in apps-script/, not this file. -->
+<!-- MANUAL APPS SCRIPT DEPLOYMENT FILE — copy this file as Index.html. GENERATED from apps-script/; do not edit it directly. -->
 <!doctype html>
 <html>
   <head>
@@ -54,6 +54,7 @@
   .raw-viewer summary { color: #264ca7; cursor: pointer; font-weight: 700; }
   .raw-viewer textarea { font-family: Consolas, monospace; margin-top: 12px; min-height: 260px; }
   .notice { background: #fff6d9; border: 1px solid #f1d67a; border-radius: 8px; color: #785a00; margin: 18px 0; padding: 12px; }
+  .model-boundary { font-size: 13px; margin: 14px 0; }
   .run-config { margin-top: 20px; }
   .run-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; }
   .compact-heading { margin-top: 18px; }
@@ -64,7 +65,7 @@
   .playback-toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 14px; }
   .playback-toolbar button { margin: 0; }
   #playback-status { color: #576275; font-size: 13px; margin-left: 4px; }
-  .metrics-grid { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .metrics-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .metrics-grid article { background: #f8faff; border: 1px solid #e0e6f0; border-radius: 10px; padding: 14px; }
   .metrics-grid span { color: #657187; display: block; font-size: 12px; }
   .metrics-grid strong { color: #264ca7; display: block; font-size: 20px; margin-top: 6px; }
@@ -79,6 +80,16 @@
   .live-equipment-stats div { background: #fff; border-radius: 7px; padding: 7px; }
   .live-equipment-stats span { color: #657187; display: block; font-size: 10px; text-transform: uppercase; }
   .live-equipment-stats b { color: #264ca7; display: block; font-size: 13px; margin-top: 2px; }
+  .live-controls-help { font-size: 12px; margin: 16px 0 0; }
+  .live-equipment-controls { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
+  .live-equipment-controls button { font-size: 11px; margin: 0; padding: 8px 6px; }
+  .live-equipment-controls .live-control-stop { background: #f3ecdc; color: #765f19; }
+  .live-equipment-controls .live-control-stop:hover { background: #eadfbe; }
+  .live-equipment-controls .live-control-emergency { background: #fce5e5; color: #a12b2b; }
+  .live-equipment-controls .live-control-emergency:hover { background: #f4d2d2; }
+  .live-equipment-controls .live-control-run { grid-column: span 2; }
+  .state-ready { border-left-color: #657187; }
+  .state-ready .live-state { background: #edf1f7; color: #3d485a; }
   .state-running { border-left-color: #268355; }
   .state-running .live-state { background: #e2f5e9; color: #17633d; }
   .state-starved { border-left-color: #d28b19; }
@@ -90,7 +101,7 @@
   .state-micro-stop, .state-paused, .state-stopped { border-left-color: #657187; }
   .sr-only { height: 1px; margin: -1px; overflow: hidden; position: absolute; width: 1px; }
   @media (max-width: 760px) { .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .run-fields, .control-event { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 600px) { .topbar, .section-heading, .editor-subheading, .equipment-header { align-items: flex-start; flex-direction: column; } .field-grid, .equipment-grid, .new-case-form, .run-fields, .control-event, .metrics-grid { grid-template-columns: 1fr; } .case-row, .case-actions { align-items: flex-start; flex-direction: column; } }
+  @media (max-width: 600px) { .topbar, .section-heading, .editor-subheading, .equipment-header { align-items: flex-start; flex-direction: column; } .field-grid, .equipment-grid, .new-case-form, .run-fields, .control-event, .metrics-grid { grid-template-columns: 1fr; } .case-row, .case-actions { align-items: flex-start; flex-direction: column; } .live-equipment-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-equipment-controls .live-control-run { grid-column: span 1; } }
 </style>
   </head>
   <body>
@@ -196,9 +207,13 @@
           <div class="field-grid run-fields">
             <label>Duration mode<select id="duration-mode"><option value="FIXED">Fixed virtual duration</option><option value="INDEFINITE">Indefinite (safety ceiling)</option></select></label>
             <label>Virtual duration / safety ceiling (s)<input id="run-duration" type="number" min="1" step="1" value="300"></label>
-            <label>Sample interval (s)<input id="run-sample-interval" type="number" min="1" step="1" value="5"></label>
+            <label>Display sample interval (s)<input id="run-sample-interval" type="number" min="1" step="1" value="1"></label>
             <label>Random seed<input id="run-seed" type="number" min="0" step="1" value="20260909"></label>
-            <label>Playback speed<select id="run-playback-rate"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="5">5×</option><option value="10">10×</option></select></label>
+            <label>Playback speed (virtual / real)<select id="run-playback-rate"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="5">5×</option><option value="10">10×</option></select></label>
+          </div>
+
+          <div class="notice model-boundary">
+            At 1×, one virtual second takes one real second. Length, gap, and pitch are retained in the Case but are not yet inputs to conveyor capacity or physical travel time; current buffers are abstract units.
           </div>
 
           <div class="editor-subheading compact-heading">
@@ -221,10 +236,12 @@
           <div class="metrics-grid">
             <article><span>Virtual time</span><strong id="metric-time">—</strong></article>
             <article><span>Output</span><strong id="metric-output">—</strong></article>
-            <article><span>Average rate</span><strong id="metric-rate">—</strong></article>
+            <article><span>Instantaneous output rate</span><strong id="metric-instant-rate">—</strong></article>
+            <article><span>Cumulative average rate</span><strong id="metric-rate">—</strong></article>
             <article><span>Buffer inventory</span><strong id="metric-buffer">—</strong></article>
           </div>
           <canvas id="simulation-chart" height="210" aria-label="Cumulative output chart"></canvas>
+          <p class="live-controls-help">Scenario controls apply at the displayed virtual second and deterministically recalculate the run. They are simulation controls only; they never command real equipment.</p>
           <div id="live-equipment" class="live-equipment"></div>
           <details class="raw-viewer">
             <summary>Raw simulation result</summary>
@@ -400,6 +417,9 @@ function simulateLine(input) {
   if (!validation.ok) return validation;
 
   const runtime = createRuntime(input);
+  applyDueCommands(runtime);
+  initializeInitialMaterialStates(runtime);
+  addSample(runtime);
   executeTicks(runtime);
   return { ok: true, result: createResult(runtime) };
 }
@@ -458,6 +478,27 @@ function executeTicks(runtime) {
     runtime.virtualSecond += runtime.run.tickSeconds;
     addSampleIfDue(runtime);
   }
+}
+
+function initializeInitialMaterialStates(runtime) {
+  runtime.equipment.forEach((equipment, index) => {
+    equipment.actualRatePerSecond = 0;
+
+    if (equipment.emergencyStopLatched) {
+      equipment.availabilityState = 'EMERGENCY_STOP';
+    } else if (equipment.mode === 'PAUSE') {
+      equipment.availabilityState = 'PAUSED';
+    } else if (!isOperationalMode(equipment)) {
+      equipment.availabilityState = 'STOPPED';
+    } else if (index === 0) {
+      // The source is enabled but has not completed its first calculation tick.
+      equipment.availabilityState = 'READY';
+    } else {
+      // All inter-equipment buffers begin empty unless a future Case explicitly
+      // declares an initial fill level.
+      equipment.availabilityState = 'STARVED';
+    }
+  });
 }
 
 function updateReliabilityFailures(runtime) {
@@ -649,7 +690,11 @@ function isAvailable(equipment) {
 
 function addSampleIfDue(runtime) {
   const interval = runtime.run.sampleEverySeconds || runtime.run.tickSeconds;
-  if (runtime.samples.length > 0 && runtime.virtualSecond % interval !== 0 && runtime.virtualSecond < runtime.run.durationSeconds) return;
+  if (runtime.virtualSecond !== runtime.run.durationSeconds && runtime.virtualSecond % interval !== 0) return;
+  addSample(runtime);
+}
+
+function addSample(runtime) {
   runtime.samples.push({
     virtualSecond: runtime.virtualSecond,
     outputCount: round(runtime.outputCount),
@@ -673,7 +718,7 @@ function createResult(runtime) {
   return {
     caseId: runtime.caseId,
     unitOfFlow: runtime.unitOfFlow,
-    engineVersion: '0.3.0',
+    engineVersion: '0.4.0',
     seed: runtime.run.seed,
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),
@@ -735,7 +780,8 @@ window.SimulatorEngine = { simulateLine: simulateLine };
         timer: null,
         playing: false,
         playbackConfigured: false,
-        durationMode: 'FIXED'
+        durationMode: 'FIXED',
+        configuration: null
       }
     };
 
@@ -844,6 +890,7 @@ window.SimulatorEngine = { simulateLine: simulateLine };
         state.isDirty = false;
         state.run.commands = [];
         state.run.result = null;
+        state.run.configuration = null;
         renderEditor();
         setStatus('Case loaded.');
       });
@@ -1125,19 +1172,8 @@ window.SimulatorEngine = { simulateLine: simulateLine };
       if (state.isDirty) return showError({ code: 'UNSAVED_CASE', message: 'Save the Case before running a simulation.' });
       var run = readRunConfiguration();
       if (!run) return;
-      var input = {
-        case: JSON.parse(JSON.stringify(state.activeCase)),
-        run: run
-      };
-      var response = window.SimulatorEngine.simulateLine(input);
-      if (!response.ok) return showError(response.error);
-
-      stopPlaybackTimer();
-      state.run.result = response.result;
-      state.run.sampleIndex = 0;
-      toggle('simulation-results', true);
-      document.getElementById('simulation-json-preview').value = JSON.stringify(response.result, null, 2);
-      renderPlaybackFrame();
+      state.run.configuration = copyRunConfiguration(run);
+      if (!calculateSimulation(run, 0)) return;
       setStatus(state.run.durationMode === 'INDEFINITE'
         ? 'Simulation completed at its virtual safety ceiling. Playback is starting.'
         : 'Simulation completed. Playback is starting.');
@@ -1165,6 +1201,62 @@ window.SimulatorEngine = { simulateLine: simulateLine };
           };
         })
       };
+    }
+
+    function copyRunConfiguration(run) {
+      return {
+        durationSeconds: run.durationSeconds,
+        tickSeconds: run.tickSeconds,
+        sampleEverySeconds: run.sampleEverySeconds,
+        seed: run.seed
+      };
+    }
+
+    function createStoredRunConfiguration() {
+      var configuration = state.run.configuration;
+      if (!configuration) return readRunConfiguration();
+      return {
+        durationSeconds: configuration.durationSeconds,
+        tickSeconds: configuration.tickSeconds,
+        sampleEverySeconds: configuration.sampleEverySeconds,
+        seed: configuration.seed,
+        commands: state.run.commands.map(function(command) {
+          return {
+            atVirtualSecond: Number(command.atVirtualSecond),
+            equipmentId: command.equipmentId,
+            action: command.action
+          };
+        })
+      };
+    }
+
+    function calculateSimulation(run, resumeAtVirtualSecond) {
+      var input = {
+        case: JSON.parse(JSON.stringify(state.activeCase)),
+        run: run
+      };
+      var response = window.SimulatorEngine.simulateLine(input);
+      if (!response.ok) {
+        showError(response.error);
+        return false;
+      }
+
+      stopPlaybackTimer();
+      state.run.result = response.result;
+      state.run.sampleIndex = findSampleIndexAtOrBefore(response.result.samples, resumeAtVirtualSecond);
+      toggle('simulation-results', true);
+      document.getElementById('simulation-json-preview').value = JSON.stringify(response.result, null, 2);
+      renderPlaybackFrame();
+      return true;
+    }
+
+    function findSampleIndexAtOrBefore(samples, virtualSecond) {
+      var selectedIndex = 0;
+      for (var index = 0; index < samples.length; index += 1) {
+        if (samples[index].virtualSecond > virtualSecond) break;
+        selectedIndex = index;
+      }
+      return selectedIndex;
     }
 
     function startPlayback() {
@@ -1203,7 +1295,15 @@ window.SimulatorEngine = { simulateLine: simulateLine };
     }
 
     function playbackDelayMilliseconds() {
-      return Math.max(35, 420 / Number(document.getElementById('run-playback-rate').value || 1));
+      var samples = state.run.result ? state.run.result.samples : [];
+      var current = samples[state.run.sampleIndex];
+      var next = samples[state.run.sampleIndex + 1];
+      if (!current || !next) return 0;
+      var virtualSeconds = Math.max(0, next.virtualSecond - current.virtualSecond);
+      var playbackRate = Number(document.getElementById('run-playback-rate').value || 1);
+      // At 1×, virtual and wall-clock seconds match. A higher multiplier only
+      // speeds up playback; it never changes the deterministic calculation.
+      return Math.max(35, virtualSeconds * 1000 / playbackRate);
     }
 
     function stopPlaybackTimer() {
@@ -1218,11 +1318,21 @@ window.SimulatorEngine = { simulateLine: simulateLine };
       var time = sample.virtualSecond;
       document.getElementById('metric-time').textContent = time + ' s';
       document.getElementById('metric-output').textContent = formatNumber(sample.outputCount);
-      document.getElementById('metric-rate').textContent = time > 0 ? formatNumber(sample.outputCount / time) + ' /s' : '—';
+      document.getElementById('metric-instant-rate').textContent = formatInstantaneousOutputRate();
+      document.getElementById('metric-rate').textContent = time > 0 ? formatRatePerMinute(sample.outputCount / time) : '—';
       document.getElementById('metric-buffer').textContent = formatNumber(sum(sample.buffers));
-      setPlaybackStatus('Playing ' + state.run.sampleIndex + ' / ' + (state.run.result.samples.length - 1));
+      setPlaybackStatus((state.run.playing ? 'Playing' : 'At') + ' ' + time + ' s · frame ' + state.run.sampleIndex + ' / ' + (state.run.result.samples.length - 1));
       renderLiveEquipment(sample);
       drawSimulationChart();
+    }
+
+    function formatInstantaneousOutputRate() {
+      if (!state.run.result || state.run.sampleIndex === 0) return '—';
+      var current = state.run.result.samples[state.run.sampleIndex];
+      var previous = state.run.result.samples[state.run.sampleIndex - 1];
+      var elapsed = current.virtualSecond - previous.virtualSecond;
+      if (!(elapsed > 0)) return '—';
+      return formatRatePerMinute((current.outputCount - previous.outputCount) / elapsed);
     }
 
     function renderLiveEquipment(sample) {
@@ -1233,7 +1343,7 @@ window.SimulatorEngine = { simulateLine: simulateLine };
         var card = document.createElement('article');
         var availabilityState = unit.availabilityState || unit.mode || 'UNKNOWN';
         card.className = 'live-equipment-card state-' + availabilityState.toLowerCase().replace(/_/g, '-');
-        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div>';
+        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div><div class="live-equipment-controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div>';
         card.querySelector('strong').textContent = model.name || unit.id;
         card.querySelector('.live-state').textContent = availabilityState;
         card.querySelector('.live-command').textContent = 'Command: ' + unit.mode;
@@ -1244,8 +1354,51 @@ window.SimulatorEngine = { simulateLine: simulateLine };
         card.querySelector('.live-blocked').textContent = formatMinutes(unit.blockedSeconds);
         card.querySelector('.live-failure').textContent = formatMinutes(unit.failureSeconds);
         card.querySelector('.live-emergency').textContent = formatMinutes(unit.emergencyStopSeconds);
+        bindLiveEquipmentControl(card.querySelector('.live-control-run'), unit.id, 'RUN');
+        bindLiveEquipmentControl(card.querySelector('.live-control-pause'), unit.id, 'PAUSE');
+        bindLiveEquipmentControl(card.querySelector('.live-control-stop'), unit.id, 'STOP');
+        bindLiveEquipmentControl(card.querySelector('.live-control-emergency'), unit.id, 'EMERGENCY_STOP');
+        bindLiveEquipmentControl(card.querySelector('.live-control-reset'), unit.id, 'RESET_AND_RUN');
         target.appendChild(card);
       });
+    }
+
+    function bindLiveEquipmentControl(button, equipmentId, action) {
+      var sample = state.run.result && state.run.result.samples[state.run.sampleIndex];
+      var isAtRunEnd = !sample || sample.virtualSecond >= state.run.result.durationSeconds;
+      button.disabled = isAtRunEnd;
+      button.title = isAtRunEnd
+        ? 'Reset playback to an earlier virtual time before applying a scenario control.'
+        : 'Apply at the displayed virtual second and recalculate this simulation scenario.';
+      button.addEventListener('click', function() {
+        applyLiveScenarioControl(equipmentId, action);
+      });
+    }
+
+    function applyLiveScenarioControl(equipmentId, action) {
+      if (!state.run.result) return;
+      var sample = state.run.result.samples[state.run.sampleIndex];
+      if (!sample || sample.virtualSecond >= state.run.result.durationSeconds) {
+        return setStatus('Reset playback to an earlier virtual time before applying a scenario control.');
+      }
+
+      var wasPlaying = state.run.playing;
+      var actions = action === 'RESET_AND_RUN' ? ['RESET', 'RUN'] : [action];
+      actions.forEach(function(nextAction) {
+        state.run.commands.push({
+          atVirtualSecond: sample.virtualSecond,
+          equipmentId: equipmentId,
+          action: nextAction
+        });
+      });
+      renderControlEvents();
+
+      var run = createStoredRunConfiguration();
+      if (!run || !calculateSimulation(run, sample.virtualSecond)) return;
+      var equipment = state.activeCase.equipment.find(function(item) { return item.id === equipmentId; });
+      var label = equipment ? equipment.name : equipmentId;
+      setStatus((action === 'RESET_AND_RUN' ? 'Reset and run' : action.replace(/_/g, ' ').toLowerCase()) + ' scheduled for ' + label + ' at virtual ' + sample.virtualSecond + ' s. The deterministic path was recalculated.');
+      if (wasPlaying) startPlayback();
     }
 
     function drawSimulationChart() {

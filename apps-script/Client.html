@@ -11,7 +11,8 @@
         timer: null,
         playing: false,
         playbackConfigured: false,
-        durationMode: 'FIXED'
+        durationMode: 'FIXED',
+        configuration: null
       }
     };
 
@@ -120,6 +121,7 @@
         state.isDirty = false;
         state.run.commands = [];
         state.run.result = null;
+        state.run.configuration = null;
         renderEditor();
         setStatus('Case loaded.');
       });
@@ -401,19 +403,8 @@
       if (state.isDirty) return showError({ code: 'UNSAVED_CASE', message: 'Save the Case before running a simulation.' });
       var run = readRunConfiguration();
       if (!run) return;
-      var input = {
-        case: JSON.parse(JSON.stringify(state.activeCase)),
-        run: run
-      };
-      var response = window.SimulatorEngine.simulateLine(input);
-      if (!response.ok) return showError(response.error);
-
-      stopPlaybackTimer();
-      state.run.result = response.result;
-      state.run.sampleIndex = 0;
-      toggle('simulation-results', true);
-      document.getElementById('simulation-json-preview').value = JSON.stringify(response.result, null, 2);
-      renderPlaybackFrame();
+      state.run.configuration = copyRunConfiguration(run);
+      if (!calculateSimulation(run, 0)) return;
       setStatus(state.run.durationMode === 'INDEFINITE'
         ? 'Simulation completed at its virtual safety ceiling. Playback is starting.'
         : 'Simulation completed. Playback is starting.');
@@ -441,6 +432,62 @@
           };
         })
       };
+    }
+
+    function copyRunConfiguration(run) {
+      return {
+        durationSeconds: run.durationSeconds,
+        tickSeconds: run.tickSeconds,
+        sampleEverySeconds: run.sampleEverySeconds,
+        seed: run.seed
+      };
+    }
+
+    function createStoredRunConfiguration() {
+      var configuration = state.run.configuration;
+      if (!configuration) return readRunConfiguration();
+      return {
+        durationSeconds: configuration.durationSeconds,
+        tickSeconds: configuration.tickSeconds,
+        sampleEverySeconds: configuration.sampleEverySeconds,
+        seed: configuration.seed,
+        commands: state.run.commands.map(function(command) {
+          return {
+            atVirtualSecond: Number(command.atVirtualSecond),
+            equipmentId: command.equipmentId,
+            action: command.action
+          };
+        })
+      };
+    }
+
+    function calculateSimulation(run, resumeAtVirtualSecond) {
+      var input = {
+        case: JSON.parse(JSON.stringify(state.activeCase)),
+        run: run
+      };
+      var response = window.SimulatorEngine.simulateLine(input);
+      if (!response.ok) {
+        showError(response.error);
+        return false;
+      }
+
+      stopPlaybackTimer();
+      state.run.result = response.result;
+      state.run.sampleIndex = findSampleIndexAtOrBefore(response.result.samples, resumeAtVirtualSecond);
+      toggle('simulation-results', true);
+      document.getElementById('simulation-json-preview').value = JSON.stringify(response.result, null, 2);
+      renderPlaybackFrame();
+      return true;
+    }
+
+    function findSampleIndexAtOrBefore(samples, virtualSecond) {
+      var selectedIndex = 0;
+      for (var index = 0; index < samples.length; index += 1) {
+        if (samples[index].virtualSecond > virtualSecond) break;
+        selectedIndex = index;
+      }
+      return selectedIndex;
     }
 
     function startPlayback() {
@@ -479,7 +526,15 @@
     }
 
     function playbackDelayMilliseconds() {
-      return Math.max(35, 420 / Number(document.getElementById('run-playback-rate').value || 1));
+      var samples = state.run.result ? state.run.result.samples : [];
+      var current = samples[state.run.sampleIndex];
+      var next = samples[state.run.sampleIndex + 1];
+      if (!current || !next) return 0;
+      var virtualSeconds = Math.max(0, next.virtualSecond - current.virtualSecond);
+      var playbackRate = Number(document.getElementById('run-playback-rate').value || 1);
+      // At 1×, virtual and wall-clock seconds match. A higher multiplier only
+      // speeds up playback; it never changes the deterministic calculation.
+      return Math.max(35, virtualSeconds * 1000 / playbackRate);
     }
 
     function stopPlaybackTimer() {
@@ -494,11 +549,21 @@
       var time = sample.virtualSecond;
       document.getElementById('metric-time').textContent = time + ' s';
       document.getElementById('metric-output').textContent = formatNumber(sample.outputCount);
-      document.getElementById('metric-rate').textContent = time > 0 ? formatNumber(sample.outputCount / time) + ' /s' : '—';
+      document.getElementById('metric-instant-rate').textContent = formatInstantaneousOutputRate();
+      document.getElementById('metric-rate').textContent = time > 0 ? formatRatePerMinute(sample.outputCount / time) : '—';
       document.getElementById('metric-buffer').textContent = formatNumber(sum(sample.buffers));
-      setPlaybackStatus('Playing ' + state.run.sampleIndex + ' / ' + (state.run.result.samples.length - 1));
+      setPlaybackStatus((state.run.playing ? 'Playing' : 'At') + ' ' + time + ' s · frame ' + state.run.sampleIndex + ' / ' + (state.run.result.samples.length - 1));
       renderLiveEquipment(sample);
       drawSimulationChart();
+    }
+
+    function formatInstantaneousOutputRate() {
+      if (!state.run.result || state.run.sampleIndex === 0) return '—';
+      var current = state.run.result.samples[state.run.sampleIndex];
+      var previous = state.run.result.samples[state.run.sampleIndex - 1];
+      var elapsed = current.virtualSecond - previous.virtualSecond;
+      if (!(elapsed > 0)) return '—';
+      return formatRatePerMinute((current.outputCount - previous.outputCount) / elapsed);
     }
 
     function renderLiveEquipment(sample) {
@@ -509,7 +574,7 @@
         var card = document.createElement('article');
         var availabilityState = unit.availabilityState || unit.mode || 'UNKNOWN';
         card.className = 'live-equipment-card state-' + availabilityState.toLowerCase().replace(/_/g, '-');
-        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div>';
+        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div><div class="live-equipment-controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div>';
         card.querySelector('strong').textContent = model.name || unit.id;
         card.querySelector('.live-state').textContent = availabilityState;
         card.querySelector('.live-command').textContent = 'Command: ' + unit.mode;
@@ -520,8 +585,51 @@
         card.querySelector('.live-blocked').textContent = formatMinutes(unit.blockedSeconds);
         card.querySelector('.live-failure').textContent = formatMinutes(unit.failureSeconds);
         card.querySelector('.live-emergency').textContent = formatMinutes(unit.emergencyStopSeconds);
+        bindLiveEquipmentControl(card.querySelector('.live-control-run'), unit.id, 'RUN');
+        bindLiveEquipmentControl(card.querySelector('.live-control-pause'), unit.id, 'PAUSE');
+        bindLiveEquipmentControl(card.querySelector('.live-control-stop'), unit.id, 'STOP');
+        bindLiveEquipmentControl(card.querySelector('.live-control-emergency'), unit.id, 'EMERGENCY_STOP');
+        bindLiveEquipmentControl(card.querySelector('.live-control-reset'), unit.id, 'RESET_AND_RUN');
         target.appendChild(card);
       });
+    }
+
+    function bindLiveEquipmentControl(button, equipmentId, action) {
+      var sample = state.run.result && state.run.result.samples[state.run.sampleIndex];
+      var isAtRunEnd = !sample || sample.virtualSecond >= state.run.result.durationSeconds;
+      button.disabled = isAtRunEnd;
+      button.title = isAtRunEnd
+        ? 'Reset playback to an earlier virtual time before applying a scenario control.'
+        : 'Apply at the displayed virtual second and recalculate this simulation scenario.';
+      button.addEventListener('click', function() {
+        applyLiveScenarioControl(equipmentId, action);
+      });
+    }
+
+    function applyLiveScenarioControl(equipmentId, action) {
+      if (!state.run.result) return;
+      var sample = state.run.result.samples[state.run.sampleIndex];
+      if (!sample || sample.virtualSecond >= state.run.result.durationSeconds) {
+        return setStatus('Reset playback to an earlier virtual time before applying a scenario control.');
+      }
+
+      var wasPlaying = state.run.playing;
+      var actions = action === 'RESET_AND_RUN' ? ['RESET', 'RUN'] : [action];
+      actions.forEach(function(nextAction) {
+        state.run.commands.push({
+          atVirtualSecond: sample.virtualSecond,
+          equipmentId: equipmentId,
+          action: nextAction
+        });
+      });
+      renderControlEvents();
+
+      var run = createStoredRunConfiguration();
+      if (!run || !calculateSimulation(run, sample.virtualSecond)) return;
+      var equipment = state.activeCase.equipment.find(function(item) { return item.id === equipmentId; });
+      var label = equipment ? equipment.name : equipmentId;
+      setStatus((action === 'RESET_AND_RUN' ? 'Reset and run' : action.replace(/_/g, ' ').toLowerCase()) + ' scheduled for ' + label + ' at virtual ' + sample.virtualSecond + ' s. The deterministic path was recalculated.');
+      if (wasPlaying) startPlayback();
     }
 
     function drawSimulationChart() {
