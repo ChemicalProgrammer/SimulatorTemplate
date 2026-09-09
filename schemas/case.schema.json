@@ -9,6 +9,8 @@
     "id": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },
     "unitOfFlow": { "type": "string", "minLength": 1 },
+    "engineConfig": { "type": "object" },
+    "metadata": { "$ref": "#/$defs/caseMetadata" },
     "equipment": {
       "type": "array",
       "minItems": 2,
@@ -26,7 +28,50 @@
         "nominalRatePerSecond": { "type": "number", "exclusiveMinimum": 0 },
         "bufferAfterCapacity": { "type": "number", "minimum": 0 },
         "initialMode": { "enum": ["AUTO", "MANUAL", "PAUSE", "STOP"] },
+        "noiseProfile": { "$ref": "#/$defs/noiseProfile" },
         "processData": { "$ref": "#/$defs/processData" }
+      }
+    },
+    "noiseProfile": {
+      "type": "object",
+      "properties": {
+        "microStop": {
+          "type": "object",
+          "properties": {
+            "probabilityPerMinute": { "type": "number", "minimum": 0 },
+            "minDurationSeconds": { "type": "number", "minimum": 0 },
+            "maxDurationSeconds": { "type": "number", "minimum": 0 }
+          }
+        },
+        "reliability": {
+          "type": "object",
+          "required": ["mtbfMinutes", "mttrMinutes"],
+          "properties": {
+            "mtbfMinutes": { "type": "number", "exclusiveMinimum": 0 },
+            "mttrMinutes": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        }
+      }
+    },
+    "caseMetadata": {
+      "type": "object",
+      "properties": {
+        "dataClassification": { "type": "string" },
+        "dataNote": { "type": "string" },
+        "publicReferences": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "url"],
+            "properties": {
+              "publisher": { "type": "string" },
+              "title": { "type": "string" },
+              "url": { "type": "string", "format": "uri" },
+              "usedFor": { "type": "string" }
+            }
+          }
+        },
+        "modelLimitations": { "type": "array", "items": { "type": "string" } }
       }
     },
     "processData": {
