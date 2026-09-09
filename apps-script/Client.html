@@ -1,0 +1,81 @@
+<script>
+  (function() {
+    var state = { bootstrap: null };
+
+    document.addEventListener('DOMContentLoaded', initialize);
+    document.getElementById('workspace-form').addEventListener('submit', saveWorkspace);
+    document.getElementById('create-reference-case').addEventListener('click', createReferenceCase);
+
+    function initialize() {
+      setStatus('Loading console…');
+      callServer('getBootstrap', [], renderBootstrap);
+    }
+
+    function renderBootstrap(response) {
+      if (!response.ok) return showError(response.error);
+      state.bootstrap = response.data;
+      document.getElementById('user-email').textContent = response.data.user.email;
+      document.getElementById('workspace-folder-id').value = response.data.settings.workspaceRootFolderId || '';
+      document.getElementById('playback-rate').value = String(response.data.settings.preferredPlaybackRate || 1);
+
+      var hasWorkspace = Boolean(response.data.settings.workspaceRootFolderId);
+      toggle('workspace-panel', true);
+      toggle('cases-panel', hasWorkspace);
+      toggle('engine-panel', hasWorkspace);
+      renderCases(response.data.cases);
+      setStatus(hasWorkspace ? 'Workspace connected.' : 'Connect a workspace folder to begin.');
+    }
+
+    function saveWorkspace(event) {
+      event.preventDefault();
+      setBusy('workspace-form', true);
+      callServer('saveUserSettings', [{
+        workspaceRootFolderId: document.getElementById('workspace-folder-id').value,
+        preferredPlaybackRate: Number(document.getElementById('playback-rate').value)
+      }], function(response) {
+        setBusy('workspace-form', false);
+        if (!response.ok) return showError(response.error);
+        initialize();
+      });
+    }
+
+    function createReferenceCase() {
+      setBusy('create-reference-case', true);
+      callServer('createReferenceCase', [], function(response) {
+        setBusy('create-reference-case', false);
+        if (!response.ok) return showError(response.error);
+        initialize();
+      });
+    }
+
+    function renderCases(cases) {
+      var target = document.getElementById('cases-list');
+      target.textContent = '';
+      if (!cases || !cases.length) {
+        target.innerHTML = '<p class="empty">No cases yet. Create the explicit reference case, then the next step will add the Case editor.</p>';
+        return;
+      }
+      cases.forEach(function(caseSummary) {
+        var row = document.createElement('article');
+        row.className = 'case-row';
+        row.innerHTML = '<div><strong></strong><span></span></div><span></span>';
+        row.querySelector('strong').textContent = caseSummary.name;
+        row.querySelector('div span').textContent = caseSummary.equipmentCount + ' equipment units';
+        row.querySelectorAll('span')[1].textContent = new Date(caseSummary.updatedAt).toLocaleString();
+        target.appendChild(row);
+      });
+    }
+
+    function callServer(name, args, onSuccess) {
+      var runner = google.script.run
+        .withFailureHandler(function() { showError({ code: 'NETWORK_ERROR', message: 'The server request could not be completed.' }); })
+        .withSuccessHandler(onSuccess);
+      runner[name].apply(runner, args);
+    }
+
+    function toggle(id, visible) { document.getElementById(id).classList.toggle('hidden', !visible); }
+    function setStatus(message) { var target = document.getElementById('status'); target.className = 'status'; target.textContent = message; }
+    function showError(error) { var target = document.getElementById('status'); target.className = 'status error'; target.textContent = (error.code || 'ERROR') + ': ' + (error.message || 'The request failed.'); }
+    function setBusy(targetId, busy) { var target = document.getElementById(targetId); var button = target.tagName === 'FORM' ? target.querySelector('button') : target; button.disabled = busy; }
+  })();
+</script>
