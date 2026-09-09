@@ -109,8 +109,11 @@ function validateNoiseProfile(noiseProfile, equipmentPath, details) {
     details.push(invalid(`${equipmentPath}.noiseProfile`, 'must be an object'));
     return;
   }
-  if (noiseProfile.microStop === undefined) return;
-  const microStop = noiseProfile.microStop;
+  if (noiseProfile.microStop !== undefined) validateMicroStop(noiseProfile.microStop, equipmentPath, details);
+  if (noiseProfile.reliability !== undefined) validateReliability(noiseProfile.reliability, equipmentPath, details);
+}
+
+function validateMicroStop(microStop, equipmentPath, details) {
   const path = `${equipmentPath}.noiseProfile.microStop`;
   if (!microStop || typeof microStop !== 'object' || Array.isArray(microStop)) {
     details.push(invalid(path, 'must be an object'));
@@ -127,6 +130,20 @@ function validateNoiseProfile(noiseProfile, equipmentPath, details) {
   }
   if (nonNegativeNumber(microStop.minDurationSeconds) && nonNegativeNumber(microStop.maxDurationSeconds) && microStop.minDurationSeconds > microStop.maxDurationSeconds) {
     details.push(invalid(`${path}.maxDurationSeconds`, 'must be greater than or equal to minDurationSeconds'));
+  }
+}
+
+function validateReliability(reliability, equipmentPath, details) {
+  const path = `${equipmentPath}.noiseProfile.reliability`;
+  if (!reliability || typeof reliability !== 'object' || Array.isArray(reliability)) {
+    details.push(invalid(path, 'must be an object'));
+    return;
+  }
+  if (!positiveNumber(reliability.mtbfMinutes)) {
+    details.push(invalid(`${path}.mtbfMinutes`, 'must be a number greater than zero'));
+  }
+  if (!positiveNumber(reliability.mttrMinutes)) {
+    details.push(invalid(`${path}.mttrMinutes`, 'must be a number greater than zero'));
   }
 }
 
@@ -148,12 +165,13 @@ function simulateLine(input) {
 }
 
 function createRuntime(input) {
-  const equipment = input.case.equipment.map(createEquipmentRuntime);
+  const random = createSeededRandom(input.run.seed);
+  const equipment = input.case.equipment.map((model) => createEquipmentRuntime(model, random));
   return {
     caseId: input.case.id,
     unitOfFlow: input.case.unitOfFlow,
     run: input.run,
-    random: createSeededRandom(input.run.seed),
+    random,
     virtualSecond: 0,
     equipment,
     buffers: equipment.slice(0, -1).map(() => 0),
@@ -165,11 +183,19 @@ function createRuntime(input) {
   };
 }
 
-function createEquipmentRuntime(model) {
+function createEquipmentRuntime(model, random) {
+  const reliability = model.noiseProfile?.reliability;
   return {
     ...model,
     mode: model.initialMode,
     microStopRemainingSeconds: 0,
+    microStopSeconds: 0,
+    failureRemainingSeconds: 0,
+    failureSeconds: 0,
+    failureCount: 0,
+    timeToFailureRemainingSeconds: reliability
+      ? randomExponentialSeconds(random, reliability.mtbfMinutes * 60)
+      : null,
     outputCount: 0,
     runningSeconds: 0,
     pausedSeconds: 0,
@@ -182,11 +208,46 @@ function createEquipmentRuntime(model) {
 function executeTicks(runtime) {
   while (runtime.virtualSecond < runtime.run.durationSeconds) {
     applyDueCommands(runtime);
+    updateReliabilityFailures(runtime);
     updateMicroStops(runtime);
     processLineFromDownstream(runtime);
     runtime.virtualSecond += runtime.run.tickSeconds;
     addSampleIfDue(runtime);
   }
+}
+
+function updateReliabilityFailures(runtime) {
+  runtime.equipment.forEach((equipment) => {
+    const profile = equipment.noiseProfile?.reliability;
+    if (!profile) return;
+
+    if (equipment.failureRemainingSeconds > 0) {
+      equipment.failureRemainingSeconds = Math.max(0, equipment.failureRemainingSeconds - runtime.run.tickSeconds);
+      if (equipment.failureRemainingSeconds === 0) {
+        runtime.events.push({ type: 'REPAIR_COMPLETED', atVirtualSecond: runtime.virtualSecond, equipmentId: equipment.id });
+        equipment.timeToFailureRemainingSeconds = randomExponentialSeconds(runtime.random, profile.mtbfMinutes * 60);
+      }
+      return;
+    }
+
+    if (!isOperationalMode(equipment) || equipment.microStopRemainingSeconds > 0) return;
+    if (equipment.timeToFailureRemainingSeconds === null) {
+      equipment.timeToFailureRemainingSeconds = randomExponentialSeconds(runtime.random, profile.mtbfMinutes * 60);
+    }
+    equipment.timeToFailureRemainingSeconds -= runtime.run.tickSeconds;
+    if (equipment.timeToFailureRemainingSeconds > 0) return;
+
+    equipment.failureRemainingSeconds = profile.mttrMinutes * 60;
+    equipment.failureCount += 1;
+    runtime.events.push({
+      type: 'FAILURE_STARTED',
+      atVirtualSecond: runtime.virtualSecond,
+      equipmentId: equipment.id,
+      durationSeconds: equipment.failureRemainingSeconds,
+      mtbfMinutes: profile.mtbfMinutes,
+      mttrMinutes: profile.mttrMinutes
+    });
+  });
 }
 
 function applyDueCommands(runtime) {
@@ -204,6 +265,7 @@ function applyDueCommands(runtime) {
 
 function updateMicroStops(runtime) {
   runtime.equipment.forEach((equipment) => {
+    if (equipment.failureRemainingSeconds > 0) return;
     if (equipment.microStopRemainingSeconds > 0) {
       equipment.microStopRemainingSeconds = Math.max(0, equipment.microStopRemainingSeconds - runtime.run.tickSeconds);
       return;
@@ -260,12 +322,18 @@ function recordConstraintTimes(equipment, requestedFlow, inputAvailable, downstr
 }
 
 function recordUnavailable(equipment, tickSeconds) {
-  if (equipment.mode === 'PAUSE') equipment.pausedSeconds += tickSeconds;
+  if (equipment.failureRemainingSeconds > 0) {
+    equipment.stoppedSeconds += tickSeconds;
+    equipment.failureSeconds += tickSeconds;
+  } else if (equipment.microStopRemainingSeconds > 0) {
+    equipment.stoppedSeconds += tickSeconds;
+    equipment.microStopSeconds += tickSeconds;
+  } else if (equipment.mode === 'PAUSE') equipment.pausedSeconds += tickSeconds;
   else equipment.stoppedSeconds += tickSeconds;
 }
 
 function isAvailable(equipment) {
-  return (equipment.mode === 'AUTO' || equipment.mode === 'MANUAL') && equipment.microStopRemainingSeconds <= 0;
+  return isOperationalMode(equipment) && equipment.microStopRemainingSeconds <= 0 && equipment.failureRemainingSeconds <= 0;
 }
 
 function addSampleIfDue(runtime) {
@@ -275,7 +343,12 @@ function addSampleIfDue(runtime) {
     virtualSecond: runtime.virtualSecond,
     outputCount: round(runtime.outputCount),
     buffers: runtime.buffers.map(round),
-    equipment: runtime.equipment.map((item) => ({ id: item.id, mode: item.mode, outputCount: round(item.outputCount) }))
+    equipment: runtime.equipment.map((item) => ({
+      id: item.id,
+      mode: item.mode,
+      availabilityState: getAvailabilityState(item),
+      outputCount: round(item.outputCount)
+    }))
   });
 }
 
@@ -283,7 +356,7 @@ function createResult(runtime) {
   return {
     caseId: runtime.caseId,
     unitOfFlow: runtime.unitOfFlow,
-    engineVersion: '0.1.0',
+    engineVersion: '0.2.0',
     seed: runtime.run.seed,
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),
@@ -308,6 +381,9 @@ function createEquipmentMetrics(equipment, durationSeconds) {
     runningSeconds: round(equipment.runningSeconds),
     pausedSeconds: round(equipment.pausedSeconds),
     stoppedSeconds: round(equipment.stoppedSeconds),
+    failureSeconds: round(equipment.failureSeconds),
+    failureCount: equipment.failureCount,
+    microStopSeconds: round(equipment.microStopSeconds),
     starvedSeconds: round(equipment.starvedSeconds),
     blockedSeconds: round(equipment.blockedSeconds),
     availability: round(equipment.runningSeconds / durationSeconds)
@@ -316,7 +392,14 @@ function createEquipmentMetrics(equipment, durationSeconds) {
 
 function sortCommands(commands) { return [...commands].sort((a, b) => a.atVirtualSecond - b.atVirtualSecond); }
 function isSupportedAction(action) { return ['RUN', 'PAUSE', 'STOP', 'MANUAL', 'AUTO'].includes(action); }
+function isOperationalMode(equipment) { return equipment.mode === 'AUTO' || equipment.mode === 'MANUAL'; }
+function getAvailabilityState(equipment) {
+  if (equipment.failureRemainingSeconds > 0) return 'FAILURE';
+  if (equipment.microStopRemainingSeconds > 0) return 'MICRO_STOP';
+  return equipment.mode;
+}
 function randomDuration(random, profile) { const min = profile.minDurationSeconds || 0; const max = profile.maxDurationSeconds ?? min; return min + (max - min) * random.next(); }
+function randomExponentialSeconds(random, meanSeconds) { return -Math.log(1 - Math.max(random.next(), 1e-12)) * meanSeconds; }
 function sum(values) { return values.reduce((total, value) => total + value, 0); }
 function round(value) { return Number(value.toFixed(6)); }
 
