@@ -202,7 +202,7 @@
       var card = document.createElement('article');
       card.className = 'equipment-card';
       card.dataset.index = String(index);
-      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Buffer after unit<input class="equipment-buffer" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label>';
+      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="BLOWMOLDER">Blowmolder</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PUCKER">Pucker</option><option value="FILLER">Filler</option><option value="DEPUCKER">De-pucker</option><option value="SLEEVER">Sleever</option><option value="CASE_PACKER">Case packer</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Buffer after unit<input class="equipment-buffer" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label><label class="characteristics-label">Process format data JSON (optional)<textarea class="equipment-process-data" spellcheck="false"></textarea></label>';
       card.querySelector('strong').textContent = 'Step ' + (index + 1);
       card.querySelector('.equipment-id').value = equipment.id || '';
       card.querySelector('.equipment-type').value = equipment.type || 'CUSTOM';
@@ -212,6 +212,7 @@
       card.querySelector('.equipment-mode').value = equipment.initialMode || 'AUTO';
       card.querySelector('.equipment-characteristics').value = JSON.stringify(equipment.characteristics || {}, null, 2);
       card.querySelector('.equipment-noise-profile').value = JSON.stringify(equipment.noiseProfile || {}, null, 2);
+      card.querySelector('.equipment-process-data').value = JSON.stringify(equipment.processData || {}, null, 2);
       card.querySelector('.move-up').disabled = index === 0;
       card.querySelector('.move-down').disabled = index === state.activeCase.equipment.length - 1;
       card.querySelector('.move-up').addEventListener('click', function() { moveEquipment(index, -1); });
@@ -263,6 +264,8 @@
         if (characteristics === null) return false;
         var noiseProfile = parseJsonObject(card.querySelector('.equipment-noise-profile').value, 'Noise profile', index + 1);
         if (noiseProfile === null) return false;
+        var processData = parseJsonObject(card.querySelector('.equipment-process-data').value, 'Process format data', index + 1);
+        if (processData === null) return false;
         equipment.push({
           id: card.querySelector('.equipment-id').value.trim(),
           type: card.querySelector('.equipment-type').value,
@@ -271,7 +274,8 @@
           bufferAfterCapacity: Number(card.querySelector('.equipment-buffer').value),
           initialMode: card.querySelector('.equipment-mode').value,
           characteristics: characteristics,
-          noiseProfile: noiseProfile
+          noiseProfile: noiseProfile,
+          processData: processData
         });
       }
       state.activeCase.equipment = equipment;
@@ -300,7 +304,8 @@
         bufferAfterCapacity: undefined,
         initialMode: 'AUTO',
         characteristics: {},
-        noiseProfile: {}
+        noiseProfile: {},
+        processData: {}
       };
     }
 
