@@ -21,11 +21,24 @@
       "required": ["id", "type", "name", "nominalRatePerSecond", "bufferAfterCapacity", "initialMode"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
-        "type": { "enum": ["BLOWER", "CONVEYOR", "PACEMAKER", "PALLETIZER", "CUSTOM"] },
+        "type": { "enum": ["BLOWER", "BLOWMOLDER", "CONVEYOR", "PACEMAKER", "PUCKER", "FILLER", "DEPUCKER", "SLEEVER", "CASE_PACKER", "PALLETIZER", "CUSTOM"] },
         "name": { "type": "string", "minLength": 1 },
         "nominalRatePerSecond": { "type": "number", "exclusiveMinimum": 0 },
         "bufferAfterCapacity": { "type": "number", "minimum": 0 },
-        "initialMode": { "enum": ["AUTO", "MANUAL", "PAUSE", "STOP"] }
+        "initialMode": { "enum": ["AUTO", "MANUAL", "PAUSE", "STOP"] },
+        "processData": { "$ref": "#/$defs/processData" }
+      }
+    },
+    "processData": {
+      "type": "object",
+      "properties": {
+        "role": { "enum": ["CRITICAL_MACHINE", "CONVEYOR"] },
+        "machineType": { "type": ["string", "null"] },
+        "equipment": { "type": "object" },
+        "geometry": { "type": "object" },
+        "upstream": { "type": "object" },
+        "downstream": { "type": "object" },
+        "speedAndSensors": { "type": "object" }
       }
     }
   }
