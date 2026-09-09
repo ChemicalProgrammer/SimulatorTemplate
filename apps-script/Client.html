@@ -25,6 +25,7 @@
       document.getElementById('workspace-form').addEventListener('submit', saveWorkspace);
       document.getElementById('new-case-form').addEventListener('submit', createDraftCase);
       document.getElementById('create-reference-case').addEventListener('click', createReferenceCase);
+      document.getElementById('create-public-demo-case').addEventListener('click', createPublicDemoCase);
       document.getElementById('reload-case').addEventListener('click', reloadActiveCase);
       document.getElementById('save-case').addEventListener('click', saveActiveCase);
       document.getElementById('add-equipment').addEventListener('click', addEquipment);
@@ -101,6 +102,16 @@
       });
     }
 
+    function createPublicDemoCase() {
+      setBusy('create-public-demo-case', true);
+      callServer('createPublicDemoCase', [], function(response) {
+        setBusy('create-public-demo-case', false);
+        if (!response.ok) return showError(response.error);
+        openCase(response.data.id);
+        initialize();
+      });
+    }
+
     function openCase(caseId) {
       callServer('getCase', [caseId], function(response) {
         if (!response.ok) return showError(response.error);
@@ -161,7 +172,8 @@
         row.className = 'case-row';
         row.innerHTML = '<div><strong></strong><span></span></div><div class="case-actions"><span></span><button type="button">Open</button></div>';
         row.querySelector('strong').textContent = caseSummary.name;
-        row.querySelector('div span').textContent = caseSummary.equipmentCount + ' equipment units · ' + (caseSummary.isSimulationReady ? 'simulation-ready' : 'draft');
+        var dataLabel = caseSummary.dataClassification === 'PUBLIC_DEMONSTRATION_ONLY' ? ' · public demo data' : '';
+        row.querySelector('div span').textContent = caseSummary.equipmentCount + ' equipment units · ' + (caseSummary.isSimulationReady ? 'simulation-ready' : 'draft') + dataLabel;
         row.querySelector('.case-actions span').textContent = new Date(caseSummary.updatedAt).toLocaleString();
         row.querySelector('button').addEventListener('click', function() { openCase(caseSummary.id); });
         target.appendChild(row);
@@ -175,6 +187,7 @@
       document.getElementById('case-name').value = state.activeCase.name;
       document.getElementById('unit-of-flow').value = state.activeCase.unitOfFlow || '';
       renderEditorMeta();
+      renderCaseDataNote();
       renderEquipment();
       renderRawJson();
       renderRunWorkspace();
@@ -184,6 +197,14 @@
       if (!state.activeCase) return;
       var dirtyText = state.isDirty ? ' · unsaved changes' : '';
       document.getElementById('editor-meta').textContent = 'ID: ' + state.activeCase.id + ' · Revision ' + state.activeCase.revision + dirtyText;
+    }
+
+    function renderCaseDataNote() {
+      var target = document.getElementById('case-data-note');
+      var metadata = state.activeCase && state.activeCase.metadata ? state.activeCase.metadata : {};
+      var note = typeof metadata.dataNote === 'string' ? metadata.dataNote : '';
+      target.textContent = note;
+      toggle('case-data-note', Boolean(note));
     }
 
     function renderEquipment() {
@@ -250,7 +271,8 @@
         name: state.activeCase.name,
         unitOfFlow: state.activeCase.unitOfFlow,
         equipment: state.activeCase.equipment,
-        engineConfig: state.activeCase.engineConfig || {}
+        engineConfig: state.activeCase.engineConfig || {},
+        metadata: state.activeCase.metadata || {}
       };
     }
 
@@ -486,10 +508,11 @@
         var model = state.activeCase.equipment[index] || {};
         var card = document.createElement('article');
         card.className = 'live-equipment-card';
-        card.innerHTML = '<strong></strong><span></span><span></span>';
+        card.innerHTML = '<strong></strong><span></span><span></span><span></span>';
         card.querySelector('strong').textContent = model.name || unit.id;
-        card.querySelectorAll('span')[0].textContent = unit.mode;
-        card.querySelectorAll('span')[1].textContent = formatNumber(unit.outputCount) + ' output';
+        card.querySelectorAll('span')[0].textContent = unit.availabilityState || unit.mode;
+        card.querySelectorAll('span')[1].textContent = 'Command: ' + unit.mode;
+        card.querySelectorAll('span')[2].textContent = formatNumber(unit.outputCount) + ' output';
         target.appendChild(card);
       });
     }
