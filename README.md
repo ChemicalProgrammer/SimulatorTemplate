@@ -39,6 +39,7 @@ For the browser-only Apps Script workflow, copy the generated root files directl
 | [Real-format line model](docs/12_REAL_FORMAT_LINE_MODEL.md) | 13-object packaging-line data contract and calibration path |
 | [Manual Apps Script update](docs/13_MANUAL_APPS_SCRIPT_UPDATE.md) | Generated Code.gs + Index.html package for browser-only updates |
 | [Public demonstration Case](docs/14_PUBLIC_DEMO_CASE.md) | Complete 13-unit test Case with explicit public/synthetic provenance |
+| [Transient states and controls](docs/15_TRANSIENT_STATES_AND_CONTROLS.md) | Empty-line behaviour, live equipment metrics, and scheduled safety scenarios |
 
 ## Initial technical decision
 
