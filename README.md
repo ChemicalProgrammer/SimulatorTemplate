@@ -32,6 +32,7 @@ The product goal is not a generic AI chat. It is a deterministic dynamic simulat
 | [Apps Script scaffold](docs/09_APPS_SCRIPT_SCAFFOLD.md) | Authentication, Drive workspace, and minimal console |
 | [Case Editor](docs/10_CASE_EDITOR.md) | Draft creation, ordered equipment, and revision-safe persistence |
 | [Run Workspace](docs/11_RUN_WORKSPACE.md) | Browser execution, animated playback, noise, and control events |
+| [Real-format line model](docs/12_REAL_FORMAT_LINE_MODEL.md) | 13-object packaging-line data contract and calibration path |
 
 ## Initial technical decision
 
