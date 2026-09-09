@@ -6,6 +6,9 @@ export function simulateLine(input) {
   if (!validation.ok) return validation;
 
   const runtime = createRuntime(input);
+  applyDueCommands(runtime);
+  initializeInitialMaterialStates(runtime);
+  addSample(runtime);
   executeTicks(runtime);
   return { ok: true, result: createResult(runtime) };
 }
@@ -64,6 +67,27 @@ function executeTicks(runtime) {
     runtime.virtualSecond += runtime.run.tickSeconds;
     addSampleIfDue(runtime);
   }
+}
+
+function initializeInitialMaterialStates(runtime) {
+  runtime.equipment.forEach((equipment, index) => {
+    equipment.actualRatePerSecond = 0;
+
+    if (equipment.emergencyStopLatched) {
+      equipment.availabilityState = 'EMERGENCY_STOP';
+    } else if (equipment.mode === 'PAUSE') {
+      equipment.availabilityState = 'PAUSED';
+    } else if (!isOperationalMode(equipment)) {
+      equipment.availabilityState = 'STOPPED';
+    } else if (index === 0) {
+      // The source is enabled but has not completed its first calculation tick.
+      equipment.availabilityState = 'READY';
+    } else {
+      // All inter-equipment buffers begin empty unless a future Case explicitly
+      // declares an initial fill level.
+      equipment.availabilityState = 'STARVED';
+    }
+  });
 }
 
 function updateReliabilityFailures(runtime) {
@@ -255,7 +279,11 @@ function isAvailable(equipment) {
 
 function addSampleIfDue(runtime) {
   const interval = runtime.run.sampleEverySeconds || runtime.run.tickSeconds;
-  if (runtime.samples.length > 0 && runtime.virtualSecond % interval !== 0 && runtime.virtualSecond < runtime.run.durationSeconds) return;
+  if (runtime.virtualSecond !== runtime.run.durationSeconds && runtime.virtualSecond % interval !== 0) return;
+  addSample(runtime);
+}
+
+function addSample(runtime) {
   runtime.samples.push({
     virtualSecond: runtime.virtualSecond,
     outputCount: round(runtime.outputCount),
@@ -279,7 +307,7 @@ function createResult(runtime) {
   return {
     caseId: runtime.caseId,
     unitOfFlow: runtime.unitOfFlow,
-    engineVersion: '0.3.0',
+    engineVersion: '0.4.0',
     seed: runtime.run.seed,
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),

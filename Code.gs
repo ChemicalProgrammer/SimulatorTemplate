@@ -1,5 +1,5 @@
-// GENERATED FILE — edit the modular sources in apps-script/, not this file.
-// This bundle is for manual copy/paste into a blank Apps Script project.
+// MANUAL APPS SCRIPT DEPLOYMENT FILE — copy this file as Code.gs.
+// GENERATED from apps-script/; edit the modular sources, not this file.
 
 // -----------------------------------------------------------------------------
 // Source: apps-script/ApiResponse.gs

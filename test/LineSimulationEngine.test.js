@@ -36,6 +36,22 @@ test('repeats exactly with the same case, run configuration, and seed', () => {
   assert.deepEqual(first.result.samples, second.result.samples);
 });
 
+test('captures an empty-line time-zero snapshot before the first processing tick', () => {
+  const response = simulateLine(createInput({ durationSeconds: 7, sampleEverySeconds: 5 }));
+  const initial = response.result.samples[0];
+  const source = initial.equipment.find((item) => item.id === 'blower-1');
+  const downstream = initial.equipment.find((item) => item.id === 'pacemaker-1');
+
+  assert.equal(response.ok, true);
+  assert.equal(initial.virtualSecond, 0);
+  assert.equal(initial.outputCount, 0);
+  assert.equal(source.availabilityState, 'READY');
+  assert.equal(source.actualRatePerSecond, 0);
+  assert.equal(downstream.availabilityState, 'STARVED');
+  assert.equal(downstream.actualRatePerSecond, 0);
+  assert.deepEqual(response.result.samples.map((sample) => sample.virtualSecond), [0, 5, 7]);
+});
+
 test('a larger upstream buffer preserves output through a pacemaker pause', () => {
   const constrained = createInput();
   constrained.case.equipment[1].bufferAfterCapacity = 20;

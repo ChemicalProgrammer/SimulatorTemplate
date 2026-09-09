@@ -38,7 +38,7 @@ The setup does not store passwords, API keys, Drive content in User Properties, 
 | `DriveService.gs` | Drive workspace verification and managed folders |
 | `CaseService.gs` | Case creation/listing with owner filter |
 | `ReferenceCaseFactory.gs` | Explicit sample case for initial smoke testing |
-| `Index.html`, `Styles.html`, `Client.html` | Presentation only; no process calculations |
+| `WebApp.html`, `Styles.html`, `Client.html` | Presentation only; no process calculations |
 
 ## Verification
 
