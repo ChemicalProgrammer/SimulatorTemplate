@@ -64,6 +64,31 @@ test('rejects a stale Case Editor save instead of overwriting a newer revision',
   );
 });
 
+test('preserves explicit real-format process data without inventing missing values', () => {
+  const runtime = createCaseRuntime();
+  const processData = {
+    role: 'CRITICAL_MACHINE',
+    machineType: 'BLOWMOLDER',
+    equipment: { mtbfMinutes: null, mttrMinutes: null, maximumSpeedBpm: null, bufferMinutes: null },
+    geometry: { lactMm: null, lpPrimeMm: null, actualDischargeMm: null, actualCodingMm: null },
+    upstream: { packageLengthMm: null, dischargePitchMm: null, startupTimeSeconds: null, bottlesDischargedAtStop: null },
+    downstream: { infeedPitchMm: null, rampUpTimeSeconds: null },
+    speedAndSensors: {
+      conveyorSpeedFactorVsDischargeVelocityPercent: null,
+      codingConveyorSpeedFactorVsPreviousConveyorPercent: null,
+      additionalParameters: []
+    }
+  };
+  const created = runtime.createCase_({
+    name: 'Format line',
+    equipment: [{ ...equipment('blowmolder-1', 'BLOWMOLDER', 20, 100), processData }]
+  }, owner);
+
+  const stored = runtime.getCase_(created.id, owner);
+
+  assert.deepEqual(toPlainObject(stored.equipment[0].processData), processData);
+});
+
 function equipment(id, type, rate, capacity) {
   return { id, type, name: id, nominalRatePerSecond: rate, bufferAfterCapacity: capacity, initialMode: 'AUTO' };
 }
