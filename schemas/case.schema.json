@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemicalprogrammer.github.io/SimulatorTemplate/schemas/case.schema.json",
+  "title": "Simulator Case",
+  "type": "object",
+  "required": ["schemaVersion", "id", "name", "unitOfFlow", "equipment"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "unitOfFlow": { "type": "string", "minLength": 1 },
+    "equipment": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/equipment" }
+    }
+  },
+  "$defs": {
+    "equipment": {
+      "type": "object",
+      "required": ["id", "type", "name", "nominalRatePerSecond", "bufferAfterCapacity", "initialMode"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["BLOWER", "CONVEYOR", "PACEMAKER", "PALLETIZER", "CUSTOM"] },
+        "name": { "type": "string", "minLength": 1 },
+        "nominalRatePerSecond": { "type": "number", "exclusiveMinimum": 0 },
+        "bufferAfterCapacity": { "type": "number", "minimum": 0 },
+        "initialMode": { "enum": ["AUTO", "MANUAL", "PAUSE", "STOP"] }
+      }
+    }
+  }
+}
