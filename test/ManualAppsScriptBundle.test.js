@@ -12,7 +12,7 @@ test('manual Apps Script bundle contains all server modules and resolved HTML in
   const code = fs.readFileSync(output.codePath, 'utf8');
   const index = fs.readFileSync(output.indexPath, 'utf8');
 
-  for (const sourceFile of ['ApiResponse.gs', 'AuthService.gs', 'ConfigService.gs', 'DriveService.gs', 'CaseService.gs', 'ReferenceCaseFactory.gs', 'Main.gs']) {
+  for (const sourceFile of ['ApiResponse.gs', 'AuthService.gs', 'ConfigService.gs', 'DriveService.gs', 'CaseService.gs', 'ReferenceCaseFactory.gs', 'PublicDemoCaseFactory.gs', 'Main.gs']) {
     assert.match(code, new RegExp(`Source: apps-script/${sourceFile.replace('.', '\\.')}`));
   }
   assert.match(code, /function doGet\(\)/);
@@ -24,4 +24,6 @@ test('manual Apps Script bundle contains all server modules and resolved HTML in
   assert.equal(scripts.length, 2);
   for (const script of scripts) new Function(script);
   new Function(code);
+  assert.equal(fs.readFileSync(output.manualCodePath, 'utf8'), code);
+  assert.equal(fs.readFileSync(output.manualIndexPath, 'utf8'), index);
 });
