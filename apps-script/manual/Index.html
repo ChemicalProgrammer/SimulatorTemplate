@@ -1,0 +1,1116 @@
+<!-- GENERATED FILE — edit the modular sources in apps-script/, not this file. -->
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+  :root { color-scheme: light; font-family: Arial, sans-serif; background: #f4f7fb; color: #172033; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .app-shell { max-width: 980px; margin: 0 auto; padding: 32px 20px 56px; }
+  .topbar, .section-heading, .equipment-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+  .eyebrow { color: #3967d6; font-size: 11px; font-weight: 700; letter-spacing: .12em; margin: 0 0 6px; }
+  h1, h2, p { margin-top: 0; }
+  h1 { margin-bottom: 0; font-size: 28px; }
+  h2 { margin-bottom: 6px; font-size: 18px; }
+  p { color: #576275; line-height: 1.5; }
+  .user-chip { background: #e8efff; border-radius: 99px; color: #264ca7; font-size: 13px; padding: 8px 12px; }
+  .status { margin: 24px 0 16px; color: #576275; }
+  .status.error { color: #a12b2b; }
+  .card { background: #fff; border: 1px solid #e0e6f0; border-radius: 14px; box-shadow: 0 8px 24px rgba(32, 57, 95, .06); margin-top: 16px; padding: 22px; }
+  .hidden { display: none; }
+  form { display: grid; gap: 9px; max-width: 620px; }
+  input, select, button, textarea { border-radius: 8px; font: inherit; padding: 10px 12px; }
+  input, select { border: 1px solid #c7d1e0; }
+  button { background: #3967d6; border: 0; color: #fff; cursor: pointer; font-weight: 700; margin-top: 6px; }
+  button:hover { background: #2d57bb; }
+  button:disabled { cursor: wait; opacity: .65; }
+  button.secondary { background: #e8efff; color: #264ca7; }
+  button.secondary:hover { background: #dbe6ff; }
+  button.danger { background: #fae8e8; color: #a12b2b; }
+  button.danger:hover { background: #f5d8d8; }
+  .button-row { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+  .button-row button { margin: 0; }
+  .new-case-form { align-items: end; display: grid; grid-template-columns: minmax(0, 1fr) auto; margin: 20px 0; max-width: 620px; }
+  .cases-list { display: grid; gap: 10px; }
+  .case-row { align-items: center; background: #f8faff; border-radius: 10px; display: flex; justify-content: space-between; padding: 14px; }
+  .case-row strong, .case-row span { display: block; }
+  .case-row span { color: #657187; font-size: 13px; margin-top: 3px; }
+  .case-actions { align-items: center; display: flex; gap: 12px; }
+  .case-actions button { margin: 0; }
+  .empty { color: #657187; padding: 18px 0; }
+  .field-grid, .equipment-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .field-grid { margin: 20px 0; max-width: 760px; }
+  label { color: #3d485a; display: grid; font-size: 13px; font-weight: 700; gap: 6px; }
+  .editor-subheading { align-items: center; display: flex; justify-content: space-between; margin-top: 28px; }
+  .editor-subheading h3 { margin: 0 0 4px; }
+  .editor-subheading p { margin-bottom: 0; }
+  .equipment-list { display: grid; gap: 14px; margin-top: 14px; }
+  .equipment-card { background: #f8faff; border: 1px solid #e0e6f0; border-radius: 10px; padding: 16px; }
+  .equipment-header strong { color: #264ca7; }
+  .characteristics-label { margin-top: 12px; }
+  textarea { border: 1px solid #c7d1e0; min-height: 104px; resize: vertical; width: 100%; }
+  .raw-viewer { margin-top: 22px; }
+  .raw-viewer summary { color: #264ca7; cursor: pointer; font-weight: 700; }
+  .raw-viewer textarea { font-family: Consolas, monospace; margin-top: 12px; min-height: 260px; }
+  .notice { background: #fff6d9; border: 1px solid #f1d67a; border-radius: 8px; color: #785a00; margin: 18px 0; padding: 12px; }
+  .run-config { margin-top: 20px; }
+  .run-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; }
+  .compact-heading { margin-top: 18px; }
+  .compact-empty { padding: 6px 0; }
+  .control-events { display: grid; gap: 10px; margin-top: 12px; }
+  .control-event { align-items: end; background: #f8faff; border: 1px solid #e0e6f0; border-radius: 10px; display: grid; gap: 10px; grid-template-columns: 150px minmax(180px, 1fr) minmax(150px, 1fr) auto; padding: 12px; }
+  .control-event button { margin: 0; }
+  .playback-toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 14px; }
+  .playback-toolbar button { margin: 0; }
+  #playback-status { color: #576275; font-size: 13px; margin-left: 4px; }
+  .metrics-grid { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .metrics-grid article { background: #f8faff; border: 1px solid #e0e6f0; border-radius: 10px; padding: 14px; }
+  .metrics-grid span { color: #657187; display: block; font-size: 12px; }
+  .metrics-grid strong { color: #264ca7; display: block; font-size: 20px; margin-top: 6px; }
+  #simulation-chart { background: #fff; border: 1px solid #e0e6f0; border-radius: 10px; display: block; margin-top: 14px; width: 100%; }
+  .live-equipment { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: 14px; }
+  .live-equipment-card { background: #f8faff; border-radius: 10px; padding: 12px; }
+  .live-equipment-card strong { display: block; }
+  .live-equipment-card span { color: #657187; display: block; font-size: 12px; margin-top: 4px; }
+  .sr-only { height: 1px; margin: -1px; overflow: hidden; position: absolute; width: 1px; }
+  @media (max-width: 760px) { .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .run-fields, .control-event { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .topbar, .section-heading, .editor-subheading, .equipment-header { align-items: flex-start; flex-direction: column; } .field-grid, .equipment-grid, .new-case-form, .run-fields, .control-event, .metrics-grid { grid-template-columns: 1fr; } .case-row, .case-actions { align-items: flex-start; flex-direction: column; } }
+</style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">SIMULATORTEMPLATE</p>
+          <h1>Packaging line simulator</h1>
+        </div>
+        <span id="user-email" class="user-chip">Loading identity…</span>
+      </header>
+
+      <section id="status" class="status" aria-live="polite">Loading console…</section>
+
+      <section id="workspace-panel" class="card hidden">
+        <h2>Workspace</h2>
+        <p>Choose a Google Drive folder you can access. The console creates its Cases, Artifacts, and Exports folders inside it.</p>
+        <form id="workspace-form">
+          <label for="workspace-folder-id">Drive folder ID</label>
+          <input id="workspace-folder-id" name="workspaceFolderId" autocomplete="off" required>
+          <label for="playback-rate">Default playback speed</label>
+          <select id="playback-rate" name="playbackRate">
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="1.5">1.5×</option>
+            <option value="5">5×</option>
+            <option value="10">10×</option>
+          </select>
+          <button type="submit">Save workspace</button>
+        </form>
+      </section>
+
+      <section id="cases-panel" class="card hidden">
+        <div class="section-heading">
+          <div>
+            <h2>Cases</h2>
+            <p>Each Case is an isolated, versioned JSON record in your Drive workspace.</p>
+          </div>
+          <div class="button-row">
+            <button id="create-reference-case" class="secondary" type="button">Reference case</button>
+          </div>
+        </div>
+        <form id="new-case-form" class="new-case-form">
+          <label class="sr-only" for="new-case-name">New Case name</label>
+          <input id="new-case-name" placeholder="New Case name" maxlength="120" required>
+          <button type="submit">New Case</button>
+        </form>
+        <div id="cases-list" class="cases-list"></div>
+      </section>
+
+      <section id="editor-panel" class="card hidden">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">CASE EDITOR</p>
+            <h2 id="editor-title">Case</h2>
+            <p id="editor-meta"></p>
+          </div>
+          <div class="button-row">
+            <button id="reload-case" class="secondary" type="button">Reload</button>
+            <button id="save-case" type="button">Save Case</button>
+          </div>
+        </div>
+
+        <form id="case-editor-form">
+          <div class="field-grid">
+            <label>Case name<input id="case-name" maxlength="120" required></label>
+            <label>Unit of flow<input id="unit-of-flow" placeholder="bottles, cases, pallets…"></label>
+          </div>
+        </form>
+
+        <div class="editor-subheading">
+          <div>
+            <h3>Equipment sequence</h3>
+            <p>Order defines the material flow. Use Other / custom for manually defined equipment characteristics.</p>
+          </div>
+          <button id="add-equipment" class="secondary" type="button">Add equipment</button>
+        </div>
+        <div id="equipment-list" class="equipment-list"></div>
+
+        <details class="raw-viewer">
+          <summary>Raw JSON preview</summary>
+          <textarea id="case-json-preview" readonly spellcheck="false"></textarea>
+        </details>
+      </section>
+
+      <section id="run-panel" class="card hidden">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">RUN WORKSPACE</p>
+            <h2>Dynamic simulation</h2>
+            <p id="run-case-meta">Select a saved Case to run it.</p>
+          </div>
+          <div class="button-row">
+            <button id="run-simulation" type="button">Run simulation</button>
+          </div>
+        </div>
+
+        <div id="run-not-ready" class="notice hidden">Add and save at least two valid equipment units before running a simulation.</div>
+        <div id="run-config" class="run-config">
+          <div class="field-grid run-fields">
+            <label>Duration mode<select id="duration-mode"><option value="FIXED">Fixed virtual duration</option><option value="INDEFINITE">Indefinite (safety ceiling)</option></select></label>
+            <label>Virtual duration / safety ceiling (s)<input id="run-duration" type="number" min="1" step="1" value="300"></label>
+            <label>Sample interval (s)<input id="run-sample-interval" type="number" min="1" step="1" value="5"></label>
+            <label>Random seed<input id="run-seed" type="number" min="0" step="1" value="20260909"></label>
+            <label>Playback speed<select id="run-playback-rate"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="5">5×</option><option value="10">10×</option></select></label>
+          </div>
+
+          <div class="editor-subheading compact-heading">
+            <div>
+              <h3>Equipment control events</h3>
+              <p>Schedule a pause, stop, run, manual, or automatic mode change in virtual time.</p>
+            </div>
+            <button id="add-control-event" class="secondary" type="button">Add event</button>
+          </div>
+          <div id="control-events" class="control-events"></div>
+        </div>
+
+        <div id="simulation-results" class="hidden">
+          <div class="playback-toolbar">
+            <button id="play-simulation" class="secondary" type="button">Play</button>
+            <button id="pause-simulation" class="secondary" type="button">Pause</button>
+            <button id="reset-playback" class="secondary" type="button">Reset</button>
+            <span id="playback-status">Ready</span>
+          </div>
+          <div class="metrics-grid">
+            <article><span>Virtual time</span><strong id="metric-time">—</strong></article>
+            <article><span>Output</span><strong id="metric-output">—</strong></article>
+            <article><span>Average rate</span><strong id="metric-rate">—</strong></article>
+            <article><span>Buffer inventory</span><strong id="metric-buffer">—</strong></article>
+          </div>
+          <canvas id="simulation-chart" height="210" aria-label="Cumulative output chart"></canvas>
+          <div id="live-equipment" class="live-equipment"></div>
+          <details class="raw-viewer">
+            <summary>Raw simulation result</summary>
+            <textarea id="simulation-json-preview" readonly spellcheck="false"></textarea>
+          </details>
+        </div>
+      </section>
+
+      <section id="engine-panel" class="card hidden">
+        <h2>Engine boundary</h2>
+        <p>The next screen will execute the deterministic browser engine against the saved Case. Apps Script remains responsible for identity, Drive persistence, and artifact history; Gemini is not used for calculation.</p>
+      </section>
+    </main>
+    <script>
+/* Generated by scripts/build-browser-engine.mjs. Do not edit directly. */
+(function(window) {
+'use strict';
+
+function createSeededRandom(seed) {
+  let state = normalizeSeed(seed);
+
+  return {
+    next() {
+      state = (state + 0x6d2b79f5) >>> 0;
+      let value = state;
+      value = Math.imul(value ^ (value >>> 15), value | 1);
+      value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+      return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    }
+  };
+}
+
+function normalizeSeed(seed) {
+  if (!Number.isInteger(seed)) {
+    return 0;
+  }
+
+  return seed >>> 0;
+}
+
+
+function validateSimulationInput(input) {
+  const details = [];
+  validateCase(input?.case, details);
+  validateRun(input?.run, details);
+  validateCommands(input?.run?.commands, input?.case?.equipment, details);
+
+  return details.length === 0
+    ? { ok: true }
+    : {
+        ok: false,
+        error: {
+          code: 'INVALID_SIMULATION_INPUT',
+          message: 'The simulation input does not satisfy the required contract.',
+          details
+        }
+      };
+}
+
+function validateCase(caseModel, details) {
+  if (!caseModel || typeof caseModel !== 'object') {
+    details.push(required('case'));
+    return;
+  }
+
+  if (!Array.isArray(caseModel.equipment) || caseModel.equipment.length < 2) {
+    details.push(invalid('case.equipment', 'must contain at least two equipment units'));
+    return;
+  }
+
+  const ids = new Set();
+  caseModel.equipment.forEach((equipment, index) => {
+    const path = `case.equipment[${index}]`;
+    if (!equipment || typeof equipment !== 'object') {
+      details.push(invalid(path, 'must be an object'));
+      return;
+    }
+    if (!nonEmptyString(equipment.id)) details.push(required(`${path}.id`));
+    if (ids.has(equipment.id)) details.push(invalid(`${path}.id`, 'must be unique'));
+    ids.add(equipment.id);
+    if (!positiveNumber(equipment.nominalRatePerSecond)) details.push(invalid(`${path}.nominalRatePerSecond`, 'must be a number greater than zero'));
+    if (!nonNegativeNumber(equipment.bufferAfterCapacity)) details.push(invalid(`${path}.bufferAfterCapacity`, 'must be a number greater than or equal to zero'));
+    if (!['AUTO', 'MANUAL', 'PAUSE', 'STOP'].includes(equipment.initialMode)) details.push(invalid(`${path}.initialMode`, 'must be AUTO, MANUAL, PAUSE, or STOP'));
+    validateNoiseProfile(equipment.noiseProfile, path, details);
+  });
+}
+
+function validateRun(run, details) {
+  if (!run || typeof run !== 'object') {
+    details.push(required('run'));
+    return;
+  }
+  if (!positiveNumber(run.durationSeconds)) details.push(invalid('run.durationSeconds', 'must be a number greater than zero'));
+  if (!positiveNumber(run.tickSeconds)) details.push(invalid('run.tickSeconds', 'must be a number greater than zero'));
+  if (!Number.isInteger(run.seed)) details.push(invalid('run.seed', 'must be an integer'));
+  if (run.sampleEverySeconds !== undefined && !positiveNumber(run.sampleEverySeconds)) details.push(invalid('run.sampleEverySeconds', 'must be a number greater than zero'));
+}
+
+function validateCommands(commands, equipment, details) {
+  if (commands === undefined) return;
+  if (!Array.isArray(commands)) {
+    details.push(invalid('run.commands', 'must be an array'));
+    return;
+  }
+
+  const equipmentIds = new Set(Array.isArray(equipment) ? equipment.map((item) => item?.id) : []);
+  commands.forEach((command, index) => {
+    const path = `run.commands[${index}]`;
+    if (!command || typeof command !== 'object') {
+      details.push(invalid(path, 'must be an object'));
+      return;
+    }
+    if (!nonNegativeNumber(command.atVirtualSecond)) details.push(invalid(`${path}.atVirtualSecond`, 'must be a number greater than or equal to zero'));
+    if (!equipmentIds.has(command.equipmentId)) details.push(invalid(`${path}.equipmentId`, 'must reference an equipment unit in case.equipment'));
+    if (!['RUN', 'PAUSE', 'STOP', 'MANUAL', 'AUTO'].includes(command.action)) details.push(invalid(`${path}.action`, 'is not supported'));
+  });
+}
+
+function validateNoiseProfile(noiseProfile, equipmentPath, details) {
+  if (noiseProfile === undefined) return;
+  if (!noiseProfile || typeof noiseProfile !== 'object' || Array.isArray(noiseProfile)) {
+    details.push(invalid(`${equipmentPath}.noiseProfile`, 'must be an object'));
+    return;
+  }
+  if (noiseProfile.microStop === undefined) return;
+  const microStop = noiseProfile.microStop;
+  const path = `${equipmentPath}.noiseProfile.microStop`;
+  if (!microStop || typeof microStop !== 'object' || Array.isArray(microStop)) {
+    details.push(invalid(path, 'must be an object'));
+    return;
+  }
+  if (microStop.probabilityPerMinute !== undefined && !nonNegativeNumber(microStop.probabilityPerMinute)) {
+    details.push(invalid(`${path}.probabilityPerMinute`, 'must be a number greater than or equal to zero'));
+  }
+  if (microStop.minDurationSeconds !== undefined && !nonNegativeNumber(microStop.minDurationSeconds)) {
+    details.push(invalid(`${path}.minDurationSeconds`, 'must be a number greater than or equal to zero'));
+  }
+  if (microStop.maxDurationSeconds !== undefined && !nonNegativeNumber(microStop.maxDurationSeconds)) {
+    details.push(invalid(`${path}.maxDurationSeconds`, 'must be a number greater than or equal to zero'));
+  }
+  if (nonNegativeNumber(microStop.minDurationSeconds) && nonNegativeNumber(microStop.maxDurationSeconds) && microStop.minDurationSeconds > microStop.maxDurationSeconds) {
+    details.push(invalid(`${path}.maxDurationSeconds`, 'must be greater than or equal to minDurationSeconds'));
+  }
+}
+
+function required(path) { return { path, reason: 'is required' }; }
+function invalid(path, reason) { return { path, reason }; }
+function positiveNumber(value) { return typeof value === 'number' && Number.isFinite(value) && value > 0; }
+function nonNegativeNumber(value) { return typeof value === 'number' && Number.isFinite(value) && value >= 0; }
+function nonEmptyString(value) { return typeof value === 'string' && value.length > 0; }
+
+
+
+function simulateLine(input) {
+  const validation = validateSimulationInput(input);
+  if (!validation.ok) return validation;
+
+  const runtime = createRuntime(input);
+  executeTicks(runtime);
+  return { ok: true, result: createResult(runtime) };
+}
+
+function createRuntime(input) {
+  const equipment = input.case.equipment.map(createEquipmentRuntime);
+  return {
+    caseId: input.case.id,
+    unitOfFlow: input.case.unitOfFlow,
+    run: input.run,
+    random: createSeededRandom(input.run.seed),
+    virtualSecond: 0,
+    equipment,
+    buffers: equipment.slice(0, -1).map(() => 0),
+    events: [],
+    samples: [],
+    outputCount: 0,
+    commandIndex: 0,
+    commands: sortCommands(input.run.commands || [])
+  };
+}
+
+function createEquipmentRuntime(model) {
+  return {
+    ...model,
+    mode: model.initialMode,
+    microStopRemainingSeconds: 0,
+    outputCount: 0,
+    runningSeconds: 0,
+    pausedSeconds: 0,
+    stoppedSeconds: 0,
+    starvedSeconds: 0,
+    blockedSeconds: 0
+  };
+}
+
+function executeTicks(runtime) {
+  while (runtime.virtualSecond < runtime.run.durationSeconds) {
+    applyDueCommands(runtime);
+    updateMicroStops(runtime);
+    processLineFromDownstream(runtime);
+    runtime.virtualSecond += runtime.run.tickSeconds;
+    addSampleIfDue(runtime);
+  }
+}
+
+function applyDueCommands(runtime) {
+  while (runtime.commandIndex < runtime.commands.length) {
+    const command = runtime.commands[runtime.commandIndex];
+    if (command.atVirtualSecond > runtime.virtualSecond) return;
+    const equipment = runtime.equipment.find((item) => item.id === command.equipmentId);
+    if (equipment && isSupportedAction(command.action)) {
+      equipment.mode = command.action === 'RUN' ? 'AUTO' : command.action;
+      runtime.events.push({ type: 'COMMAND_APPLIED', atVirtualSecond: runtime.virtualSecond, equipmentId: equipment.id, action: command.action });
+    }
+    runtime.commandIndex += 1;
+  }
+}
+
+function updateMicroStops(runtime) {
+  runtime.equipment.forEach((equipment) => {
+    if (equipment.microStopRemainingSeconds > 0) {
+      equipment.microStopRemainingSeconds = Math.max(0, equipment.microStopRemainingSeconds - runtime.run.tickSeconds);
+      return;
+    }
+    if (equipment.mode !== 'AUTO') return;
+    const profile = equipment.noiseProfile?.microStop;
+    if (!profile) return;
+    const probability = (profile.probabilityPerMinute || 0) * runtime.run.tickSeconds / 60;
+    if (runtime.random.next() < probability) {
+      equipment.microStopRemainingSeconds = randomDuration(runtime.random, profile);
+      runtime.events.push({ type: 'MICRO_STOP_STARTED', atVirtualSecond: runtime.virtualSecond, equipmentId: equipment.id, durationSeconds: equipment.microStopRemainingSeconds });
+    }
+  });
+}
+
+function processLineFromDownstream(runtime) {
+  for (let index = runtime.equipment.length - 1; index >= 0; index -= 1) {
+    processEquipment(runtime, index);
+  }
+}
+
+function processEquipment(runtime, index) {
+  const equipment = runtime.equipment[index];
+  const requestedFlow = equipment.nominalRatePerSecond * runtime.run.tickSeconds;
+  if (!isAvailable(equipment)) {
+    recordUnavailable(equipment, runtime.run.tickSeconds);
+    return;
+  }
+
+  const inputAvailable = index === 0 ? requestedFlow : runtime.buffers[index - 1];
+  const downstreamSpace = getDownstreamSpace(runtime, index);
+  const flow = Math.max(0, Math.min(requestedFlow, inputAvailable, downstreamSpace));
+  recordConstraintTimes(equipment, requestedFlow, inputAvailable, downstreamSpace, runtime.run.tickSeconds);
+  moveFlow(runtime, index, flow);
+  equipment.outputCount += flow;
+  equipment.runningSeconds += runtime.run.tickSeconds;
+}
+
+function getDownstreamSpace(runtime, index) {
+  if (index === runtime.equipment.length - 1) return Number.POSITIVE_INFINITY;
+  const capacity = runtime.equipment[index].bufferAfterCapacity;
+  return Math.max(0, capacity - runtime.buffers[index]);
+}
+
+function moveFlow(runtime, index, flow) {
+  if (index > 0) runtime.buffers[index - 1] -= flow;
+  if (index === runtime.equipment.length - 1) runtime.outputCount += flow;
+  else runtime.buffers[index] += flow;
+}
+
+function recordConstraintTimes(equipment, requestedFlow, inputAvailable, downstreamSpace, tickSeconds) {
+  if (inputAvailable < requestedFlow) equipment.starvedSeconds += tickSeconds;
+  if (downstreamSpace < requestedFlow) equipment.blockedSeconds += tickSeconds;
+}
+
+function recordUnavailable(equipment, tickSeconds) {
+  if (equipment.mode === 'PAUSE') equipment.pausedSeconds += tickSeconds;
+  else equipment.stoppedSeconds += tickSeconds;
+}
+
+function isAvailable(equipment) {
+  return (equipment.mode === 'AUTO' || equipment.mode === 'MANUAL') && equipment.microStopRemainingSeconds <= 0;
+}
+
+function addSampleIfDue(runtime) {
+  const interval = runtime.run.sampleEverySeconds || runtime.run.tickSeconds;
+  if (runtime.samples.length > 0 && runtime.virtualSecond % interval !== 0 && runtime.virtualSecond < runtime.run.durationSeconds) return;
+  runtime.samples.push({
+    virtualSecond: runtime.virtualSecond,
+    outputCount: round(runtime.outputCount),
+    buffers: runtime.buffers.map(round),
+    equipment: runtime.equipment.map((item) => ({ id: item.id, mode: item.mode, outputCount: round(item.outputCount) }))
+  });
+}
+
+function createResult(runtime) {
+  return {
+    caseId: runtime.caseId,
+    unitOfFlow: runtime.unitOfFlow,
+    engineVersion: '0.1.0',
+    seed: runtime.run.seed,
+    durationSeconds: runtime.run.durationSeconds,
+    summary: createSummary(runtime),
+    equipmentMetrics: Object.fromEntries(runtime.equipment.map((item) => [item.id, createEquipmentMetrics(item, runtime.run.durationSeconds)])),
+    events: runtime.events,
+    samples: runtime.samples
+  };
+}
+
+function createSummary(runtime) {
+  return {
+    outputCount: round(runtime.outputCount),
+    averageOutputRatePerSecond: round(runtime.outputCount / runtime.run.durationSeconds),
+    totalBlockedSeconds: round(sum(runtime.equipment.map((item) => item.blockedSeconds))),
+    totalStarvedSeconds: round(sum(runtime.equipment.map((item) => item.starvedSeconds)))
+  };
+}
+
+function createEquipmentMetrics(equipment, durationSeconds) {
+  return {
+    outputCount: round(equipment.outputCount),
+    runningSeconds: round(equipment.runningSeconds),
+    pausedSeconds: round(equipment.pausedSeconds),
+    stoppedSeconds: round(equipment.stoppedSeconds),
+    starvedSeconds: round(equipment.starvedSeconds),
+    blockedSeconds: round(equipment.blockedSeconds),
+    availability: round(equipment.runningSeconds / durationSeconds)
+  };
+}
+
+function sortCommands(commands) { return [...commands].sort((a, b) => a.atVirtualSecond - b.atVirtualSecond); }
+function isSupportedAction(action) { return ['RUN', 'PAUSE', 'STOP', 'MANUAL', 'AUTO'].includes(action); }
+function randomDuration(random, profile) { const min = profile.minDurationSeconds || 0; const max = profile.maxDurationSeconds ?? min; return min + (max - min) * random.next(); }
+function sum(values) { return values.reduce((total, value) => total + value, 0); }
+function round(value) { return Number(value.toFixed(6)); }
+
+
+window.SimulatorEngine = { simulateLine: simulateLine };
+})(window);
+</script>
+    <script>
+  (function() {
+    var state = {
+      bootstrap: null,
+      activeCase: null,
+      isDirty: false,
+      run: {
+        commands: [],
+        result: null,
+        sampleIndex: 0,
+        timer: null,
+        playing: false,
+        playbackConfigured: false,
+        durationMode: 'FIXED'
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+      bindEvents();
+      initialize();
+    });
+    window.addEventListener('resize', function() { renderPlaybackFrame(); });
+
+    function bindEvents() {
+      document.getElementById('workspace-form').addEventListener('submit', saveWorkspace);
+      document.getElementById('new-case-form').addEventListener('submit', createDraftCase);
+      document.getElementById('create-reference-case').addEventListener('click', createReferenceCase);
+      document.getElementById('reload-case').addEventListener('click', reloadActiveCase);
+      document.getElementById('save-case').addEventListener('click', saveActiveCase);
+      document.getElementById('add-equipment').addEventListener('click', addEquipment);
+      document.getElementById('case-editor-form').addEventListener('input', markCaseDirty);
+      document.getElementById('equipment-list').addEventListener('input', markCaseDirty);
+      document.getElementById('equipment-list').addEventListener('change', markCaseDirty);
+      document.getElementById('add-control-event').addEventListener('click', addControlEvent);
+      document.getElementById('run-simulation').addEventListener('click', runSimulation);
+      document.getElementById('play-simulation').addEventListener('click', startPlayback);
+      document.getElementById('pause-simulation').addEventListener('click', pausePlayback);
+      document.getElementById('reset-playback').addEventListener('click', resetPlayback);
+      document.getElementById('duration-mode').addEventListener('change', function(event) {
+        state.run.durationMode = event.target.value;
+      });
+    }
+
+    function initialize() {
+      setStatus('Loading console…');
+      callServer('getBootstrap', [], renderBootstrap);
+    }
+
+    function renderBootstrap(response) {
+      if (!response.ok) return showError(response.error);
+      state.bootstrap = response.data;
+      document.getElementById('user-email').textContent = response.data.user.email;
+      document.getElementById('workspace-folder-id').value = response.data.settings.workspaceRootFolderId || '';
+      document.getElementById('playback-rate').value = String(response.data.settings.preferredPlaybackRate || 1);
+      if (!state.run.playbackConfigured) {
+        document.getElementById('run-playback-rate').value = String(response.data.settings.preferredPlaybackRate || 1);
+        state.run.playbackConfigured = true;
+      }
+
+      var hasWorkspace = Boolean(response.data.settings.workspaceRootFolderId);
+      toggle('workspace-panel', true);
+      toggle('cases-panel', hasWorkspace);
+      toggle('engine-panel', hasWorkspace);
+      renderCases(response.data.cases);
+      if (!state.activeCase) setStatus(hasWorkspace ? 'Workspace connected.' : 'Connect a workspace folder to begin.');
+    }
+
+    function saveWorkspace(event) {
+      event.preventDefault();
+      setBusy('workspace-form', true);
+      callServer('saveUserSettings', [{
+        workspaceRootFolderId: document.getElementById('workspace-folder-id').value,
+        preferredPlaybackRate: Number(document.getElementById('playback-rate').value)
+      }], function(response) {
+        setBusy('workspace-form', false);
+        if (!response.ok) return showError(response.error);
+        initialize();
+      });
+    }
+
+    function createDraftCase(event) {
+      event.preventDefault();
+      var input = document.getElementById('new-case-name');
+      setBusy('new-case-form', true);
+      callServer('createCase', [{ name: input.value }], function(response) {
+        setBusy('new-case-form', false);
+        if (!response.ok) return showError(response.error);
+        input.value = '';
+        openCase(response.data.id);
+        initialize();
+      });
+    }
+
+    function createReferenceCase() {
+      setBusy('create-reference-case', true);
+      callServer('createReferenceCase', [], function(response) {
+        setBusy('create-reference-case', false);
+        if (!response.ok) return showError(response.error);
+        openCase(response.data.id);
+        initialize();
+      });
+    }
+
+    function openCase(caseId) {
+      callServer('getCase', [caseId], function(response) {
+        if (!response.ok) return showError(response.error);
+        stopPlaybackTimer();
+        state.activeCase = response.data;
+        state.isDirty = false;
+        state.run.commands = [];
+        state.run.result = null;
+        renderEditor();
+        setStatus('Case loaded.');
+      });
+    }
+
+    function reloadActiveCase() {
+      if (!state.activeCase) return;
+      openCase(state.activeCase.id);
+    }
+
+    function markCaseDirty() {
+      if (!state.activeCase) return;
+      state.isDirty = true;
+      renderEditorMeta();
+      renderRunWorkspace();
+    }
+
+    function saveActiveCase() {
+      var next = collectCaseEditor();
+      if (!next) return;
+      setBusy('save-case', true);
+      callServer('saveCase', [next], function(response) {
+        setBusy('save-case', false);
+        if (!response.ok) return showError(response.error);
+        state.activeCase = response.data;
+        state.isDirty = false;
+        renderEditor();
+        initialize();
+        setStatus('Case saved as revision ' + response.data.revision + '.');
+      });
+    }
+
+    function addEquipment() {
+      if (!syncEquipmentFromEditor()) return;
+      state.activeCase.equipment.push(createBlankEquipment());
+      state.isDirty = true;
+      renderEquipment();
+      renderRunWorkspace();
+    }
+
+    function renderCases(cases) {
+      var target = document.getElementById('cases-list');
+      target.textContent = '';
+      if (!cases || !cases.length) {
+        target.innerHTML = '<p class="empty">No cases yet. Start with a draft or the explicit reference line.</p>';
+        return;
+      }
+      cases.forEach(function(caseSummary) {
+        var row = document.createElement('article');
+        row.className = 'case-row';
+        row.innerHTML = '<div><strong></strong><span></span></div><div class="case-actions"><span></span><button type="button">Open</button></div>';
+        row.querySelector('strong').textContent = caseSummary.name;
+        row.querySelector('div span').textContent = caseSummary.equipmentCount + ' equipment units · ' + (caseSummary.isSimulationReady ? 'simulation-ready' : 'draft');
+        row.querySelector('.case-actions span').textContent = new Date(caseSummary.updatedAt).toLocaleString();
+        row.querySelector('button').addEventListener('click', function() { openCase(caseSummary.id); });
+        target.appendChild(row);
+      });
+    }
+
+    function renderEditor() {
+      if (!state.activeCase) return;
+      toggle('editor-panel', true);
+      document.getElementById('editor-title').textContent = state.activeCase.name;
+      document.getElementById('case-name').value = state.activeCase.name;
+      document.getElementById('unit-of-flow').value = state.activeCase.unitOfFlow || '';
+      renderEditorMeta();
+      renderEquipment();
+      renderRawJson();
+      renderRunWorkspace();
+    }
+
+    function renderEditorMeta() {
+      if (!state.activeCase) return;
+      var dirtyText = state.isDirty ? ' · unsaved changes' : '';
+      document.getElementById('editor-meta').textContent = 'ID: ' + state.activeCase.id + ' · Revision ' + state.activeCase.revision + dirtyText;
+    }
+
+    function renderEquipment() {
+      var target = document.getElementById('equipment-list');
+      target.textContent = '';
+      state.activeCase.equipment.forEach(function(equipment, index) {
+        target.appendChild(createEquipmentCard(equipment, index));
+      });
+      if (!state.activeCase.equipment.length) {
+        target.innerHTML = '<p class="empty">This draft has no equipment. Add at least two units before simulation.</p>';
+      }
+      renderRawJson();
+    }
+
+    function createEquipmentCard(equipment, index) {
+      var card = document.createElement('article');
+      card.className = 'equipment-card';
+      card.dataset.index = String(index);
+      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="BLOWMOLDER">Blowmolder</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PUCKER">Pucker</option><option value="FILLER">Filler</option><option value="DEPUCKER">De-pucker</option><option value="SLEEVER">Sleever</option><option value="CASE_PACKER">Case packer</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Buffer after unit<input class="equipment-buffer" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label><label class="characteristics-label">Process format data JSON (optional)<textarea class="equipment-process-data" spellcheck="false"></textarea></label>';
+      card.querySelector('strong').textContent = 'Step ' + (index + 1);
+      card.querySelector('.equipment-id').value = equipment.id || '';
+      card.querySelector('.equipment-type').value = equipment.type || 'CUSTOM';
+      card.querySelector('.equipment-name').value = equipment.name || '';
+      card.querySelector('.equipment-rate').value = equipment.nominalRatePerSecond === undefined ? '' : equipment.nominalRatePerSecond;
+      card.querySelector('.equipment-buffer').value = equipment.bufferAfterCapacity === undefined ? '' : equipment.bufferAfterCapacity;
+      card.querySelector('.equipment-mode').value = equipment.initialMode || 'AUTO';
+      card.querySelector('.equipment-characteristics').value = JSON.stringify(equipment.characteristics || {}, null, 2);
+      card.querySelector('.equipment-noise-profile').value = JSON.stringify(equipment.noiseProfile || {}, null, 2);
+      card.querySelector('.equipment-process-data').value = JSON.stringify(equipment.processData || {}, null, 2);
+      card.querySelector('.move-up').disabled = index === 0;
+      card.querySelector('.move-down').disabled = index === state.activeCase.equipment.length - 1;
+      card.querySelector('.move-up').addEventListener('click', function() { moveEquipment(index, -1); });
+      card.querySelector('.move-down').addEventListener('click', function() { moveEquipment(index, 1); });
+      card.querySelector('.remove-equipment').addEventListener('click', function() { removeEquipment(index); });
+      return card;
+    }
+
+    function moveEquipment(index, direction) {
+      if (!syncEquipmentFromEditor()) return;
+      var targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= state.activeCase.equipment.length) return;
+      var moved = state.activeCase.equipment.splice(index, 1)[0];
+      state.activeCase.equipment.splice(targetIndex, 0, moved);
+      state.isDirty = true;
+      renderEquipment();
+      renderRunWorkspace();
+    }
+
+    function removeEquipment(index) {
+      if (!syncEquipmentFromEditor()) return;
+      state.activeCase.equipment.splice(index, 1);
+      state.isDirty = true;
+      renderEquipment();
+      renderRunWorkspace();
+    }
+
+    function collectCaseEditor() {
+      if (!state.activeCase || !syncEquipmentFromEditor()) return null;
+      state.activeCase.name = document.getElementById('case-name').value;
+      state.activeCase.unitOfFlow = document.getElementById('unit-of-flow').value;
+      return {
+        id: state.activeCase.id,
+        expectedRevision: state.activeCase.revision,
+        name: state.activeCase.name,
+        unitOfFlow: state.activeCase.unitOfFlow,
+        equipment: state.activeCase.equipment,
+        engineConfig: state.activeCase.engineConfig || {}
+      };
+    }
+
+    function syncEquipmentFromEditor() {
+      if (!state.activeCase) return false;
+      var cards = Array.prototype.slice.call(document.querySelectorAll('.equipment-card'));
+      var equipment = [];
+      for (var index = 0; index < cards.length; index += 1) {
+        var card = cards[index];
+        var characteristics = parseJsonObject(card.querySelector('.equipment-characteristics').value, 'Characteristics', index + 1);
+        if (characteristics === null) return false;
+        var noiseProfile = parseJsonObject(card.querySelector('.equipment-noise-profile').value, 'Noise profile', index + 1);
+        if (noiseProfile === null) return false;
+        var processData = parseJsonObject(card.querySelector('.equipment-process-data').value, 'Process format data', index + 1);
+        if (processData === null) return false;
+        equipment.push({
+          id: card.querySelector('.equipment-id').value.trim(),
+          type: card.querySelector('.equipment-type').value,
+          name: card.querySelector('.equipment-name').value.trim(),
+          nominalRatePerSecond: Number(card.querySelector('.equipment-rate').value),
+          bufferAfterCapacity: Number(card.querySelector('.equipment-buffer').value),
+          initialMode: card.querySelector('.equipment-mode').value,
+          characteristics: characteristics,
+          noiseProfile: noiseProfile,
+          processData: processData
+        });
+      }
+      state.activeCase.equipment = equipment;
+      renderRawJson();
+      return true;
+    }
+
+    function parseJsonObject(rawValue, label, step) {
+      if (!rawValue.trim()) return {};
+      try {
+        var parsed = JSON.parse(rawValue);
+        if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw new Error('not an object');
+        return parsed;
+      } catch (error) {
+        showError({ code: 'INVALID_EQUIPMENT_JSON', message: label + ' for equipment step ' + step + ' must contain a JSON object.' });
+        return null;
+      }
+    }
+
+    function createBlankEquipment() {
+      return {
+        id: '',
+        type: 'CUSTOM',
+        name: '',
+        nominalRatePerSecond: undefined,
+        bufferAfterCapacity: undefined,
+        initialMode: 'AUTO',
+        characteristics: {},
+        noiseProfile: {},
+        processData: {}
+      };
+    }
+
+    function renderRawJson() {
+      var preview = document.getElementById('case-json-preview');
+      if (state.activeCase) preview.value = JSON.stringify(state.activeCase, null, 2);
+    }
+
+    function renderRunWorkspace() {
+      var canRender = Boolean(state.activeCase);
+      toggle('run-panel', canRender);
+      if (!canRender) return;
+      var ready = isRunReady();
+      document.getElementById('run-case-meta').textContent = state.activeCase.name + ' · revision ' + state.activeCase.revision + (state.isDirty ? ' · save changes before running' : '');
+      toggle('run-not-ready', !ready || state.isDirty);
+      document.getElementById('run-simulation').disabled = !ready || state.isDirty;
+      renderControlEvents();
+      if (!state.run.result) toggle('simulation-results', false);
+    }
+
+    function isRunReady() {
+      return state.activeCase && Array.isArray(state.activeCase.equipment) && state.activeCase.equipment.length >= 2;
+    }
+
+    function addControlEvent() {
+      if (!state.activeCase || !state.activeCase.equipment.length) return;
+      state.run.commands.push({
+        atVirtualSecond: 0,
+        equipmentId: state.activeCase.equipment[0].id,
+        action: 'PAUSE'
+      });
+      renderControlEvents();
+    }
+
+    function renderControlEvents() {
+      var target = document.getElementById('control-events');
+      target.textContent = '';
+      state.run.commands.forEach(function(command, index) {
+        target.appendChild(createControlEventRow(command, index));
+      });
+      if (!state.run.commands.length) {
+        target.innerHTML = '<p class="empty compact-empty">No scheduled control events.</p>';
+      }
+    }
+
+    function createControlEventRow(command, index) {
+      var row = document.createElement('article');
+      row.className = 'control-event';
+      row.innerHTML = '<label>At virtual second<input class="command-time" type="number" min="0" step="any"></label><label>Equipment<select class="command-equipment"></select></label><label>Action<select class="command-action"><option value="RUN">Run</option><option value="PAUSE">Pause</option><option value="STOP">Stop</option><option value="MANUAL">Manual</option><option value="AUTO">Automatic</option></select></label><button class="remove-command danger" type="button">Remove</button>';
+      var equipmentSelect = row.querySelector('.command-equipment');
+      state.activeCase.equipment.forEach(function(equipment) {
+        var option = document.createElement('option');
+        option.value = equipment.id;
+        option.textContent = equipment.name || equipment.id;
+        equipmentSelect.appendChild(option);
+      });
+      row.querySelector('.command-time').value = command.atVirtualSecond;
+      equipmentSelect.value = command.equipmentId;
+      row.querySelector('.command-action').value = command.action;
+      row.querySelector('.command-time').addEventListener('change', function(event) { state.run.commands[index].atVirtualSecond = Number(event.target.value); });
+      equipmentSelect.addEventListener('change', function(event) { state.run.commands[index].equipmentId = event.target.value; });
+      row.querySelector('.command-action').addEventListener('change', function(event) { state.run.commands[index].action = event.target.value; });
+      row.querySelector('.remove-command').addEventListener('click', function() {
+        state.run.commands.splice(index, 1);
+        renderControlEvents();
+      });
+      return row;
+    }
+
+    function runSimulation() {
+      if (state.isDirty) return showError({ code: 'UNSAVED_CASE', message: 'Save the Case before running a simulation.' });
+      var run = readRunConfiguration();
+      if (!run) return;
+      var input = {
+        case: JSON.parse(JSON.stringify(state.activeCase)),
+        run: run
+      };
+      var response = window.SimulatorEngine.simulateLine(input);
+      if (!response.ok) return showError(response.error);
+
+      stopPlaybackTimer();
+      state.run.result = response.result;
+      state.run.sampleIndex = 0;
+      toggle('simulation-results', true);
+      document.getElementById('simulation-json-preview').value = JSON.stringify(response.result, null, 2);
+      renderPlaybackFrame();
+      setStatus(state.run.durationMode === 'INDEFINITE'
+        ? 'Simulation completed at its virtual safety ceiling. Playback is starting.'
+        : 'Simulation completed. Playback is starting.');
+      startPlayback();
+    }
+
+    function readRunConfiguration() {
+      var durationSeconds = Number(document.getElementById('run-duration').value);
+      var sampleEverySeconds = Number(document.getElementById('run-sample-interval').value);
+      var seed = Number(document.getElementById('run-seed').value);
+      if (!(durationSeconds > 0) || !(sampleEverySeconds > 0) || !Number.isInteger(seed)) {
+        showError({ code: 'INVALID_RUN_CONFIGURATION', message: 'Duration, sample interval, and integer seed are required.' });
+        return null;
+      }
+      return {
+        durationSeconds: durationSeconds,
+        tickSeconds: 1,
+        sampleEverySeconds: sampleEverySeconds,
+        seed: seed,
+        commands: state.run.commands.map(function(command) {
+          return {
+            atVirtualSecond: Number(command.atVirtualSecond),
+            equipmentId: command.equipmentId,
+            action: command.action
+          };
+        })
+      };
+    }
+
+    function startPlayback() {
+      if (!state.run.result || state.run.playing) return;
+      state.run.playing = true;
+      schedulePlaybackStep();
+    }
+
+    function pausePlayback() {
+      state.run.playing = false;
+      stopPlaybackTimer();
+      setPlaybackStatus('Paused');
+    }
+
+    function resetPlayback() {
+      pausePlayback();
+      if (!state.run.result) return;
+      state.run.sampleIndex = 0;
+      renderPlaybackFrame();
+      setPlaybackStatus('Reset');
+    }
+
+    function schedulePlaybackStep() {
+      renderPlaybackFrame();
+      var samples = state.run.result.samples;
+      if (state.run.sampleIndex >= samples.length - 1) {
+        state.run.playing = false;
+        setPlaybackStatus('Completed');
+        return;
+      }
+      state.run.timer = window.setTimeout(function() {
+        if (!state.run.playing) return;
+        state.run.sampleIndex += 1;
+        schedulePlaybackStep();
+      }, playbackDelayMilliseconds());
+    }
+
+    function playbackDelayMilliseconds() {
+      return Math.max(35, 420 / Number(document.getElementById('run-playback-rate').value || 1));
+    }
+
+    function stopPlaybackTimer() {
+      if (state.run.timer) window.clearTimeout(state.run.timer);
+      state.run.timer = null;
+      state.run.playing = false;
+    }
+
+    function renderPlaybackFrame() {
+      if (!state.run.result || !state.run.result.samples.length) return;
+      var sample = state.run.result.samples[state.run.sampleIndex];
+      var time = sample.virtualSecond;
+      document.getElementById('metric-time').textContent = time + ' s';
+      document.getElementById('metric-output').textContent = formatNumber(sample.outputCount);
+      document.getElementById('metric-rate').textContent = time > 0 ? formatNumber(sample.outputCount / time) + ' /s' : '—';
+      document.getElementById('metric-buffer').textContent = formatNumber(sum(sample.buffers));
+      setPlaybackStatus('Playing ' + state.run.sampleIndex + ' / ' + (state.run.result.samples.length - 1));
+      renderLiveEquipment(sample);
+      drawSimulationChart();
+    }
+
+    function renderLiveEquipment(sample) {
+      var target = document.getElementById('live-equipment');
+      target.textContent = '';
+      sample.equipment.forEach(function(unit, index) {
+        var model = state.activeCase.equipment[index] || {};
+        var card = document.createElement('article');
+        card.className = 'live-equipment-card';
+        card.innerHTML = '<strong></strong><span></span><span></span>';
+        card.querySelector('strong').textContent = model.name || unit.id;
+        card.querySelectorAll('span')[0].textContent = unit.mode;
+        card.querySelectorAll('span')[1].textContent = formatNumber(unit.outputCount) + ' output';
+        target.appendChild(card);
+      });
+    }
+
+    function drawSimulationChart() {
+      var canvas = document.getElementById('simulation-chart');
+      if (!canvas || !state.run.result) return;
+      var bounds = canvas.getBoundingClientRect();
+      var width = Math.max(1, Math.floor(bounds.width));
+      var height = 210;
+      var ratio = window.devicePixelRatio || 1;
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+      var context = canvas.getContext('2d');
+      context.scale(ratio, ratio);
+      context.clearRect(0, 0, width, height);
+
+      var padding = { left: 44, right: 16, top: 18, bottom: 30 };
+      var plotWidth = width - padding.left - padding.right;
+      var plotHeight = height - padding.top - padding.bottom;
+      var samples = state.run.result.samples.slice(0, state.run.sampleIndex + 1);
+      var maxTime = Math.max(state.run.result.durationSeconds, 1);
+      var maxOutput = Math.max(state.run.result.summary.outputCount, 1);
+      context.strokeStyle = '#d9e1ef';
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(padding.left, padding.top);
+      context.lineTo(padding.left, padding.top + plotHeight);
+      context.lineTo(padding.left + plotWidth, padding.top + plotHeight);
+      context.stroke();
+      context.strokeStyle = '#3967d6';
+      context.lineWidth = 2.5;
+      context.beginPath();
+      samples.forEach(function(sample, index) {
+        var x = padding.left + (sample.virtualSecond / maxTime) * plotWidth;
+        var y = padding.top + plotHeight - (sample.outputCount / maxOutput) * plotHeight;
+        if (index === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      });
+      context.stroke();
+      context.fillStyle = '#657187';
+      context.font = '12px Arial';
+      context.fillText('Output', padding.left, 12);
+      context.fillText('0', padding.left - 8, padding.top + plotHeight + 16);
+      context.fillText(formatNumber(maxOutput), padding.left - 34, padding.top + 6);
+      context.fillText(maxTime + ' s', padding.left + plotWidth - 24, padding.top + plotHeight + 20);
+    }
+
+    function setPlaybackStatus(message) {
+      var target = document.getElementById('playback-status');
+      if (target) target.textContent = message;
+    }
+
+    function sum(values) {
+      return values.reduce(function(total, value) { return total + value; }, 0);
+    }
+
+    function formatNumber(value) {
+      return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    function callServer(name, args, onSuccess) {
+      var runner = google.script.run
+        .withFailureHandler(function() { showError({ code: 'NETWORK_ERROR', message: 'The server request could not be completed.' }); })
+        .withSuccessHandler(onSuccess);
+      runner[name].apply(runner, args);
+    }
+
+    function toggle(id, visible) { document.getElementById(id).classList.toggle('hidden', !visible); }
+    function setStatus(message) { var target = document.getElementById('status'); target.className = 'status'; target.textContent = message; }
+    function showError(error) { var target = document.getElementById('status'); target.className = 'status error'; target.textContent = (error.code || 'ERROR') + ': ' + (error.message || 'The request failed.'); }
+    function setBusy(targetId, busy) { var target = document.getElementById(targetId); var button = target.tagName === 'FORM' ? target.querySelector('button') : target; button.disabled = busy; }
+  })();
+</script>
+  </body>
+</html>
