@@ -73,3 +73,24 @@ test('applies explicit pause and run commands to one equipment unit', () => {
   assert.equal(response.result.events.filter((event) => event.type === 'COMMAND_APPLIED').length, 2);
   assert.ok(response.result.equipmentMetrics['pacemaker-1'].pausedSeconds >= 20);
 });
+
+test('returns a structured error for a control command that targets no equipment', () => {
+  const response = simulateLine(createInput({
+    commands: [{ atVirtualSecond: 10, equipmentId: 'missing-unit', action: 'PAUSE' }]
+  }));
+
+  assert.equal(response.ok, false);
+  assert.equal(response.error.code, 'INVALID_SIMULATION_INPUT');
+  assert.ok(response.error.details.some((detail) => detail.path === 'run.commands[0].equipmentId'));
+});
+
+test('returns a structured error for an invalid micro-stop profile', () => {
+  const input = createInput();
+  input.case.equipment[2].noiseProfile.microStop.probabilityPerMinute = -1;
+
+  const response = simulateLine(input);
+
+  assert.equal(response.ok, false);
+  assert.equal(response.error.code, 'INVALID_SIMULATION_INPUT');
+  assert.ok(response.error.details.some((detail) => detail.path === 'case.equipment[2].noiseProfile.microStop.probabilityPerMinute'));
+});
