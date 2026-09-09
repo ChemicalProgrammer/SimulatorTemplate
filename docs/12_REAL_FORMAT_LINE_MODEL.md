@@ -26,7 +26,7 @@ For blowmolder, pucker, filler, de-pucker, sleever, case packer, and palletizer:
 - maximumSpeedBpm
 - bufferMinutes
 
-The prior reference model used the same four inputs. In the calibrated model, MTBF/MTTR will generate seeded stop/recovery events; maximum speed will constrain output; and buffer minutes will be compared with, then eventually derived from, conveyor geometry.
+The prior reference model used the same four inputs. The current engine can use MTBF/MTTR through an explicit seeded reliability profile: failures follow an exponential time-to-failure model and MTTR is a fixed repair duration. This is reproducible but is not yet calibrated to a plant. Maximum speed and buffer minutes will be compared with, then eventually derived from, conveyor geometry.
 
 ## Geometry and transfers
 
