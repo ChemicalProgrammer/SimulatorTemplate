@@ -26,3 +26,14 @@ For a test deployment, use the editor's current saved code. For the stable `/exe
 ## Source of truth
 
 Do not hand-edit the generated root files in GitHub. The editable sources are the modular files in `apps-script/`; its page template is named `WebApp.html` specifically so it is not confused with the manual `Index.html`. The generated bundle is rebuilt and verified by the repository tests.
+
+## Current release: one pair only
+
+For this release, replace **both** repository-root files in the Apps Script editor:
+
+- root `Code.gs` → Apps Script `Code.gs`
+- root `Index.html` → an Apps Script HTML file named `Index`
+
+Do not copy files from `apps-script/`, `src/`, `test/`, or `docs/` into Apps Script. There is no third file for sensor control, the browser engine, or styles: all are already embedded in the root `Index.html`.
+
+After pasting, save, then update the existing web-app deployment to a new version. This changes the application code; it does not create a Git branch or a Drive Case copy.

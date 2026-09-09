@@ -113,7 +113,7 @@
           </div>
 
           <div class="notice model-boundary">
-            At 1×, one virtual second takes one real second. Length, gap, and pitch are retained in the Case but are not yet inputs to conveyor capacity or physical travel time; current buffers are abstract units.
+            At 1×, one virtual second takes one real second. When an equipment unit includes an <code>accumulationZone</code>, capacity is derived from usable length and product pitch, product travels at the configured conveyor speed, Prime requests downstream start, and Back-up requests an upstream stop. Legacy buffers remain abstract.
           </div>
 
           <div class="editor-subheading compact-heading">
@@ -138,7 +138,9 @@
             <article><span>Output</span><strong id="metric-output">—</strong></article>
             <article><span>Instantaneous output rate</span><strong id="metric-instant-rate">—</strong></article>
             <article><span>Cumulative average rate</span><strong id="metric-rate">—</strong></article>
-            <article><span>Buffer inventory</span><strong id="metric-buffer">—</strong></article>
+            <article><span>Accumulation inventory</span><strong id="metric-buffer">—</strong></article>
+            <article><span>Overflow loss</span><strong id="metric-overflow">—</strong></article>
+            <article><span>Back-up control time</span><strong id="metric-backup-stop">—</strong></article>
           </div>
           <canvas id="simulation-chart" height="210" aria-label="Cumulative output chart"></canvas>
           <p class="live-controls-help">Scenario controls apply at the displayed virtual second and deterministically recalculate the run. They are simulation controls only; they never command real equipment.</p>
@@ -152,7 +154,7 @@
 
       <section id="engine-panel" class="card hidden">
         <h2>Engine boundary</h2>
-        <p>The next screen will execute the deterministic browser engine against the saved Case. Apps Script remains responsible for identity, Drive persistence, and artifact history; Gemini is not used for calculation.</p>
+        <p>The browser engine executes the deterministic Case. Apps Script is responsible for identity and Drive persistence; Gemini is not used for calculation. Sensor positions in the public demo are transparent synthetic assumptions, not a PLC or safety-control design.</p>
       </section>
     </main>
     <?!= include_('SimulationEngine'); ?>

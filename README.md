@@ -40,6 +40,7 @@ For the browser-only Apps Script workflow, copy only the generated root files di
 | [Manual Apps Script update](docs/13_MANUAL_APPS_SCRIPT_UPDATE.md) | Generated Code.gs + Index.html package for browser-only updates |
 | [Public demonstration Case](docs/14_PUBLIC_DEMO_CASE.md) | Complete 13-unit test Case with explicit public/synthetic provenance |
 | [Transient states and controls](docs/15_TRANSIENT_STATES_AND_CONTROLS.md) | Empty-line behaviour, live equipment metrics, and scheduled safety scenarios |
+| [Accumulation-zone control](docs/16_ACCUMULATION_ZONE_CONTROL.md) | Physical conveyor capacity, Prime/Back-up sensors, residual discharge, and overflow-risk model |
 
 ## Initial technical decision
 

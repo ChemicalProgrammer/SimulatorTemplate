@@ -192,3 +192,107 @@ test('keeps an emergency stop latched until reset and a new run command', () => 
   assert.ok(response.result.events.some((event) => event.type === 'COMMAND_REJECTED' && event.action === 'RUN'));
   assert.ok(metrics.emergencyStopSeconds >= 15);
 });
+
+
+test('uses geometry and the Prime photocell to hold a downstream machine until product arrives', () => {
+  const input = {
+    case: {
+      id: 'prime-zone',
+      unitOfFlow: 'bottles',
+      equipment: [
+        {
+          id: 'source',
+          nominalRatePerSecond: 10,
+          bufferAfterCapacity: 1,
+          initialMode: 'AUTO',
+          accumulationZone: {
+            usableLengthMm: 100,
+            productPitchMm: 10,
+            conveyorSpeedMmPerSecond: 100,
+            primeSensorPositionMm: 50,
+            upstreamControlEquipmentId: 'source',
+            downstreamControlEquipmentId: 'downstream',
+            upstreamStopResponseSeconds: 0,
+            bottlesDischargedAtStop: 0,
+            downstreamRampUpSeconds: 0
+          }
+        },
+        { id: 'downstream', nominalRatePerSecond: 10, bufferAfterCapacity: 0, initialMode: 'AUTO' }
+      ]
+    },
+    run: { durationSeconds: 2, tickSeconds: 1, sampleEverySeconds: 1, seed: 7 }
+  };
+
+  const response = simulateLine(input);
+  const initialDownstream = response.result.samples[0].equipment.find((item) => item.id === 'downstream');
+  const finished = response.result.samples.at(-1);
+  const finishedDownstream = finished.equipment.find((item) => item.id === 'downstream');
+
+  assert.equal(response.ok, true);
+  assert.equal(initialDownstream.availabilityState, 'WAITING_FOR_PRIME');
+  assert.ok(response.result.events.some((event) => event.type === 'PRIME_SENSOR_TRIGGERED'));
+  assert.equal(finished.accumulationZones[0].capacityUnits, 10);
+  assert.equal(finished.accumulationZones[0].prime.state, 'DETECTED');
+  assert.ok(finishedDownstream.outputCount > 0);
+});
+
+test('Back-up sensor applies an upstream controlled stop and records residual overflow separately', () => {
+  const input = {
+    case: {
+      id: 'backup-zone',
+      unitOfFlow: 'bottles',
+      equipment: [
+        {
+          id: 'source',
+          nominalRatePerSecond: 10,
+          bufferAfterCapacity: 1,
+          initialMode: 'AUTO',
+          accumulationZone: {
+            usableLengthMm: 100,
+            productPitchMm: 10,
+            conveyorSpeedMmPerSecond: 100,
+            backupSensorPositionMm: 50,
+            backupRestartPositionMm: 60,
+            upstreamControlEquipmentId: 'source',
+            downstreamControlEquipmentId: 'downstream',
+            upstreamStopResponseSeconds: 0,
+            bottlesDischargedAtStop: 3
+          }
+        },
+        { id: 'downstream', nominalRatePerSecond: 10, bufferAfterCapacity: 0, initialMode: 'STOP' }
+      ]
+    },
+    run: {
+      durationSeconds: 5,
+      tickSeconds: 1,
+      sampleEverySeconds: 1,
+      seed: 7,
+      commands: [{ atVirtualSecond: 2, equipmentId: 'downstream', action: 'RUN' }]
+    }
+  };
+
+  const response = simulateLine(input);
+  const sourceMetrics = response.result.equipmentMetrics.source;
+
+  assert.equal(response.ok, true);
+  assert.ok(response.result.events.some((event) => event.type === 'BACKUP_SENSOR_BLOCKED'));
+  assert.ok(response.result.events.some((event) => event.type === 'BACKUP_SENSOR_CLEARED'));
+  assert.equal(response.result.summary.totalOverflowUnits, 3);
+  assert.ok(sourceMetrics.backupStopSeconds > 0);
+});
+
+test('rejects a physical zone that refers to an unknown controlled equipment unit', () => {
+  const input = createInput();
+  input.case.equipment[0].accumulationZone = {
+    usableLengthMm: 100,
+    productPitchMm: 10,
+    conveyorSpeedMmPerSecond: 100,
+    upstreamControlEquipmentId: 'missing',
+    downstreamControlEquipmentId: 'pacemaker-1'
+  };
+
+  const response = simulateLine(input);
+
+  assert.equal(response.ok, false);
+  assert.ok(response.error.details.some((detail) => detail.path === 'case.equipment[0].accumulationZone.upstreamControlEquipmentId'));
+});

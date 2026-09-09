@@ -10,13 +10,14 @@ Therefore, its MTBF, MTTR, geometry, buffer, speed-factor, pack configuration, a
 
 ## What runs in the MVP
 
-The generic engine models every step as an equivalent-bottle flow. It does not yet transform bottles into cases or pallets; the pack configuration is stored only as an explicit model assumption.
+The engine models every step as an equivalent-bottle flow. The six conveyor objects also use synthetic physical accumulation-zone parameters. It does not yet transform bottles into cases or pallets; the pack configuration is stored only as an explicit model assumption.
 
 | Input | Current deterministic behaviour |
 |---|---|
 | `noiseProfile.microStop` | Seeded short stops, driven by probability per minute and a duration range. |
 | `noiseProfile.reliability.mtbfMinutes` | Seeded exponential time-to-failure while the unit is operational. |
 | `noiseProfile.reliability.mttrMinutes` | Fixed repair duration after a generated failure. |
+| `accumulationZone` on each demo conveyor | Physical capacity from length/pitch, leading-product travel to Prime, Back-up controlled stop, restart hysteresis, and residual-discharge overflow accounting. |
 
 Using a fixed random seed makes the same Case and run configuration repeat exactly. Change the seed to observe another plausible realization of the declared assumptions.
 

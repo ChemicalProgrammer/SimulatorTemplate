@@ -3,33 +3,103 @@
   "$id": "https://chemicalprogrammer.github.io/SimulatorTemplate/schemas/case.schema.json",
   "title": "Simulator Case",
   "type": "object",
-  "required": ["schemaVersion", "id", "name", "unitOfFlow", "equipment"],
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "unitOfFlow",
+    "equipment"
+  ],
   "properties": {
-    "schemaVersion": { "const": "1.0" },
-    "id": { "type": "string", "minLength": 1 },
-    "name": { "type": "string", "minLength": 1 },
-    "unitOfFlow": { "type": "string", "minLength": 1 },
-    "engineConfig": { "type": "object" },
-    "metadata": { "$ref": "#/$defs/caseMetadata" },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "unitOfFlow": {
+      "type": "string",
+      "minLength": 1
+    },
+    "engineConfig": {
+      "type": "object"
+    },
+    "metadata": {
+      "$ref": "#/$defs/caseMetadata"
+    },
     "equipment": {
       "type": "array",
       "minItems": 2,
-      "items": { "$ref": "#/$defs/equipment" }
+      "items": {
+        "$ref": "#/$defs/equipment"
+      }
     }
   },
   "$defs": {
     "equipment": {
       "type": "object",
-      "required": ["id", "type", "name", "nominalRatePerSecond", "bufferAfterCapacity", "initialMode"],
+      "required": [
+        "id",
+        "type",
+        "name",
+        "nominalRatePerSecond",
+        "bufferAfterCapacity",
+        "initialMode"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "enum": ["BLOWER", "BLOWMOLDER", "CONVEYOR", "PACEMAKER", "PUCKER", "FILLER", "DEPUCKER", "SLEEVER", "CASE_PACKER", "PALLETIZER", "CUSTOM"] },
-        "name": { "type": "string", "minLength": 1 },
-        "nominalRatePerSecond": { "type": "number", "exclusiveMinimum": 0 },
-        "bufferAfterCapacity": { "type": "number", "minimum": 0 },
-        "initialMode": { "enum": ["AUTO", "MANUAL", "PAUSE", "STOP"] },
-        "noiseProfile": { "$ref": "#/$defs/noiseProfile" },
-        "processData": { "$ref": "#/$defs/processData" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            "BLOWER",
+            "BLOWMOLDER",
+            "CONVEYOR",
+            "PACEMAKER",
+            "PUCKER",
+            "FILLER",
+            "DEPUCKER",
+            "SLEEVER",
+            "CASE_PACKER",
+            "PALLETIZER",
+            "CUSTOM"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nominalRatePerSecond": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "bufferAfterCapacity": {
+          "type": "number",
+          "minimum": 0
+        },
+        "initialMode": {
+          "enum": [
+            "AUTO",
+            "MANUAL",
+            "PAUSE",
+            "STOP"
+          ]
+        },
+        "noiseProfile": {
+          "$ref": "#/$defs/noiseProfile"
+        },
+        "processData": {
+          "$ref": "#/$defs/processData"
+        },
+        "accumulationZone": {
+          "$ref": "#/$defs/accumulationZone"
+        }
       }
     },
     "noiseProfile": {
@@ -38,17 +108,35 @@
         "microStop": {
           "type": "object",
           "properties": {
-            "probabilityPerMinute": { "type": "number", "minimum": 0 },
-            "minDurationSeconds": { "type": "number", "minimum": 0 },
-            "maxDurationSeconds": { "type": "number", "minimum": 0 }
+            "probabilityPerMinute": {
+              "type": "number",
+              "minimum": 0
+            },
+            "minDurationSeconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "maxDurationSeconds": {
+              "type": "number",
+              "minimum": 0
+            }
           }
         },
         "reliability": {
           "type": "object",
-          "required": ["mtbfMinutes", "mttrMinutes"],
+          "required": [
+            "mtbfMinutes",
+            "mttrMinutes"
+          ],
           "properties": {
-            "mtbfMinutes": { "type": "number", "exclusiveMinimum": 0 },
-            "mttrMinutes": { "type": "number", "exclusiveMinimum": 0 }
+            "mtbfMinutes": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "mttrMinutes": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
           }
         }
       }
@@ -56,35 +144,159 @@
     "caseMetadata": {
       "type": "object",
       "properties": {
-        "dataClassification": { "type": "string" },
-        "dataNote": { "type": "string" },
+        "dataClassification": {
+          "type": "string"
+        },
+        "dataNote": {
+          "type": "string"
+        },
         "publicReferences": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["title", "url"],
+            "required": [
+              "title",
+              "url"
+            ],
             "properties": {
-              "publisher": { "type": "string" },
-              "title": { "type": "string" },
-              "url": { "type": "string", "format": "uri" },
-              "usedFor": { "type": "string" }
+              "publisher": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "usedFor": {
+                "type": "string"
+              }
             }
           }
         },
-        "modelLimitations": { "type": "array", "items": { "type": "string" } }
+        "modelLimitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "processData": {
       "type": "object",
       "properties": {
-        "role": { "enum": ["CRITICAL_MACHINE", "CONVEYOR"] },
-        "machineType": { "type": ["string", "null"] },
-        "equipment": { "type": "object" },
-        "geometry": { "type": "object" },
-        "upstream": { "type": "object" },
-        "downstream": { "type": "object" },
-        "speedAndSensors": { "type": "object" }
+        "role": {
+          "enum": [
+            "CRITICAL_MACHINE",
+            "CONVEYOR"
+          ]
+        },
+        "machineType": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "equipment": {
+          "type": "object"
+        },
+        "geometry": {
+          "type": "object"
+        },
+        "upstream": {
+          "type": "object"
+        },
+        "downstream": {
+          "type": "object"
+        },
+        "speedAndSensors": {
+          "type": "object"
+        }
       }
+    },
+    "accumulationZone": {
+      "type": "object",
+      "description": "Physical accumulation-zone approximation. Sensor positions are measured from the upstream discharge toward the downstream infeed.",
+      "required": [
+        "usableLengthMm",
+        "conveyorSpeedMmPerSecond"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "usableLengthMm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "productPitchMm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "productLengthMm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "gapMm": {
+          "type": "number",
+          "minimum": 0
+        },
+        "conveyorSpeedMmPerSecond": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "primeSensorPositionMm": {
+          "type": "number",
+          "minimum": 0
+        },
+        "backupSensorPositionMm": {
+          "type": "number",
+          "minimum": 0
+        },
+        "backupRestartPositionMm": {
+          "type": "number",
+          "minimum": 0
+        },
+        "upstreamControlEquipmentId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "downstreamControlEquipmentId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "upstreamStopResponseSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "bottlesDischargedAtStop": {
+          "type": "number",
+          "minimum": 0
+        },
+        "downstreamRampUpSeconds": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "productPitchMm"
+          ]
+        },
+        {
+          "required": [
+            "productLengthMm",
+            "gapMm"
+          ]
+        }
+      ]
     }
   }
 }

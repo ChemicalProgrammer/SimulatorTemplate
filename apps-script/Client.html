@@ -225,7 +225,7 @@
       var card = document.createElement('article');
       card.className = 'equipment-card';
       card.dataset.index = String(index);
-      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="BLOWMOLDER">Blowmolder</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PUCKER">Pucker</option><option value="FILLER">Filler</option><option value="DEPUCKER">De-pucker</option><option value="SLEEVER">Sleever</option><option value="CASE_PACKER">Case packer</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Buffer after unit<input class="equipment-buffer" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label><label class="characteristics-label">Process format data JSON (optional)<textarea class="equipment-process-data" spellcheck="false"></textarea></label>';
+      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="BLOWMOLDER">Blowmolder</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PUCKER">Pucker</option><option value="FILLER">Filler</option><option value="DEPUCKER">De-pucker</option><option value="SLEEVER">Sleever</option><option value="CASE_PACKER">Case packer</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Buffer after unit<input class="equipment-buffer" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label><label class="characteristics-label">Process format data JSON (optional)<textarea class="equipment-process-data" spellcheck="false"></textarea></label><label class="characteristics-label">Accumulation zone JSON (optional)<textarea class="equipment-accumulation-zone" spellcheck="false" placeholder="Physical conveyor: usable length, pitch, speed, Prime and Back-up sensors"></textarea></label>';
       card.querySelector('strong').textContent = 'Step ' + (index + 1);
       card.querySelector('.equipment-id').value = equipment.id || '';
       card.querySelector('.equipment-type').value = equipment.type || 'CUSTOM';
@@ -236,6 +236,7 @@
       card.querySelector('.equipment-characteristics').value = JSON.stringify(equipment.characteristics || {}, null, 2);
       card.querySelector('.equipment-noise-profile').value = JSON.stringify(equipment.noiseProfile || {}, null, 2);
       card.querySelector('.equipment-process-data').value = JSON.stringify(equipment.processData || {}, null, 2);
+      card.querySelector('.equipment-accumulation-zone').value = equipment.accumulationZone ? JSON.stringify(equipment.accumulationZone, null, 2) : '';
       card.querySelector('.move-up').disabled = index === 0;
       card.querySelector('.move-down').disabled = index === state.activeCase.equipment.length - 1;
       card.querySelector('.move-up').addEventListener('click', function() { moveEquipment(index, -1); });
@@ -290,6 +291,8 @@
         if (noiseProfile === null) return false;
         var processData = parseJsonObject(card.querySelector('.equipment-process-data').value, 'Process format data', index + 1);
         if (processData === null) return false;
+        var accumulationZone = parseOptionalJsonObject(card.querySelector('.equipment-accumulation-zone').value, 'Accumulation zone', index + 1);
+        if (accumulationZone === null) return false;
         equipment.push({
           id: card.querySelector('.equipment-id').value.trim(),
           type: card.querySelector('.equipment-type').value,
@@ -299,7 +302,8 @@
           initialMode: card.querySelector('.equipment-mode').value,
           characteristics: characteristics,
           noiseProfile: noiseProfile,
-          processData: processData
+          processData: processData,
+          accumulationZone: accumulationZone
         });
       }
       state.activeCase.equipment = equipment;
@@ -317,6 +321,11 @@
         showError({ code: 'INVALID_EQUIPMENT_JSON', message: label + ' for equipment step ' + step + ' must contain a JSON object.' });
         return null;
       }
+    }
+
+    function parseOptionalJsonObject(rawValue, label, step) {
+      if (!rawValue.trim()) return undefined;
+      return parseJsonObject(rawValue, label, step);
     }
 
     function createBlankEquipment() {
@@ -552,6 +561,8 @@
       document.getElementById('metric-instant-rate').textContent = formatInstantaneousOutputRate();
       document.getElementById('metric-rate').textContent = time > 0 ? formatRatePerMinute(sample.outputCount / time) : '—';
       document.getElementById('metric-buffer').textContent = formatNumber(sum(sample.buffers));
+      document.getElementById('metric-overflow').textContent = formatNumber(sum((sample.accumulationZones || []).map(function(zone) { return zone.overflowUnits || 0; })));
+      document.getElementById('metric-backup-stop').textContent = formatMinutes(sum(sample.equipment.map(function(unit) { return unit.backupStopSeconds || 0; })));
       setPlaybackStatus((state.run.playing ? 'Playing' : 'At') + ' ' + time + ' s · frame ' + state.run.sampleIndex + ' / ' + (state.run.result.samples.length - 1));
       renderLiveEquipment(sample);
       drawSimulationChart();
@@ -574,7 +585,7 @@
         var card = document.createElement('article');
         var availabilityState = unit.availabilityState || unit.mode || 'UNKNOWN';
         card.className = 'live-equipment-card state-' + availabilityState.toLowerCase().replace(/_/g, '-');
-        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div><div class="live-equipment-controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div>';
+        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Waiting for Prime</span><b class="live-waiting-prime"></b></div><div><span>Back-up stop</span><b class="live-backup-stop"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div><div class="live-equipment-controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div>';
         card.querySelector('strong').textContent = model.name || unit.id;
         card.querySelector('.live-state').textContent = availabilityState;
         card.querySelector('.live-command').textContent = 'Command: ' + unit.mode;
@@ -583,6 +594,8 @@
         card.querySelector('.live-rate').textContent = formatRatePerMinute(unit.actualRatePerSecond);
         card.querySelector('.live-starved').textContent = formatMinutes(unit.starvedSeconds);
         card.querySelector('.live-blocked').textContent = formatMinutes(unit.blockedSeconds);
+        card.querySelector('.live-waiting-prime').textContent = formatMinutes(unit.waitingForPrimeSeconds);
+        card.querySelector('.live-backup-stop').textContent = formatMinutes(unit.backupStopSeconds);
         card.querySelector('.live-failure').textContent = formatMinutes(unit.failureSeconds);
         card.querySelector('.live-emergency').textContent = formatMinutes(unit.emergencyStopSeconds);
         bindLiveEquipmentControl(card.querySelector('.live-control-run'), unit.id, 'RUN');
@@ -590,8 +603,28 @@
         bindLiveEquipmentControl(card.querySelector('.live-control-stop'), unit.id, 'STOP');
         bindLiveEquipmentControl(card.querySelector('.live-control-emergency'), unit.id, 'EMERGENCY_STOP');
         bindLiveEquipmentControl(card.querySelector('.live-control-reset'), unit.id, 'RESET_AND_RUN');
+
+        var zone = sample.accumulationZones ? sample.accumulationZones[index] : null;
+        if (zone && zone.physicalModelEnabled) {
+          card.appendChild(createAccumulationZonePanel(zone));
+        }
         target.appendChild(card);
       });
+    }
+
+    function createAccumulationZonePanel(zone) {
+      var panel = document.createElement('section');
+      panel.className = 'accumulation-zone state-' + String(zone.state || 'EMPTY').toLowerCase().replace(/_/g, '-');
+      panel.innerHTML = '<div class="accumulation-zone-heading"><strong></strong><span></span></div><div class="accumulation-zone-stats"><div><span>Inventory</span><b class="zone-inventory"></b></div><div><span>In transit</span><b class="zone-transit"></b></div><div><span>Prime</span><b class="zone-prime"></b></div><div><span>Back-up</span><b class="zone-backup"></b></div><div><span>Overflow</span><b class="zone-overflow"></b></div></div><p class="zone-caption"></p>';
+      panel.querySelector('strong').textContent = zone.name || 'Accumulation zone';
+      panel.querySelector('.accumulation-zone-heading span').textContent = String(zone.state || 'EMPTY').replace(/_/g, ' ');
+      panel.querySelector('.zone-inventory').textContent = formatNumber(zone.inventoryUnits) + ' / ' + formatNumber(zone.capacityUnits) + ' (' + formatNumber(zone.fillPercent) + '%)';
+      panel.querySelector('.zone-transit').textContent = formatNumber(zone.inTransitUnits);
+      panel.querySelector('.zone-prime').textContent = zone.prime && zone.prime.configured ? zone.prime.state : 'Not configured';
+      panel.querySelector('.zone-backup').textContent = zone.backup && zone.backup.configured ? zone.backup.state : 'Not configured';
+      panel.querySelector('.zone-overflow').textContent = formatNumber(zone.overflowUnits);
+      panel.querySelector('.zone-caption').textContent = 'Controls upstream: ' + zone.upstreamControlEquipmentId + ' · Starts downstream: ' + zone.downstreamControlEquipmentId;
+      return panel;
     }
 
     function bindLiveEquipmentControl(button, equipmentId, action) {
