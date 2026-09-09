@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemicalprogrammer.github.io/SimulatorTemplate/schemas/format-line.schema.json",
+  "title": "13-object packaging line format template",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "unitOfFlow", "objects"],
+  "properties": {
+    "schemaVersion": { "const": "1.1" },
+    "kind": { "const": "LINE_FORMAT_TEMPLATE" },
+    "unitOfFlow": { "type": "string", "minLength": 1 },
+    "knownGaps": { "type": "array", "items": { "type": "string" } },
+    "objects": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": { "$ref": "#/$defs/lineObject" }
+    }
+  },
+  "$defs": {
+    "nullableNumber": { "type": ["number", "null"] },
+    "lineObject": {
+      "type": "object",
+      "required": ["position", "id", "type", "role", "processData"],
+      "properties": {
+        "position": { "type": "integer", "minimum": 1, "maximum": 13 },
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "type": { "enum": ["BLOWMOLDER", "CONVEYOR", "PUCKER", "FILLER", "DEPUCKER", "SLEEVER", "CASE_PACKER", "PALLETIZER"] },
+        "role": { "enum": ["CRITICAL_MACHINE", "CONVEYOR"] },
+        "processData": { "$ref": "#/$defs/processData" }
+      }
+    },
+    "processData": {
+      "type": "object",
+      "required": ["role", "machineType", "equipment", "geometry", "upstream", "downstream", "speedAndSensors"],
+      "properties": {
+        "role": { "enum": ["CRITICAL_MACHINE", "CONVEYOR"] },
+        "machineType": { "type": "string" },
+        "equipment": {
+          "type": "object",
+          "required": ["mtbfMinutes", "mttrMinutes", "maximumSpeedBpm", "bufferMinutes"],
+          "properties": {
+            "mtbfMinutes": { "$ref": "#/$defs/nullableNumber" },
+            "mttrMinutes": { "$ref": "#/$defs/nullableNumber" },
+            "maximumSpeedBpm": { "$ref": "#/$defs/nullableNumber" },
+            "bufferMinutes": { "$ref": "#/$defs/nullableNumber" }
+          }
+        },
+        "geometry": {
+          "type": "object",
+          "required": ["lactMm", "lpPrimeMm", "actualDischargeMm", "actualCodingMm"],
+          "properties": {
+            "lactMm": { "$ref": "#/$defs/nullableNumber" },
+            "lpPrimeMm": { "$ref": "#/$defs/nullableNumber" },
+            "actualDischargeMm": { "$ref": "#/$defs/nullableNumber" },
+            "actualCodingMm": { "$ref": "#/$defs/nullableNumber" }
+          }
+        },
+        "upstream": {
+          "type": "object",
+          "required": ["packageLengthMm", "dischargePitchMm", "startupTimeSeconds", "bottlesDischargedAtStop"],
+          "properties": {
+            "packageLengthMm": { "$ref": "#/$defs/nullableNumber" },
+            "dischargePitchMm": { "$ref": "#/$defs/nullableNumber" },
+            "startupTimeSeconds": { "$ref": "#/$defs/nullableNumber" },
+            "bottlesDischargedAtStop": { "$ref": "#/$defs/nullableNumber" }
+          }
+        },
+        "downstream": {
+          "type": "object",
+          "required": ["infeedPitchMm", "rampUpTimeSeconds"],
+          "properties": {
+            "infeedPitchMm": { "$ref": "#/$defs/nullableNumber" },
+            "rampUpTimeSeconds": { "$ref": "#/$defs/nullableNumber" }
+          }
+        },
+        "speedAndSensors": {
+          "type": "object",
+          "required": ["conveyorSpeedFactorVsDischargeVelocityPercent", "codingConveyorSpeedFactorVsPreviousConveyorPercent", "additionalParameters"],
+          "properties": {
+            "conveyorSpeedFactorVsDischargeVelocityPercent": { "$ref": "#/$defs/nullableNumber" },
+            "codingConveyorSpeedFactorVsPreviousConveyorPercent": { "$ref": "#/$defs/nullableNumber" },
+            "additionalParameters": { "type": "array" }
+          }
+        }
+      }
+    }
+  }
+}
