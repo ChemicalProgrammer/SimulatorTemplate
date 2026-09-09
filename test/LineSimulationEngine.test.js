@@ -125,3 +125,54 @@ test('rejects an invalid MTBF or MTTR reliability profile', () => {
   assert.equal(response.ok, false);
   assert.ok(response.error.details.some((detail) => detail.path === 'case.equipment[2].noiseProfile.reliability.mttrMinutes'));
 });
+
+test('shows downstream equipment as starved with zero actual rate when an empty line starts', () => {
+  const response = simulateLine(createInput({ durationSeconds: 1, sampleEverySeconds: 1 }));
+  const sample = response.result.samples.at(-1);
+  const blower = sample.equipment.find((item) => item.id === 'blower-1');
+  const pacemaker = sample.equipment.find((item) => item.id === 'pacemaker-1');
+
+  assert.equal(response.ok, true);
+  assert.equal(blower.availabilityState, 'RUNNING');
+  assert.ok(blower.actualRatePerSecond > 0);
+  assert.equal(pacemaker.availabilityState, 'STARVED');
+  assert.equal(pacemaker.actualRatePerSecond, 0);
+  assert.equal(pacemaker.starvedSeconds, 1);
+});
+
+test('shows an equipment unit as blocked when its downstream buffer has no space', () => {
+  const input = createInput({ durationSeconds: 1, sampleEverySeconds: 1 });
+  input.case.equipment[0].bufferAfterCapacity = 0;
+
+  const response = simulateLine(input);
+  const blower = response.result.samples.at(-1).equipment.find((item) => item.id === 'blower-1');
+
+  assert.equal(response.ok, true);
+  assert.equal(blower.availabilityState, 'BLOCKED');
+  assert.equal(blower.actualRatePerSecond, 0);
+  assert.equal(blower.blockedSeconds, 1);
+});
+
+test('keeps an emergency stop latched until reset and a new run command', () => {
+  const input = createInput({
+    durationSeconds: 25,
+    sampleEverySeconds: 5,
+    commands: [
+      { atVirtualSecond: 0, equipmentId: 'pacemaker-1', action: 'EMERGENCY_STOP' },
+      { atVirtualSecond: 10, equipmentId: 'pacemaker-1', action: 'RUN' },
+      { atVirtualSecond: 15, equipmentId: 'pacemaker-1', action: 'RESET' },
+      { atVirtualSecond: 20, equipmentId: 'pacemaker-1', action: 'RUN' }
+    ]
+  });
+
+  const response = simulateLine(input);
+  const states = response.result.samples.map((sample) => sample.equipment.find((item) => item.id === 'pacemaker-1').availabilityState);
+  const metrics = response.result.equipmentMetrics['pacemaker-1'];
+
+  assert.equal(response.ok, true);
+  assert.ok(states.includes('EMERGENCY_STOP'));
+  assert.ok(response.result.events.some((event) => event.type === 'EMERGENCY_STOP_APPLIED'));
+  assert.ok(response.result.events.some((event) => event.type === 'EMERGENCY_STOP_RESET'));
+  assert.ok(response.result.events.some((event) => event.type === 'COMMAND_REJECTED' && event.action === 'RUN'));
+  assert.ok(metrics.emergencyStopSeconds >= 15);
+});
