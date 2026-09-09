@@ -1,10 +1,20 @@
 <script>
   (function() {
-    var state = { bootstrap: null };
+    var state = { bootstrap: null, activeCase: null };
 
-    document.addEventListener('DOMContentLoaded', initialize);
-    document.getElementById('workspace-form').addEventListener('submit', saveWorkspace);
-    document.getElementById('create-reference-case').addEventListener('click', createReferenceCase);
+    document.addEventListener('DOMContentLoaded', function() {
+      bindEvents();
+      initialize();
+    });
+
+    function bindEvents() {
+      document.getElementById('workspace-form').addEventListener('submit', saveWorkspace);
+      document.getElementById('new-case-form').addEventListener('submit', createDraftCase);
+      document.getElementById('create-reference-case').addEventListener('click', createReferenceCase);
+      document.getElementById('reload-case').addEventListener('click', reloadActiveCase);
+      document.getElementById('save-case').addEventListener('click', saveActiveCase);
+      document.getElementById('add-equipment').addEventListener('click', addEquipment);
+    }
 
     function initialize() {
       setStatus('Loading console…');
@@ -39,31 +49,205 @@
       });
     }
 
+    function createDraftCase(event) {
+      event.preventDefault();
+      var input = document.getElementById('new-case-name');
+      setBusy('new-case-form', true);
+      callServer('createCase', [{ name: input.value }], function(response) {
+        setBusy('new-case-form', false);
+        if (!response.ok) return showError(response.error);
+        input.value = '';
+        openCase(response.data.id);
+        initialize();
+      });
+    }
+
     function createReferenceCase() {
       setBusy('create-reference-case', true);
       callServer('createReferenceCase', [], function(response) {
         setBusy('create-reference-case', false);
         if (!response.ok) return showError(response.error);
+        openCase(response.data.id);
         initialize();
       });
+    }
+
+    function openCase(caseId) {
+      callServer('getCase', [caseId], function(response) {
+        if (!response.ok) return showError(response.error);
+        state.activeCase = response.data;
+        renderEditor();
+        setStatus('Case loaded.');
+      });
+    }
+
+    function reloadActiveCase() {
+      if (!state.activeCase) return;
+      openCase(state.activeCase.id);
+    }
+
+    function saveActiveCase() {
+      var next = collectCaseEditor();
+      if (!next) return;
+      setBusy('save-case', true);
+      callServer('saveCase', [next], function(response) {
+        setBusy('save-case', false);
+        if (!response.ok) return showError(response.error);
+        state.activeCase = response.data;
+        renderEditor();
+        initialize();
+        setStatus('Case saved as revision ' + response.data.revision + '.');
+      });
+    }
+
+    function addEquipment() {
+      if (!syncEquipmentFromEditor()) return;
+      state.activeCase.equipment.push(createBlankEquipment(state.activeCase.equipment.length + 1));
+      renderEquipment();
     }
 
     function renderCases(cases) {
       var target = document.getElementById('cases-list');
       target.textContent = '';
       if (!cases || !cases.length) {
-        target.innerHTML = '<p class="empty">No cases yet. Create the explicit reference case, then the next step will add the Case editor.</p>';
+        target.innerHTML = '<p class="empty">No cases yet. Start with a draft or the explicit reference line.</p>';
         return;
       }
       cases.forEach(function(caseSummary) {
         var row = document.createElement('article');
         row.className = 'case-row';
-        row.innerHTML = '<div><strong></strong><span></span></div><span></span>';
+        row.innerHTML = '<div><strong></strong><span></span></div><div class="case-actions"><span></span><button type="button">Open</button></div>';
         row.querySelector('strong').textContent = caseSummary.name;
-        row.querySelector('div span').textContent = caseSummary.equipmentCount + ' equipment units';
-        row.querySelectorAll('span')[1].textContent = new Date(caseSummary.updatedAt).toLocaleString();
+        row.querySelector('div span').textContent = caseSummary.equipmentCount + ' equipment units · ' + (caseSummary.isSimulationReady ? 'simulation-ready' : 'draft');
+        row.querySelector('.case-actions span').textContent = new Date(caseSummary.updatedAt).toLocaleString();
+        row.querySelector('button').addEventListener('click', function() { openCase(caseSummary.id); });
         target.appendChild(row);
       });
+    }
+
+    function renderEditor() {
+      if (!state.activeCase) return;
+      toggle('editor-panel', true);
+      document.getElementById('editor-title').textContent = state.activeCase.name;
+      document.getElementById('editor-meta').textContent = 'ID: ' + state.activeCase.id + ' · Revision ' + state.activeCase.revision;
+      document.getElementById('case-name').value = state.activeCase.name;
+      document.getElementById('unit-of-flow').value = state.activeCase.unitOfFlow || '';
+      renderEquipment();
+      renderRawJson();
+    }
+
+    function renderEquipment() {
+      var target = document.getElementById('equipment-list');
+      target.textContent = '';
+      state.activeCase.equipment.forEach(function(equipment, index) {
+        target.appendChild(createEquipmentCard(equipment, index));
+      });
+      if (!state.activeCase.equipment.length) {
+        target.innerHTML = '<p class="empty">This draft has no equipment. Add at least two units before simulation.</p>';
+      }
+      renderRawJson();
+    }
+
+    function createEquipmentCard(equipment, index) {
+      var card = document.createElement('article');
+      card.className = 'equipment-card';
+      card.dataset.index = String(index);
+      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Buffer after unit<input class="equipment-buffer" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label>';
+      card.querySelector('strong').textContent = 'Step ' + (index + 1);
+      card.querySelector('.equipment-id').value = equipment.id || '';
+      card.querySelector('.equipment-type').value = equipment.type || 'CUSTOM';
+      card.querySelector('.equipment-name').value = equipment.name || '';
+      card.querySelector('.equipment-rate').value = equipment.nominalRatePerSecond === undefined ? '' : equipment.nominalRatePerSecond;
+      card.querySelector('.equipment-buffer').value = equipment.bufferAfterCapacity === undefined ? '' : equipment.bufferAfterCapacity;
+      card.querySelector('.equipment-mode').value = equipment.initialMode || 'AUTO';
+      card.querySelector('.equipment-characteristics').value = JSON.stringify(equipment.characteristics || {}, null, 2);
+      card.querySelector('.move-up').disabled = index === 0;
+      card.querySelector('.move-down').disabled = index === state.activeCase.equipment.length - 1;
+      card.querySelector('.move-up').addEventListener('click', function() { moveEquipment(index, -1); });
+      card.querySelector('.move-down').addEventListener('click', function() { moveEquipment(index, 1); });
+      card.querySelector('.remove-equipment').addEventListener('click', function() { removeEquipment(index); });
+      return card;
+    }
+
+    function moveEquipment(index, direction) {
+      if (!syncEquipmentFromEditor()) return;
+      var targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= state.activeCase.equipment.length) return;
+      var moved = state.activeCase.equipment.splice(index, 1)[0];
+      state.activeCase.equipment.splice(targetIndex, 0, moved);
+      renderEquipment();
+    }
+
+    function removeEquipment(index) {
+      if (!syncEquipmentFromEditor()) return;
+      state.activeCase.equipment.splice(index, 1);
+      renderEquipment();
+    }
+
+    function collectCaseEditor() {
+      if (!state.activeCase || !syncEquipmentFromEditor()) return null;
+      state.activeCase.name = document.getElementById('case-name').value;
+      state.activeCase.unitOfFlow = document.getElementById('unit-of-flow').value;
+      return {
+        id: state.activeCase.id,
+        expectedRevision: state.activeCase.revision,
+        name: state.activeCase.name,
+        unitOfFlow: state.activeCase.unitOfFlow,
+        equipment: state.activeCase.equipment,
+        engineConfig: state.activeCase.engineConfig || {}
+      };
+    }
+
+    function syncEquipmentFromEditor() {
+      if (!state.activeCase) return false;
+      var cards = Array.prototype.slice.call(document.querySelectorAll('.equipment-card'));
+      var equipment = [];
+      for (var index = 0; index < cards.length; index += 1) {
+        var card = cards[index];
+        var characteristics = parseCharacteristics(card.querySelector('.equipment-characteristics').value, index + 1);
+        if (characteristics === null) return false;
+        equipment.push({
+          id: card.querySelector('.equipment-id').value.trim(),
+          type: card.querySelector('.equipment-type').value,
+          name: card.querySelector('.equipment-name').value.trim(),
+          nominalRatePerSecond: Number(card.querySelector('.equipment-rate').value),
+          bufferAfterCapacity: Number(card.querySelector('.equipment-buffer').value),
+          initialMode: card.querySelector('.equipment-mode').value,
+          characteristics: characteristics
+        });
+      }
+      state.activeCase.equipment = equipment;
+      renderRawJson();
+      return true;
+    }
+
+    function parseCharacteristics(rawValue, step) {
+      if (!rawValue.trim()) return {};
+      try {
+        var parsed = JSON.parse(rawValue);
+        if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw new Error('not an object');
+        return parsed;
+      } catch (error) {
+        showError({ code: 'INVALID_CHARACTERISTICS_JSON', message: 'Equipment step ' + step + ' must contain a JSON object.' });
+        return null;
+      }
+    }
+
+    function createBlankEquipment(position) {
+      return {
+        id: '',
+        type: 'CUSTOM',
+        name: '',
+        nominalRatePerSecond: undefined,
+        bufferAfterCapacity: undefined,
+        initialMode: 'AUTO',
+        characteristics: {}
+      };
+    }
+
+    function renderRawJson() {
+      var preview = document.getElementById('case-json-preview');
+      if (state.activeCase) preview.value = JSON.stringify(state.activeCase, null, 2);
     }
 
     function callServer(name, args, onSuccess) {
