@@ -71,7 +71,7 @@ function validateCommands(commands, equipment, details) {
     }
     if (!nonNegativeNumber(command.atVirtualSecond)) details.push(invalid(`${path}.atVirtualSecond`, 'must be a number greater than or equal to zero'));
     if (!equipmentIds.has(command.equipmentId)) details.push(invalid(`${path}.equipmentId`, 'must reference an equipment unit in case.equipment'));
-    if (!['RUN', 'PAUSE', 'STOP', 'MANUAL', 'AUTO'].includes(command.action)) details.push(invalid(`${path}.action`, 'is not supported'));
+    if (!['RUN', 'PAUSE', 'STOP', 'MANUAL', 'AUTO', 'EMERGENCY_STOP', 'RESET'].includes(command.action)) details.push(invalid(`${path}.action`, 'is not supported'));
   });
 }
 
