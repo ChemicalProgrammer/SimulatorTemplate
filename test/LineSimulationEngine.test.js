@@ -94,3 +94,34 @@ test('returns a structured error for an invalid micro-stop profile', () => {
   assert.equal(response.error.code, 'INVALID_SIMULATION_INPUT');
   assert.ok(response.error.details.some((detail) => detail.path === 'case.equipment[2].noiseProfile.microStop.probabilityPerMinute'));
 });
+
+test('uses MTBF and MTTR as seeded failure and repair events', () => {
+  const input = createInput({ durationSeconds: 120, seed: 19 });
+  input.case.equipment[2].noiseProfile = {
+    reliability: { mtbfMinutes: 0.1, mttrMinutes: 0.05 }
+  };
+
+  const first = simulateLine(input);
+  const second = simulateLine(structuredClone(input));
+  const firstFailures = first.result.events.filter((event) => event.type === 'FAILURE_STARTED' && event.equipmentId === 'pacemaker-1');
+  const firstRepairs = first.result.events.filter((event) => event.type === 'REPAIR_COMPLETED' && event.equipmentId === 'pacemaker-1');
+
+  assert.equal(first.ok, true);
+  assert.deepEqual(first.result.events, second.result.events);
+  assert.ok(firstFailures.length > 0);
+  assert.ok(firstRepairs.length > 0);
+  assert.equal(first.result.equipmentMetrics['pacemaker-1'].failureCount, firstFailures.length);
+  assert.ok(first.result.equipmentMetrics['pacemaker-1'].failureSeconds > 0);
+});
+
+test('rejects an invalid MTBF or MTTR reliability profile', () => {
+  const input = createInput();
+  input.case.equipment[2].noiseProfile = {
+    reliability: { mtbfMinutes: 10, mttrMinutes: 0 }
+  };
+
+  const response = simulateLine(input);
+
+  assert.equal(response.ok, false);
+  assert.ok(response.error.details.some((detail) => detail.path === 'case.equipment[2].noiseProfile.reliability.mttrMinutes'));
+});
