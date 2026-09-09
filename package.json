@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:browser-engine": "node scripts/build-browser-engine.mjs",
     "test": "node --test"
   }
 }
