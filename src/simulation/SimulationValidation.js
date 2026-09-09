@@ -2,6 +2,7 @@ export function validateSimulationInput(input) {
   const details = [];
   validateCase(input?.case, details);
   validateRun(input?.run, details);
+  validateCommands(input?.run?.commands, input?.case?.equipment, details);
 
   return details.length === 0
     ? { ok: true }
@@ -39,6 +40,7 @@ function validateCase(caseModel, details) {
     if (!positiveNumber(equipment.nominalRatePerSecond)) details.push(invalid(`${path}.nominalRatePerSecond`, 'must be a number greater than zero'));
     if (!nonNegativeNumber(equipment.bufferAfterCapacity)) details.push(invalid(`${path}.bufferAfterCapacity`, 'must be a number greater than or equal to zero'));
     if (!['AUTO', 'MANUAL', 'PAUSE', 'STOP'].includes(equipment.initialMode)) details.push(invalid(`${path}.initialMode`, 'must be AUTO, MANUAL, PAUSE, or STOP'));
+    validateNoiseProfile(equipment.noiseProfile, path, details);
   });
 }
 
@@ -51,6 +53,53 @@ function validateRun(run, details) {
   if (!positiveNumber(run.tickSeconds)) details.push(invalid('run.tickSeconds', 'must be a number greater than zero'));
   if (!Number.isInteger(run.seed)) details.push(invalid('run.seed', 'must be an integer'));
   if (run.sampleEverySeconds !== undefined && !positiveNumber(run.sampleEverySeconds)) details.push(invalid('run.sampleEverySeconds', 'must be a number greater than zero'));
+}
+
+function validateCommands(commands, equipment, details) {
+  if (commands === undefined) return;
+  if (!Array.isArray(commands)) {
+    details.push(invalid('run.commands', 'must be an array'));
+    return;
+  }
+
+  const equipmentIds = new Set(Array.isArray(equipment) ? equipment.map((item) => item?.id) : []);
+  commands.forEach((command, index) => {
+    const path = `run.commands[${index}]`;
+    if (!command || typeof command !== 'object') {
+      details.push(invalid(path, 'must be an object'));
+      return;
+    }
+    if (!nonNegativeNumber(command.atVirtualSecond)) details.push(invalid(`${path}.atVirtualSecond`, 'must be a number greater than or equal to zero'));
+    if (!equipmentIds.has(command.equipmentId)) details.push(invalid(`${path}.equipmentId`, 'must reference an equipment unit in case.equipment'));
+    if (!['RUN', 'PAUSE', 'STOP', 'MANUAL', 'AUTO'].includes(command.action)) details.push(invalid(`${path}.action`, 'is not supported'));
+  });
+}
+
+function validateNoiseProfile(noiseProfile, equipmentPath, details) {
+  if (noiseProfile === undefined) return;
+  if (!noiseProfile || typeof noiseProfile !== 'object' || Array.isArray(noiseProfile)) {
+    details.push(invalid(`${equipmentPath}.noiseProfile`, 'must be an object'));
+    return;
+  }
+  if (noiseProfile.microStop === undefined) return;
+  const microStop = noiseProfile.microStop;
+  const path = `${equipmentPath}.noiseProfile.microStop`;
+  if (!microStop || typeof microStop !== 'object' || Array.isArray(microStop)) {
+    details.push(invalid(path, 'must be an object'));
+    return;
+  }
+  if (microStop.probabilityPerMinute !== undefined && !nonNegativeNumber(microStop.probabilityPerMinute)) {
+    details.push(invalid(`${path}.probabilityPerMinute`, 'must be a number greater than or equal to zero'));
+  }
+  if (microStop.minDurationSeconds !== undefined && !nonNegativeNumber(microStop.minDurationSeconds)) {
+    details.push(invalid(`${path}.minDurationSeconds`, 'must be a number greater than or equal to zero'));
+  }
+  if (microStop.maxDurationSeconds !== undefined && !nonNegativeNumber(microStop.maxDurationSeconds)) {
+    details.push(invalid(`${path}.maxDurationSeconds`, 'must be a number greater than or equal to zero'));
+  }
+  if (nonNegativeNumber(microStop.minDurationSeconds) && nonNegativeNumber(microStop.maxDurationSeconds) && microStop.minDurationSeconds > microStop.maxDurationSeconds) {
+    details.push(invalid(`${path}.maxDurationSeconds`, 'must be greater than or equal to minDurationSeconds'));
+  }
 }
 
 function required(path) { return { path, reason: 'is required' }; }
