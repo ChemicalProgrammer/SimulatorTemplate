@@ -31,6 +31,18 @@ function createCase(request) {
   });
 }
 
+function getCase(caseId) {
+  return executeServerAction_(function(user) {
+    return getCase_(caseId, user);
+  });
+}
+
+function saveCase(request) {
+  return executeServerAction_(function(user) {
+    return saveCase_(request, user);
+  });
+}
+
 function createReferenceCase() {
   return executeServerAction_(function(user) {
     return createCase_(createReferenceCaseRequest_(), user);
