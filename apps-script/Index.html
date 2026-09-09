@@ -87,11 +87,66 @@
         </details>
       </section>
 
+      <section id="run-panel" class="card hidden">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">RUN WORKSPACE</p>
+            <h2>Dynamic simulation</h2>
+            <p id="run-case-meta">Select a saved Case to run it.</p>
+          </div>
+          <div class="button-row">
+            <button id="run-simulation" type="button">Run simulation</button>
+          </div>
+        </div>
+
+        <div id="run-not-ready" class="notice hidden">Add and save at least two valid equipment units before running a simulation.</div>
+        <div id="run-config" class="run-config">
+          <div class="field-grid run-fields">
+            <label>Duration mode<select id="duration-mode"><option value="FIXED">Fixed virtual duration</option><option value="INDEFINITE">Indefinite (safety ceiling)</option></select></label>
+            <label>Virtual duration / safety ceiling (s)<input id="run-duration" type="number" min="1" step="1" value="300"></label>
+            <label>Sample interval (s)<input id="run-sample-interval" type="number" min="1" step="1" value="5"></label>
+            <label>Random seed<input id="run-seed" type="number" min="0" step="1" value="20260909"></label>
+            <label>Playback speed<select id="run-playback-rate"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="5">5×</option><option value="10">10×</option></select></label>
+          </div>
+
+          <div class="editor-subheading compact-heading">
+            <div>
+              <h3>Equipment control events</h3>
+              <p>Schedule a pause, stop, run, manual, or automatic mode change in virtual time.</p>
+            </div>
+            <button id="add-control-event" class="secondary" type="button">Add event</button>
+          </div>
+          <div id="control-events" class="control-events"></div>
+        </div>
+
+        <div id="simulation-results" class="hidden">
+          <div class="playback-toolbar">
+            <button id="play-simulation" class="secondary" type="button">Play</button>
+            <button id="pause-simulation" class="secondary" type="button">Pause</button>
+            <button id="reset-playback" class="secondary" type="button">Reset</button>
+            <span id="playback-status">Ready</span>
+          </div>
+          <div class="metrics-grid">
+            <article><span>Virtual time</span><strong id="metric-time">—</strong></article>
+            <article><span>Output</span><strong id="metric-output">—</strong></article>
+            <article><span>Average rate</span><strong id="metric-rate">—</strong></article>
+            <article><span>Buffer inventory</span><strong id="metric-buffer">—</strong></article>
+          </div>
+          <canvas id="simulation-chart" height="210" aria-label="Cumulative output chart"></canvas>
+          <div id="live-equipment" class="live-equipment"></div>
+          <details class="raw-viewer">
+            <summary>Raw simulation result</summary>
+            <textarea id="simulation-json-preview" readonly spellcheck="false"></textarea>
+          </details>
+        </div>
+      </section>
+
       <section id="engine-panel" class="card hidden">
         <h2>Engine boundary</h2>
         <p>The next screen will execute the deterministic browser engine against the saved Case. Apps Script remains responsible for identity, Drive persistence, and artifact history; Gemini is not used for calculation.</p>
       </section>
     </main>
+    <?!= include_('SimulationEngine'); ?>
     <?!= include_('Client'); ?>
   </body>
 </html>
