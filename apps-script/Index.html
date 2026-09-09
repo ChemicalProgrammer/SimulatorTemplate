@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= include_('Styles'); ?>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">SIMULATORTEMPLATE</p>
+          <h1>Packaging line simulator</h1>
+        </div>
+        <span id="user-email" class="user-chip">Loading identity…</span>
+      </header>
+
+      <section id="status" class="status" aria-live="polite">Loading console…</section>
+
+      <section id="workspace-panel" class="card hidden">
+        <h2>Workspace</h2>
+        <p>Choose a Google Drive folder you can access. The console will create its own Cases, Artifacts, and Exports folders inside it.</p>
+        <form id="workspace-form">
+          <label for="workspace-folder-id">Drive folder ID</label>
+          <input id="workspace-folder-id" name="workspaceFolderId" autocomplete="off" required>
+          <label for="playback-rate">Default playback speed</label>
+          <select id="playback-rate" name="playbackRate">
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="1.5">1.5×</option>
+            <option value="5">5×</option>
+            <option value="10">10×</option>
+          </select>
+          <button type="submit">Save workspace</button>
+        </form>
+      </section>
+
+      <section id="cases-panel" class="card hidden">
+        <div class="section-heading">
+          <div>
+            <h2>Cases</h2>
+            <p>Cases are isolated JSON records in your configured Drive workspace.</p>
+          </div>
+          <button id="create-reference-case" type="button">Create reference case</button>
+        </div>
+        <div id="cases-list" class="cases-list"></div>
+      </section>
+
+      <section id="engine-panel" class="card hidden">
+        <h2>Engine boundary</h2>
+        <p>The deterministic reference engine is present in the project source. The next screen will load it in the browser for live playback; this scaffold intentionally does not route calculations through Apps Script or Gemini.</p>
+      </section>
+    </main>
+    <?!= include_('Client'); ?>
+  </body>
+</html>
