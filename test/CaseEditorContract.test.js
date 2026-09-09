@@ -89,6 +89,21 @@ test('preserves explicit real-format process data without inventing missing valu
   assert.deepEqual(toPlainObject(stored.equipment[0].processData), processData);
 });
 
+test('preserves Case metadata and exposes its data classification in the Case summary', () => {
+  const runtime = createCaseRuntime();
+  const metadata = {
+    dataClassification: 'PUBLIC_DEMONSTRATION_ONLY',
+    dataNote: 'Synthetic values for software testing only.',
+    publicReferences: [{ title: 'Public source', url: 'https://example.com' }]
+  };
+
+  const summary = runtime.createCase_({ name: 'Public demo', metadata }, owner);
+  const stored = runtime.getCase_(summary.id, owner);
+
+  assert.equal(summary.dataClassification, 'PUBLIC_DEMONSTRATION_ONLY');
+  assert.deepEqual(toPlainObject(stored.metadata), metadata);
+});
+
 function equipment(id, type, rate, capacity) {
   return { id, type, name: id, nominalRatePerSecond: rate, bufferAfterCapacity: capacity, initialMode: 'AUTO' };
 }
