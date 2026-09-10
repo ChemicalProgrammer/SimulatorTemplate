@@ -1683,6 +1683,9 @@ window.SimulatorEngine = { simulateLine: simulateLine };
       activeCase: null,
       isDirty: false,
       liveZoneDetails: {},
+      lastUserScrollAt: 0,
+      scrollRestoreFrame: null,
+      scrollRestoreUntil: 0,
       run: {
         commands: [],
         result: null,
@@ -1700,6 +1703,9 @@ window.SimulatorEngine = { simulateLine: simulateLine };
       initialize();
     });
     window.addEventListener('resize', function() { renderPlaybackFrame(); });
+    window.addEventListener('scroll', function() {
+      if (Date.now() >= state.scrollRestoreUntil) state.lastUserScrollAt = Date.now();
+    }, { passive: true });
 
     function bindEvents() {
       document.getElementById('workspace-form').addEventListener('submit', saveWorkspace);
@@ -2403,6 +2409,7 @@ function renderRawJson() {
 
     function renderPlaybackFrame() {
       if (!state.run.result || !state.run.result.samples.length) return;
+      var scrollAnchor = captureLiveEquipmentScrollAnchor();
       var sample = state.run.result.samples[state.run.sampleIndex];
       var time = sample.virtualSecond;
       document.getElementById('metric-time').textContent = time + ' s';
@@ -2416,6 +2423,49 @@ function renderRawJson() {
       renderLiveEquipment(sample);
       drawSimulationChart();
       drawEquipmentSpeedChart();
+      restoreLiveEquipmentScrollAnchor(scrollAnchor);
+    }
+
+    function captureLiveEquipmentScrollAnchor() {
+      var target = document.getElementById('live-equipment');
+      if (!target) return null;
+      var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+      if (!(viewportHeight > 0)) return null;
+      var cards = target.querySelectorAll('.live-equipment-card');
+      for (var index = 0; index < cards.length; index += 1) {
+        var bounds = cards[index].getBoundingClientRect();
+        if (bounds.bottom > 0 && bounds.top < viewportHeight) {
+          return {
+            equipmentId: cards[index].getAttribute('data-equipment-id'),
+            top: bounds.top
+          };
+        }
+      }
+      return null;
+    }
+
+    function restoreLiveEquipmentScrollAnchor(anchor) {
+      if (!anchor || Date.now() - state.lastUserScrollAt < 140) return;
+      if (state.scrollRestoreFrame) window.cancelAnimationFrame(state.scrollRestoreFrame);
+      state.scrollRestoreFrame = window.requestAnimationFrame(function() {
+        state.scrollRestoreFrame = null;
+        if (Date.now() - state.lastUserScrollAt < 140) return;
+        var target = document.getElementById('live-equipment');
+        if (!target) return;
+        var cards = target.querySelectorAll('.live-equipment-card');
+        var card = null;
+        for (var index = 0; index < cards.length; index += 1) {
+          if (cards[index].getAttribute('data-equipment-id') === anchor.equipmentId) {
+            card = cards[index];
+            break;
+          }
+        }
+        if (!card) return;
+        var delta = card.getBoundingClientRect().top - anchor.top;
+        if (Math.abs(delta) < 2) return;
+        state.scrollRestoreUntil = Date.now() + 100;
+        window.scrollBy(0, delta);
+      });
     }
 
     function formatInstantaneousOutputRate() {

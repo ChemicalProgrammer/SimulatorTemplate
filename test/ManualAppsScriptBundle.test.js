@@ -69,6 +69,10 @@ test('manual bundle updates live equipment rows in place to preserve scroll posi
   assert.match(index, /function updateLiveEquipmentCard\(/);
   assert.match(index, /function updateAccumulationZoneDetails\(/);
   assert.match(index, /function updateLiveEquipmentControl\(/);
+  assert.match(index, /function captureLiveEquipmentScrollAnchor\(/);
+  assert.match(index, /function restoreLiveEquipmentScrollAnchor\(/);
+  assert.match(index, /window\.requestAnimationFrame\(/);
+  assert.match(index, /window\.scrollBy\(0, delta\)/);
   assert.doesNotMatch(index, /function renderLiveEquipment\(sample\) \{\s+var target = document\.getElementById\('live-equipment'\);\s+target\.textContent = '';/);
 });
 
