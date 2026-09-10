@@ -60,6 +60,18 @@ test('manual bundle uses a wide, compact live-equipment list on large screens', 
   assert.match(index, /physical accumulation/);
 });
 
+test('manual bundle updates live equipment rows in place to preserve scroll position', () => {
+  const output = buildManualAppsScriptBundle(repositoryRoot);
+  const index = fs.readFileSync(output.indexPath, 'utf8');
+
+  assert.match(index, /function ensureLiveEquipmentColumns\(/);
+  assert.match(index, /function createLiveEquipmentCard\(/);
+  assert.match(index, /function updateLiveEquipmentCard\(/);
+  assert.match(index, /function updateAccumulationZoneDetails\(/);
+  assert.match(index, /function updateLiveEquipmentControl\(/);
+  assert.doesNotMatch(index, /function renderLiveEquipment\(sample\) \{\s+var target = document\.getElementById\('live-equipment'\);\s+target\.textContent = '';/);
+});
+
 
 test('manual bundle makes physical conveyor geometry mandatory and exposes Case deletion', () => {
   const output = buildManualAppsScriptBundle(repositoryRoot);

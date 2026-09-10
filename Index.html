@@ -2429,49 +2429,80 @@ function renderRawJson() {
 
     function renderLiveEquipment(sample) {
       var target = document.getElementById('live-equipment');
-      target.textContent = '';
       target.setAttribute('role', 'list');
-      var columns = document.createElement('div');
-      columns.className = 'live-equipment-columns';
-      columns.setAttribute('aria-hidden', 'true');
-      columns.innerHTML = '<span>Equipment</span><span>State &amp; rate</span><span>Units</span><span>Time losses</span><span>Speed trend</span><span>Scenario controls</span>';
-      target.appendChild(columns);
+      var columns = ensureLiveEquipmentColumns(target);
+      var cardsByEquipmentId = {};
+      Array.prototype.forEach.call(target.querySelectorAll('.live-equipment-card'), function(card) {
+        cardsByEquipmentId[card.getAttribute('data-equipment-id')] = card;
+      });
+      var displayedEquipmentIds = {};
+      var previousElement = columns;
       sample.equipment.forEach(function(unit, index) {
         var model = state.activeCase.equipment[index] || {};
-        var card = document.createElement('article');
-        var availabilityState = unit.availabilityState || unit.mode || 'UNKNOWN';
-        card.className = 'live-equipment-card state-' + availabilityState.toLowerCase().replace(/_/g, '-');
-        card.setAttribute('role', 'listitem');
-        card.innerHTML = '<div class="live-equipment-card__row"><div class="live-equipment-identity live-equipment-cell" data-label="Equipment"><strong></strong><span class="live-command"></span></div><div class="live-equipment-operation live-equipment-cell" data-label="State &amp; rate"><span class="live-state"></span><b class="live-rate"></b><span class="live-nominal-rate"></span></div><div class="live-equipment-flow live-equipment-cell" data-label="Units"><span class="live-flow-label"></span><b class="live-processed"></b></div><div class="live-equipment-stats live-equipment-cell" data-label="Time losses"><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Waiting Prime</span><b class="live-waiting-prime"></b></div><div><span>Back-up stop</span><b class="live-backup-stop"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency</span><b class="live-emergency"></b></div></div><div class="live-speed-cell live-equipment-cell" data-label="Speed trend"><div class="equipment-speed-sparkline-heading"><span>Actual · last 60 s</span><b class="live-sparkline-nominal-rate"></b></div><canvas class="equipment-speed-sparkline" height="56" aria-label="Rolling actual-speed chart"></canvas></div><div class="live-equipment-controls live-equipment-cell" data-label="Scenario controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div></div>';
-        card.querySelector('strong').textContent = model.name || unit.id;
-        card.querySelector('.live-state').textContent = availabilityState;
-        card.querySelector('.live-command').textContent = 'Command: ' + unit.mode;
-        card.querySelector('.live-flow-label').textContent = index === 0 ? 'Produced' : 'Processed';
-        card.querySelector('.live-processed').textContent = formatNumber(unit.processedUnits === undefined ? unit.outputCount : unit.processedUnits);
-        card.querySelector('.live-rate').textContent = formatRatePerMinute(unit.actualRatePerSecond);
-        card.querySelector('.live-starved').textContent = formatMinutes(unit.starvedSeconds);
-        card.querySelector('.live-blocked').textContent = formatMinutes(unit.blockedSeconds);
-        card.querySelector('.live-waiting-prime').textContent = formatMinutes(unit.waitingForPrimeSeconds);
-        card.querySelector('.live-backup-stop').textContent = formatMinutes(unit.backupStopSeconds);
-        card.querySelector('.live-failure').textContent = formatMinutes(unit.failureSeconds);
-        card.querySelector('.live-emergency').textContent = formatMinutes(unit.emergencyStopSeconds);
-        card.querySelector('.live-nominal-rate').textContent = 'Nominal ' + formatRatePerMinute(model.nominalRatePerSecond);
-        card.querySelector('.live-sparkline-nominal-rate').textContent = formatRatePerMinute(model.nominalRatePerSecond);
-        bindLiveEquipmentControl(card.querySelector('.live-control-run'), unit.id, 'RUN');
-        bindLiveEquipmentControl(card.querySelector('.live-control-pause'), unit.id, 'PAUSE');
-        bindLiveEquipmentControl(card.querySelector('.live-control-stop'), unit.id, 'STOP');
-        bindLiveEquipmentControl(card.querySelector('.live-control-emergency'), unit.id, 'EMERGENCY_STOP');
-        bindLiveEquipmentControl(card.querySelector('.live-control-reset'), unit.id, 'RESET_AND_RUN');
-
-        var zone = sample.accumulationZones ? sample.accumulationZones.find(function(candidate) {
-          return candidate.ownerEquipmentId === unit.id;
-        }) : null;
-        if (zone && zone.physicalModelEnabled) {
-          card.appendChild(createAccumulationZoneDetails(zone));
+        var equipmentId = unit.id || ('unit-' + index);
+        var card = cardsByEquipmentId[equipmentId] || createLiveEquipmentCard(equipmentId);
+        displayedEquipmentIds[equipmentId] = true;
+        updateLiveEquipmentCard(card, unit, model, index, sample);
+        if (card.parentNode !== target || card.previousElementSibling !== previousElement) {
+          target.insertBefore(card, previousElement.nextElementSibling);
         }
-        target.appendChild(card);
+        previousElement = card;
         drawEquipmentSpeedSparkline(card.querySelector('.equipment-speed-sparkline'), index, model);
       });
+      Array.prototype.forEach.call(target.querySelectorAll('.live-equipment-card'), function(card) {
+        if (!displayedEquipmentIds[card.getAttribute('data-equipment-id')]) card.remove();
+      });
+    }
+
+    function ensureLiveEquipmentColumns(target) {
+      var columns = target.querySelector('.live-equipment-columns');
+      if (!columns) {
+        columns = document.createElement('div');
+        columns.className = 'live-equipment-columns';
+        columns.setAttribute('aria-hidden', 'true');
+        columns.innerHTML = '<span>Equipment</span><span>State &amp; rate</span><span>Units</span><span>Time losses</span><span>Speed trend</span><span>Scenario controls</span>';
+        target.insertBefore(columns, target.firstChild);
+      }
+      return columns;
+    }
+
+    function createLiveEquipmentCard(equipmentId) {
+      var card = document.createElement('article');
+      card.className = 'live-equipment-card';
+      card.setAttribute('data-equipment-id', equipmentId);
+      card.setAttribute('role', 'listitem');
+      card.innerHTML = '<div class="live-equipment-card__row"><div class="live-equipment-identity live-equipment-cell" data-label="Equipment"><strong></strong><span class="live-command"></span></div><div class="live-equipment-operation live-equipment-cell" data-label="State &amp; rate"><span class="live-state"></span><b class="live-rate"></b><span class="live-nominal-rate"></span></div><div class="live-equipment-flow live-equipment-cell" data-label="Units"><span class="live-flow-label"></span><b class="live-processed"></b></div><div class="live-equipment-stats live-equipment-cell" data-label="Time losses"><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Waiting Prime</span><b class="live-waiting-prime"></b></div><div><span>Back-up stop</span><b class="live-backup-stop"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency</span><b class="live-emergency"></b></div></div><div class="live-speed-cell live-equipment-cell" data-label="Speed trend"><div class="equipment-speed-sparkline-heading"><span>Actual · last 60 s</span><b class="live-sparkline-nominal-rate"></b></div><canvas class="equipment-speed-sparkline" height="56" aria-label="Rolling actual-speed chart"></canvas></div><div class="live-equipment-controls live-equipment-cell" data-label="Scenario controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div></div><div class="live-equipment-zone"></div>';
+      bindLiveEquipmentControl(card.querySelector('.live-control-run'), equipmentId, 'RUN');
+      bindLiveEquipmentControl(card.querySelector('.live-control-pause'), equipmentId, 'PAUSE');
+      bindLiveEquipmentControl(card.querySelector('.live-control-stop'), equipmentId, 'STOP');
+      bindLiveEquipmentControl(card.querySelector('.live-control-emergency'), equipmentId, 'EMERGENCY_STOP');
+      bindLiveEquipmentControl(card.querySelector('.live-control-reset'), equipmentId, 'RESET_AND_RUN');
+      return card;
+    }
+
+    function updateLiveEquipmentCard(card, unit, model, index, sample) {
+      var availabilityState = unit.availabilityState || unit.mode || 'UNKNOWN';
+      card.className = 'live-equipment-card state-' + availabilityState.toLowerCase().replace(/_/g, '-');
+      card.querySelector('.live-equipment-identity strong').textContent = model.name || unit.id;
+      card.querySelector('.live-state').textContent = availabilityState;
+      card.querySelector('.live-command').textContent = 'Command: ' + unit.mode;
+      card.querySelector('.live-flow-label').textContent = index === 0 ? 'Produced' : 'Processed';
+      card.querySelector('.live-processed').textContent = formatNumber(unit.processedUnits === undefined ? unit.outputCount : unit.processedUnits);
+      card.querySelector('.live-rate').textContent = formatRatePerMinute(unit.actualRatePerSecond);
+      card.querySelector('.live-starved').textContent = formatMinutes(unit.starvedSeconds);
+      card.querySelector('.live-blocked').textContent = formatMinutes(unit.blockedSeconds);
+      card.querySelector('.live-waiting-prime').textContent = formatMinutes(unit.waitingForPrimeSeconds);
+      card.querySelector('.live-backup-stop').textContent = formatMinutes(unit.backupStopSeconds);
+      card.querySelector('.live-failure').textContent = formatMinutes(unit.failureSeconds);
+      card.querySelector('.live-emergency').textContent = formatMinutes(unit.emergencyStopSeconds);
+      card.querySelector('.live-nominal-rate').textContent = 'Nominal ' + formatRatePerMinute(model.nominalRatePerSecond);
+      card.querySelector('.live-sparkline-nominal-rate').textContent = formatRatePerMinute(model.nominalRatePerSecond);
+      Array.prototype.forEach.call(card.querySelectorAll('.live-equipment-controls button'), updateLiveEquipmentControl);
+
+      var zone = sample.accumulationZones ? sample.accumulationZones.find(function(candidate) {
+        return candidate.ownerEquipmentId === unit.id;
+      }) : null;
+      updateAccumulationZoneDetails(card.querySelector('.live-equipment-zone'), zone);
     }
 
     function createAccumulationZoneDetails(zone) {
@@ -2479,19 +2510,48 @@ function renderRawJson() {
       details.className = 'accumulation-zone-details';
       details.open = Boolean(state.liveZoneDetails[zone.ownerEquipmentId]);
       details.innerHTML = '<summary><span class="accumulation-zone-summary-name"></span><span class="accumulation-zone-summary-reading"></span></summary>';
-      details.querySelector('.accumulation-zone-summary-name').textContent = (zone.name || 'Accumulation zone') + ' · physical accumulation';
-      details.querySelector('.accumulation-zone-summary-reading').textContent = formatNumber(zone.inventoryUnits) + ' / ' + formatNumber(zone.capacityUnits) + ' units · ' + formatNumber(zone.fillPercent) + '%';
       details.appendChild(createAccumulationZonePanel(zone));
       details.addEventListener('toggle', function() {
         state.liveZoneDetails[zone.ownerEquipmentId] = details.open;
       });
+      updateAccumulationZoneDetailsContent(details, zone);
       return details;
+    }
+
+    function updateAccumulationZoneDetails(host, zone) {
+      if (!zone || !zone.physicalModelEnabled) {
+        if (host.firstChild) host.textContent = '';
+        return;
+      }
+      var details = host.querySelector('.accumulation-zone-details');
+      if (!details) {
+        host.appendChild(createAccumulationZoneDetails(zone));
+        return;
+      }
+      updateAccumulationZoneDetailsContent(details, zone);
+    }
+
+    function updateAccumulationZoneDetailsContent(details, zone) {
+      details.querySelector('.accumulation-zone-summary-name').textContent = (zone.name || 'Accumulation zone') + ' · physical accumulation';
+      details.querySelector('.accumulation-zone-summary-reading').textContent = formatNumber(zone.inventoryUnits) + ' / ' + formatNumber(zone.capacityUnits) + ' units · ' + formatNumber(zone.fillPercent) + '%';
+      var panel = details.querySelector('.accumulation-zone');
+      if (!panel) {
+        panel = createAccumulationZonePanel(zone);
+        details.appendChild(panel);
+        return;
+      }
+      updateAccumulationZonePanel(panel, zone);
     }
 
     function createAccumulationZonePanel(zone) {
       var panel = document.createElement('section');
-      panel.className = 'accumulation-zone state-' + String(zone.state || 'EMPTY').toLowerCase().replace(/_/g, '-');
       panel.innerHTML = '<div class="accumulation-zone-heading"><strong></strong><span></span></div><div class="accumulation-zone-stats"><div><span>Inventory</span><b class="zone-inventory"></b></div><div><span>In transit</span><b class="zone-transit"></b></div><div><span>Prime</span><b class="zone-prime"></b></div><div><span>Back-up</span><b class="zone-backup"></b></div><div><span>Geometry</span><b class="zone-geometry"></b></div><div><span>Travel</span><b class="zone-travel"></b></div><div><span>Overflow</span><b class="zone-overflow"></b></div></div><p class="zone-caption"></p><p class="zone-assumptions"></p>';
+      updateAccumulationZonePanel(panel, zone);
+      return panel;
+    }
+
+    function updateAccumulationZonePanel(panel, zone) {
+      panel.className = 'accumulation-zone state-' + String(zone.state || 'EMPTY').toLowerCase().replace(/_/g, '-');
       var geometry = zone.geometry || {};
       panel.querySelector('strong').textContent = zone.name || 'Accumulation zone';
       panel.querySelector('.accumulation-zone-heading span').textContent = String(zone.state || 'EMPTY').replace(/_/g, ' ');
@@ -2510,7 +2570,6 @@ function renderRawJson() {
         formatNumber(zone.capacityUnits) + ' units · Controls upstream: ' + zone.upstreamControlEquipmentId +
         ' · Starts downstream: ' + zone.downstreamControlEquipmentId;
       panel.querySelector('.zone-assumptions').textContent = summarizeGeometrySources(zone.geometrySources, zone.formatAssumptions);
-      return panel;
     }
 
     function zoneOriginLabel(origin) {
@@ -2526,15 +2585,18 @@ function summarizeGeometrySources(sources, assumptions) {
     }
 
     function bindLiveEquipmentControl(button, equipmentId, action) {
+      button.addEventListener('click', function() {
+        applyLiveScenarioControl(equipmentId, action);
+      });
+    }
+
+    function updateLiveEquipmentControl(button) {
       var sample = state.run.result && state.run.result.samples[state.run.sampleIndex];
       var isAtRunEnd = !sample || sample.virtualSecond >= state.run.result.durationSeconds;
       button.disabled = isAtRunEnd;
       button.title = isAtRunEnd
         ? 'Reset playback to an earlier virtual time before applying a scenario control.'
         : 'Apply at the displayed virtual second and recalculate this simulation scenario.';
-      button.addEventListener('click', function() {
-        applyLiveScenarioControl(equipmentId, action);
-      });
     }
 
     function applyLiveScenarioControl(equipmentId, action) {
