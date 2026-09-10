@@ -16,7 +16,7 @@ test('the Apps Script browser bundle exposes the tested deterministic engine', (
   vm.runInContext(script, context, { filename: 'SimulationEngine.html' });
   const response = browser.SimulatorEngine.simulateLine({
     case: referenceCase,
-    run: { durationSeconds: 30, tickSeconds: 1, sampleEverySeconds: 5, seed: 7 }
+    run: { durationSeconds: 180, tickSeconds: 1, sampleEverySeconds: 5, seed: 7 }
   });
 
   assert.equal(response.ok, true);

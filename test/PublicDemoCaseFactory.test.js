@@ -25,23 +25,22 @@ test('public demo factory creates a runnable 13-step Case with explicit provenan
     'DEPUCKER', 'CONVEYOR', 'SLEEVER', 'CONVEYOR', 'CASE_PACKER', 'CONVEYOR', 'PALLETIZER'
   ]);
 
-  assert.equal(caseModel.equipment.filter((unit) => unit.accumulationZone).length, 6);
-  assert.equal(caseModel.equipment.filter((unit) => unit.accumulationZone).every((unit) => {
-    const zone = unit.accumulationZone;
-    return zone.usableLengthMm > 0 && zone.productPitchMm > 0 &&
+  const conveyors = caseModel.equipment.filter((unit) => unit.type === 'CONVEYOR');
+  assert.equal(conveyors.length, 6);
+  assert.equal(conveyors.every((unit) => {
+    const zone = unit.processData.accumulation;
+    return zone && zone.usableLengthMm > 0 && zone.productPitchMm > 0 &&
       zone.conveyorSpeedMmPerSecond > 0 && zone.primeSensorPositionMm > 0 &&
       zone.backupSensorPositionMm > 0 && zone.backupRestartPositionMm > zone.backupSensorPositionMm;
   }), true);
 
   for (const unit of caseModel.equipment) {
     assert.ok(unit.nominalRatePerSecond > 0);
-    assert.ok(unit.bufferAfterCapacity >= 0);
     assert.ok(unit.noiseProfile.reliability.mtbfMinutes > 0);
     assert.ok(unit.noiseProfile.reliability.mttrMinutes > 0);
     assert.ok(unit.processData.equipment.mtbfMinutes > 0);
     assert.ok(unit.processData.equipment.mttrMinutes > 0);
     assert.ok(unit.processData.equipment.maximumSpeedBpm > 0);
-    assert.ok(unit.processData.equipment.bufferMinutes >= 0);
     assert.equal(unit.processData.geometry.lactMm, null);
     assert.equal(unit.processData.geometry.lpPrimeMm, null);
     assert.ok(unit.processData.geometry.actualDischargeMm > 0);

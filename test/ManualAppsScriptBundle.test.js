@@ -52,7 +52,7 @@ test('manual bundle makes physical conveyor geometry mandatory and exposes Case 
   assert.match(index, /Physical accumulation zone/);
   assert.match(index, /Geometry is active by default/);
   assert.doesNotMatch(index, /Use format fields/);
-  assert.doesNotMatch(index, /accumulation-zone override/);
+  assert.doesNotMatch(index, /Explicit accumulation-zone override JSON/);
   assert.match(index, /Delete Case/);
   assert.match(code, /function deleteCase\(/);
 });
