@@ -637,14 +637,11 @@ function createPublicLineUnit_(definition) {
 // Source: apps-script/Main.gs
 // -----------------------------------------------------------------------------
 function doGet() {
-  return HtmlService.createTemplateFromFile('WebApp')
+  return HtmlService.createTemplateFromFile('Index')
     .evaluate()
     .setTitle('SimulatorTemplate');
 }
 
-function include_(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
-}
 
 function getBootstrap() {
   return executeServerAction_(function(user) {

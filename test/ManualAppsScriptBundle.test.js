@@ -8,9 +8,14 @@ import { buildManualAppsScriptBundle } from '../scripts/build-manual-apps-script
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('manual Apps Script bundle contains all server modules and resolved HTML includes', () => {
+  const committedCode = fs.readFileSync(path.join(repositoryRoot, 'Code.gs'), 'utf8');
+  const committedIndex = fs.readFileSync(path.join(repositoryRoot, 'Index.html'), 'utf8');
   const output = buildManualAppsScriptBundle(repositoryRoot);
   const code = fs.readFileSync(output.codePath, 'utf8');
   const index = fs.readFileSync(output.indexPath, 'utf8');
+
+  assert.equal(committedCode, code, 'root Code.gs must match the manual bundle generated from apps-script/.');
+  assert.equal(committedIndex, index, 'root Index.html must match the manual bundle generated from apps-script/.');
 
   for (const sourceFile of ['ApiResponse.gs', 'AuthService.gs', 'ConfigService.gs', 'DriveService.gs', 'CaseService.gs', 'ReferenceCaseFactory.gs', 'PublicDemoCaseFactory.gs', 'Main.gs']) {
     assert.match(code, new RegExp(`Source: apps-script/${sourceFile.replace('.', '\\.')}`));
@@ -41,6 +46,18 @@ test('manual bundle keeps time-faithful playback and direct equipment scenario c
   assert.match(index, /Emergency stop/);
   assert.match(index, /Reset \+ run/);
   assert.match(index, /function applyLiveScenarioControl\(/);
+});
+
+test('manual bundle uses a wide, compact live-equipment list on large screens', () => {
+  const output = buildManualAppsScriptBundle(repositoryRoot);
+  const index = fs.readFileSync(output.indexPath, 'utf8');
+
+  assert.match(index, /\.app-shell \{ max-width: 1760px;/);
+  assert.match(index, /live-equipment-columns/);
+  assert.match(index, /State &amp; rate/);
+  assert.match(index, /Time losses/);
+  assert.match(index, /createAccumulationZoneDetails\(/);
+  assert.match(index, /physical accumulation/);
 });
 
 

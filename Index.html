@@ -7,7 +7,7 @@
   :root { color-scheme: light; font-family: Arial, sans-serif; background: #f4f7fb; color: #172033; }
   * { box-sizing: border-box; }
   body { margin: 0; }
-  .app-shell { max-width: 980px; margin: 0 auto; padding: 32px 20px 56px; }
+  .app-shell { max-width: 1760px; margin: 0 auto; padding: 32px clamp(20px, 2.5vw, 48px) 56px; width: 100%; }
   .topbar, .section-heading, .equipment-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
   .eyebrow { color: #3967d6; font-size: 11px; font-weight: 700; letter-spacing: .12em; margin: 0 0 6px; }
   h1, h2, p { margin-top: 0; }
@@ -78,17 +78,24 @@
   .metrics-grid span { color: #657187; display: block; font-size: 12px; }
   .metrics-grid strong { color: #264ca7; display: block; font-size: 20px; margin-top: 6px; }
   #simulation-chart { background: #fff; border: 1px solid #e0e6f0; border-radius: 10px; display: block; margin-top: 14px; width: 100%; }
-  .live-equipment { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin-top: 14px; }
-  .live-equipment-card { background: #f8faff; border: 1px solid #e0e6f0; border-left: 4px solid #657187; border-radius: 10px; padding: 12px; }
-  .live-equipment-title { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
-  .live-equipment-card strong { display: block; }
-  .live-equipment-card > .live-command { color: #657187; display: block; font-size: 12px; margin-top: 4px; }
+  .live-equipment { display: grid; gap: 8px; margin-top: 14px; }
+  .live-equipment-columns, .live-equipment-card__row { align-items: center; column-gap: 12px; display: grid; grid-template-columns: minmax(168px, 1.15fr) minmax(150px, .92fr) minmax(96px, .55fr) minmax(240px, 1.42fr) minmax(162px, .88fr) minmax(252px, 1.3fr); }
+  .live-equipment-columns { color: #657187; font-size: 10px; font-weight: 700; letter-spacing: .06em; padding: 0 14px; text-transform: uppercase; }
+  .live-equipment-card { background: #f8faff; border: 1px solid #e0e6f0; border-left: 4px solid #657187; border-radius: 10px; padding: 10px 12px; }
+  .live-equipment-cell { min-width: 0; }
+  .live-equipment-identity strong { color: #172033; display: block; font-size: 14px; }
+  .live-command { color: #657187; display: block; font-size: 11px; margin-top: 4px; }
+  .live-equipment-operation { align-items: flex-start; display: flex; flex-direction: column; gap: 4px; }
   .live-state { background: #edf1f7; border-radius: 99px; color: #3d485a; font-size: 11px; font-weight: 700; padding: 4px 7px; }
-  .live-equipment-stats { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px; }
-  .live-equipment-stats div { background: #fff; border-radius: 7px; padding: 7px; }
+  .live-rate { color: #264ca7; display: block; font-size: 14px; }
+  .live-nominal-rate { color: #657187; display: block; font-size: 10px; }
+  .live-equipment-flow span { color: #657187; display: block; font-size: 10px; text-transform: uppercase; }
+  .live-equipment-flow b { color: #264ca7; display: block; font-size: 16px; margin-top: 4px; }
+  .live-equipment-stats { display: grid; gap: 4px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .live-equipment-stats div { background: #fff; border-radius: 6px; padding: 6px; }
   .live-equipment-stats span { color: #657187; display: block; font-size: 10px; text-transform: uppercase; }
-  .live-equipment-stats b { color: #264ca7; display: block; font-size: 13px; margin-top: 2px; }
-  .equipment-speed-sparkline-heading { align-items: center; color: #657187; display: flex; font-size: 10px; justify-content: space-between; margin-top: 12px; text-transform: uppercase; }
+  .live-equipment-stats b { color: #264ca7; display: block; font-size: 12px; margin-top: 2px; }
+  .equipment-speed-sparkline-heading { align-items: center; color: #657187; display: flex; font-size: 10px; justify-content: space-between; margin: 0; text-transform: uppercase; }
   .equipment-speed-sparkline-heading b { color: #264ca7; font-size: 10px; }
   .equipment-speed-sparkline { background: #fff; border: 1px solid #e6ecf5; border-radius: 6px; display: block; height: 56px; margin-top: 5px; width: 100%; }
   .equipment-speed-chart-panel { background: #f8faff; border: 1px solid #e0e6f0; border-radius: 10px; margin-top: 16px; padding: 14px; }
@@ -99,7 +106,7 @@
   .equipment-speed-legend-item { align-items: center; color: #4f5d72; display: inline-flex; font-size: 11px; gap: 5px; }
   .equipment-speed-legend-item i { border-radius: 50%; display: inline-block; height: 8px; width: 8px; }
   .live-controls-help { font-size: 12px; margin: 16px 0 0; }
-  .live-equipment-controls { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
+  .live-equipment-controls { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .live-equipment-controls button { font-size: 11px; margin: 0; padding: 8px 6px; }
   .live-equipment-controls .live-control-stop { background: #f3ecdc; color: #765f19; }
   .live-equipment-controls .live-control-stop:hover { background: #eadfbe; }
@@ -121,7 +128,14 @@
   .state-starting .live-state, .state-waiting-for-prime .live-state, .state-ramping-up .live-state { background: #e4f1ff; color: #1d5fa8; }
   .state-backup-stop, .state-backup-stopping { border-left-color: #9b5dd1; }
   .state-backup-stop .live-state, .state-backup-stopping .live-state { background: #f1e6fc; color: #653497; }
-  .accumulation-zone { background: #f2f7ff; border: 1px solid #cfe0fb; border-left: 4px solid #3967d6; border-radius: 8px; margin-top: 12px; padding: 10px; }
+  .accumulation-zone-details { border-top: 1px solid #dce6f4; margin-top: 10px; padding-top: 10px; }
+  .accumulation-zone-details summary { align-items: center; color: #264ca7; cursor: pointer; display: flex; font-size: 12px; font-weight: 700; gap: 10px; justify-content: space-between; list-style: none; }
+  .accumulation-zone-details summary::-webkit-details-marker { display: none; }
+  .accumulation-zone-details summary::before { color: #657187; content: '\25b8'; font-size: 12px; }
+  .accumulation-zone-details[open] summary::before { content: '\25be'; }
+  .accumulation-zone-summary-name { margin-right: auto; }
+  .accumulation-zone-summary-reading { color: #4f5d72; font-size: 11px; font-weight: 700; }
+  .accumulation-zone { background: #f2f7ff; border: 1px solid #cfe0fb; border-left: 4px solid #3967d6; border-radius: 8px; margin-top: 10px; padding: 10px; }
   .accumulation-zone-heading { align-items: center; display: flex; font-size: 12px; gap: 8px; justify-content: space-between; }
   .accumulation-zone-heading strong { color: #264ca7; }
   .accumulation-zone-heading span { background: #e8efff; border-radius: 99px; color: #264ca7; font-size: 10px; font-weight: 700; padding: 4px 7px; }
@@ -136,8 +150,9 @@
   .accumulation-zone.state-overflow .accumulation-zone-heading strong,
   .accumulation-zone.state-overflow .accumulation-zone-stats b { color: #a33d28; }
   .sr-only { height: 1px; margin: -1px; overflow: hidden; position: absolute; width: 1px; }
-  @media (max-width: 760px) { .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .run-fields, .control-event, .format-zone-grid { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 600px) { .topbar, .section-heading, .editor-subheading, .equipment-header, .format-zone-heading { align-items: flex-start; flex-direction: column; } .field-grid, .equipment-grid, .new-case-form, .run-fields, .control-event, .metrics-grid, .format-zone-grid { grid-template-columns: 1fr; } .case-row, .case-actions { align-items: flex-start; flex-direction: column; } .live-equipment-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-equipment-controls .live-control-run { grid-column: span 1; } }
+  @media (max-width: 1260px) { .live-equipment-columns { display: none; } .live-equipment-card__row { align-items: stretch; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-equipment-cell { background: #fff; border-radius: 8px; padding: 8px; } .live-equipment-cell::before { color: #657187; content: attr(data-label); display: block; font-size: 10px; font-weight: 700; letter-spacing: .06em; margin-bottom: 6px; text-transform: uppercase; } .live-equipment-operation { gap: 5px; } .live-equipment-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .live-equipment-controls { align-content: start; } }
+  @media (max-width: 760px) { .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .run-fields, .control-event, .format-zone-grid { grid-template-columns: 1fr 1fr; } .live-equipment-card__row { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) { .app-shell { padding-left: 16px; padding-right: 16px; } .topbar, .section-heading, .editor-subheading, .equipment-header, .format-zone-heading { align-items: flex-start; flex-direction: column; } .field-grid, .equipment-grid, .new-case-form, .run-fields, .control-event, .metrics-grid, .format-zone-grid { grid-template-columns: 1fr; } .case-row, .case-actions { align-items: flex-start; flex-direction: column; } .live-equipment-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-equipment-controls .live-control-run { grid-column: span 1; } .accumulation-zone-details summary { align-items: flex-start; flex-wrap: wrap; } .accumulation-zone-summary-name { flex-basis: calc(100% - 22px); } }
 </style>
   </head>
   <body>
@@ -1667,6 +1682,7 @@ window.SimulatorEngine = { simulateLine: simulateLine };
       bootstrap: null,
       activeCase: null,
       isDirty: false,
+      liveZoneDetails: {},
       run: {
         commands: [],
         result: null,
@@ -1787,6 +1803,7 @@ function createPublicDemoCase() {
           state.run.commands = [];
           state.run.result = null;
           state.run.configuration = null;
+          state.liveZoneDetails = {};
           toggle('editor-panel', false);
           toggle('run-panel', false);
         }
@@ -1801,6 +1818,7 @@ function openCase(caseId) {
         stopPlaybackTimer();
         state.activeCase = response.data;
         state.isDirty = false;
+        state.liveZoneDetails = {};
         state.run.commands = [];
         state.run.result = null;
         state.run.configuration = null;
@@ -2412,12 +2430,19 @@ function renderRawJson() {
     function renderLiveEquipment(sample) {
       var target = document.getElementById('live-equipment');
       target.textContent = '';
+      target.setAttribute('role', 'list');
+      var columns = document.createElement('div');
+      columns.className = 'live-equipment-columns';
+      columns.setAttribute('aria-hidden', 'true');
+      columns.innerHTML = '<span>Equipment</span><span>State &amp; rate</span><span>Units</span><span>Time losses</span><span>Speed trend</span><span>Scenario controls</span>';
+      target.appendChild(columns);
       sample.equipment.forEach(function(unit, index) {
         var model = state.activeCase.equipment[index] || {};
         var card = document.createElement('article');
         var availabilityState = unit.availabilityState || unit.mode || 'UNKNOWN';
         card.className = 'live-equipment-card state-' + availabilityState.toLowerCase().replace(/_/g, '-');
-        card.innerHTML = '<div class="live-equipment-title"><strong></strong><span class="live-state"></span></div><span class="live-command"></span><div class="live-equipment-stats"><div><span class="live-flow-label"></span><b class="live-processed"></b></div><div><span>Actual rate</span><b class="live-rate"></b></div><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Waiting for Prime</span><b class="live-waiting-prime"></b></div><div><span>Back-up stop</span><b class="live-backup-stop"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency stop</span><b class="live-emergency"></b></div></div><div class="equipment-speed-sparkline-heading"><span>Actual speed · last 60 virtual s</span><b class="live-nominal-rate"></b></div><canvas class="equipment-speed-sparkline" height="56" aria-label="Rolling actual-speed chart"></canvas><div class="live-equipment-controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div>';
+        card.setAttribute('role', 'listitem');
+        card.innerHTML = '<div class="live-equipment-card__row"><div class="live-equipment-identity live-equipment-cell" data-label="Equipment"><strong></strong><span class="live-command"></span></div><div class="live-equipment-operation live-equipment-cell" data-label="State &amp; rate"><span class="live-state"></span><b class="live-rate"></b><span class="live-nominal-rate"></span></div><div class="live-equipment-flow live-equipment-cell" data-label="Units"><span class="live-flow-label"></span><b class="live-processed"></b></div><div class="live-equipment-stats live-equipment-cell" data-label="Time losses"><div><span>Starved</span><b class="live-starved"></b></div><div><span>Blocked</span><b class="live-blocked"></b></div><div><span>Waiting Prime</span><b class="live-waiting-prime"></b></div><div><span>Back-up stop</span><b class="live-backup-stop"></b></div><div><span>Failure</span><b class="live-failure"></b></div><div><span>Emergency</span><b class="live-emergency"></b></div></div><div class="live-speed-cell live-equipment-cell" data-label="Speed trend"><div class="equipment-speed-sparkline-heading"><span>Actual · last 60 s</span><b class="live-sparkline-nominal-rate"></b></div><canvas class="equipment-speed-sparkline" height="56" aria-label="Rolling actual-speed chart"></canvas></div><div class="live-equipment-controls live-equipment-cell" data-label="Scenario controls"><button class="secondary live-control-run" type="button">Run / resume</button><button class="live-control-pause" type="button">Pause</button><button class="live-control-stop" type="button">Planned stop</button><button class="live-control-emergency" type="button">Emergency stop</button><button class="secondary live-control-reset" type="button">Reset + run</button></div></div>';
         card.querySelector('strong').textContent = model.name || unit.id;
         card.querySelector('.live-state').textContent = availabilityState;
         card.querySelector('.live-command').textContent = 'Command: ' + unit.mode;
@@ -2431,6 +2456,7 @@ function renderRawJson() {
         card.querySelector('.live-failure').textContent = formatMinutes(unit.failureSeconds);
         card.querySelector('.live-emergency').textContent = formatMinutes(unit.emergencyStopSeconds);
         card.querySelector('.live-nominal-rate').textContent = 'Nominal ' + formatRatePerMinute(model.nominalRatePerSecond);
+        card.querySelector('.live-sparkline-nominal-rate').textContent = formatRatePerMinute(model.nominalRatePerSecond);
         bindLiveEquipmentControl(card.querySelector('.live-control-run'), unit.id, 'RUN');
         bindLiveEquipmentControl(card.querySelector('.live-control-pause'), unit.id, 'PAUSE');
         bindLiveEquipmentControl(card.querySelector('.live-control-stop'), unit.id, 'STOP');
@@ -2441,11 +2467,25 @@ function renderRawJson() {
           return candidate.ownerEquipmentId === unit.id;
         }) : null;
         if (zone && zone.physicalModelEnabled) {
-          card.appendChild(createAccumulationZonePanel(zone));
+          card.appendChild(createAccumulationZoneDetails(zone));
         }
         target.appendChild(card);
         drawEquipmentSpeedSparkline(card.querySelector('.equipment-speed-sparkline'), index, model);
       });
+    }
+
+    function createAccumulationZoneDetails(zone) {
+      var details = document.createElement('details');
+      details.className = 'accumulation-zone-details';
+      details.open = Boolean(state.liveZoneDetails[zone.ownerEquipmentId]);
+      details.innerHTML = '<summary><span class="accumulation-zone-summary-name"></span><span class="accumulation-zone-summary-reading"></span></summary>';
+      details.querySelector('.accumulation-zone-summary-name').textContent = (zone.name || 'Accumulation zone') + ' · physical accumulation';
+      details.querySelector('.accumulation-zone-summary-reading').textContent = formatNumber(zone.inventoryUnits) + ' / ' + formatNumber(zone.capacityUnits) + ' units · ' + formatNumber(zone.fillPercent) + '%';
+      details.appendChild(createAccumulationZonePanel(zone));
+      details.addEventListener('toggle', function() {
+        state.liveZoneDetails[zone.ownerEquipmentId] = details.open;
+      });
+      return details;
     }
 
     function createAccumulationZonePanel(zone) {
@@ -2756,4 +2796,3 @@ function summarizeGeometrySources(sources, assumptions) {
 </script>
   </body>
 </html>
-
