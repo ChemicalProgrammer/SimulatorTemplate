@@ -37,6 +37,12 @@ function getCase(caseId) {
   });
 }
 
+function deleteCase(caseId) {
+  return executeServerAction_(function(user) {
+    return deleteCase_(caseId, user);
+  });
+}
+
 function saveCase(request) {
   return executeServerAction_(function(user) {
     return saveCase_(request, user);

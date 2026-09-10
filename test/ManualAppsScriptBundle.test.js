@@ -44,12 +44,15 @@ test('manual bundle keeps time-faithful playback and direct equipment scenario c
 });
 
 
-test('manual bundle exposes format-driven accumulation inputs and provenance in the live zone card', () => {
+test('manual bundle makes physical conveyor geometry mandatory and exposes Case deletion', () => {
   const output = buildManualAppsScriptBundle(repositoryRoot);
+  const code = fs.readFileSync(output.codePath, 'utf8');
   const index = fs.readFileSync(output.indexPath, 'utf8');
 
   assert.match(index, /Physical accumulation zone/);
-  assert.match(index, /Use format fields/);
-  assert.match(index, /Format-derived physical zone/);
-  assert.match(index, /processData\.accumulation/);
+  assert.match(index, /Geometry is active by default/);
+  assert.doesNotMatch(index, /Use format fields/);
+  assert.doesNotMatch(index, /accumulation-zone override/);
+  assert.match(index, /Delete Case/);
+  assert.match(code, /function deleteCase\(/);
 });

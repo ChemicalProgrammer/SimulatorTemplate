@@ -48,7 +48,6 @@
         "type",
         "name",
         "nominalRatePerSecond",
-        "bufferAfterCapacity",
         "initialMode"
       ],
       "properties": {
@@ -79,10 +78,6 @@
           "type": "number",
           "exclusiveMinimum": 0
         },
-        "bufferAfterCapacity": {
-          "type": "number",
-          "minimum": 0
-        },
         "initialMode": {
           "enum": [
             "AUTO",
@@ -97,9 +92,6 @@
         "processData": {
           "$ref": "#/$defs/processData"
         },
-        "accumulationZone": {
-          "$ref": "#/$defs/accumulationZone"
-        },
         "startupDelaySeconds": {
           "type": "number",
           "minimum": 0,
@@ -110,7 +102,39 @@
           "minimum": 0,
           "description": "Optional machine start/restart ramp duration. When omitted, the engine may use processData.downstream.rampUpTimeSeconds."
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "CONVEYOR"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "processData"
+            ],
+            "properties": {
+              "processData": {
+                "type": "object",
+                "required": [
+                  "accumulation"
+                ],
+                "properties": {
+                  "accumulation": {
+                    "$ref": "#/$defs/accumulationFormat"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "noiseProfile": {
       "type": "object",
@@ -228,12 +252,18 @@
         }
       }
     },
-    "accumulationZone": {
+    "accumulationFormat": {
       "type": "object",
-      "description": "Physical accumulation-zone approximation. Sensor positions are measured from the upstream discharge toward the downstream infeed.",
+      "description": "Mandatory physical conveyor-zone inputs. Positions are measured from the upstream discharge toward the downstream infeed; LACT and LP Prime are not inferred.",
       "required": [
         "usableLengthMm",
-        "conveyorSpeedMmPerSecond"
+        "conveyorSpeedMmPerSecond",
+        "primeSensorPositionMm",
+        "backupSensorPositionMm",
+        "backupRestartPositionMm",
+        "upstreamStopResponseSeconds",
+        "bottlesDischargedAtStop",
+        "downstreamRampUpSeconds"
       ],
       "properties": {
         "id": {
@@ -248,10 +278,6 @@
           "type": "number",
           "exclusiveMinimum": 0
         },
-        "productPitchMm": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
         "productLengthMm": {
           "type": "number",
           "exclusiveMinimum": 0
@@ -260,9 +286,17 @@
           "type": "number",
           "minimum": 0
         },
+        "productPitchMm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
         "conveyorSpeedMmPerSecond": {
           "type": "number",
           "exclusiveMinimum": 0
+        },
+        "conveyorSpeedFactorPercent": {
+          "type": "number",
+          "minimum": 0
         },
         "primeSensorPositionMm": {
           "type": "number",
@@ -276,14 +310,6 @@
           "type": "number",
           "minimum": 0
         },
-        "upstreamControlEquipmentId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "downstreamControlEquipmentId": {
-          "type": "string",
-          "minLength": 1
-        },
         "upstreamStopResponseSeconds": {
           "type": "number",
           "minimum": 0
@@ -295,16 +321,6 @@
         "downstreamRampUpSeconds": {
           "type": "number",
           "minimum": 0
-        },
-        "upstreamRestartDelaySeconds": {
-          "type": "number",
-          "minimum": 0,
-          "description": "Optional override for the controlled upstream equipment after this Back-up sensor clears."
-        },
-        "upstreamRestartRampUpSeconds": {
-          "type": "number",
-          "minimum": 0,
-          "description": "Optional ramp-up override for the controlled upstream equipment after this Back-up sensor clears."
         }
       },
       "anyOf": [
@@ -320,123 +336,6 @@
           ]
         }
       ]
-    },
-    "accumulationFormat": {
-      "type": [
-        "object",
-        "null"
-      ],
-      "description": "Named physical accumulation-zone inputs. Positions are measured from the upstream discharge toward the downstream infeed; LACT and LP Prime are not inferred.",
-      "properties": {
-        "id": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "name": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "usableLengthMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "productLengthMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "gapMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "productPitchMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "conveyorSpeedMmPerSecond": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "conveyorSpeedFactorPercent": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "primeSensorPositionMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "backupSensorPositionMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "backupRestartPositionMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "upstreamStopResponseSeconds": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "bottlesDischargedAtStop": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "downstreamRampUpSeconds": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "upstreamRestartDelaySeconds": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "upstreamRestartRampUpSeconds": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "upstreamControlEquipmentId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "downstreamControlEquipmentId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      }
     }
   }
 }

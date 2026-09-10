@@ -110,8 +110,7 @@
           "required": [
             "mtbfMinutes",
             "mttrMinutes",
-            "maximumSpeedBpm",
-            "bufferMinutes"
+            "maximumSpeedBpm"
           ],
           "properties": {
             "mtbfMinutes": {
@@ -121,9 +120,6 @@
               "$ref": "#/$defs/nullableNumber"
             },
             "maximumSpeedBpm": {
-              "$ref": "#/$defs/nullableNumber"
-            },
-            "bufferMinutes": {
               "$ref": "#/$defs/nullableNumber"
             }
           }

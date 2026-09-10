@@ -41,8 +41,7 @@
             <p>Each Case is an isolated, versioned JSON record in your Drive workspace.</p>
           </div>
           <div class="button-row">
-            <button id="create-reference-case" class="secondary" type="button">Reference case</button>
-            <button id="create-public-demo-case" class="secondary" type="button">Public 13-unit demo</button>
+            <button id="create-public-demo-case" class="secondary" type="button">Public physical 13-unit demo</button>
           </div>
         </div>
         <form id="new-case-form" class="new-case-form">
@@ -62,6 +61,7 @@
           </div>
           <div class="button-row">
             <button id="reload-case" class="secondary" type="button">Reload</button>
+            <button id="delete-case" class="danger" type="button">Delete Case</button>
             <button id="save-case" type="button">Save Case</button>
           </div>
         </div>
@@ -78,7 +78,7 @@
         <div class="editor-subheading">
           <div>
             <h3>Equipment sequence</h3>
-            <p>Order defines the material flow. Use Other / custom for manually defined equipment characteristics.</p>
+            <p>Order defines material flow. Use alternating machine → conveyor → machine steps; every conveyor requires physical geometry.</p>
           </div>
           <button id="add-equipment" class="secondary" type="button">Add equipment</button>
         </div>
@@ -102,7 +102,7 @@
           </div>
         </div>
 
-        <div id="run-not-ready" class="notice hidden">Add and save at least two valid equipment units before running a simulation.</div>
+        <div id="run-not-ready" class="notice hidden">Save a valid physical line before running: machine → conveyor → machine, with geometry on every conveyor.</div>
         <div id="run-config" class="run-config">
           <div class="field-grid run-fields">
             <label>Duration mode<select id="duration-mode"><option value="FIXED">Fixed virtual duration</option><option value="INDEFINITE">Indefinite (safety ceiling)</option></select></label>
@@ -113,7 +113,7 @@
           </div>
 
           <div class="notice model-boundary">
-            At 1×, one virtual second takes one real second. A conveyor can use named Physical accumulation zone format fields, which derive capacity from usable length and product pitch, product travel from conveyor speed, and Prime / Back-up control from explicit sensor positions. Advanced <code>accumulationZone</code> JSON remains an explicit override. Legacy buffers remain abstract.
+            At 1×, one virtual second takes one real second. Every conveyor uses named physical geometry: capacity is derived from usable length and product pitch, product travel from conveyor speed, and Prime / Back-up control from its configured sensor positions. Abstract buffers and accumulation-zone overrides are not used.
           </div>
 
           <div class="editor-subheading compact-heading">

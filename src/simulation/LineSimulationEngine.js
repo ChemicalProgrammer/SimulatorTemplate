@@ -21,7 +21,8 @@ function createRuntime(input) {
     equipment,
     input.case.equipment[index + 1],
     input.case.equipment,
-    index
+    index,
+    input.run.tickSeconds
   ));
 
   equipment.forEach((equipment, index) => {
@@ -87,11 +88,14 @@ function createEquipmentRuntime(model, random) {
   };
 }
 
-function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, ownerIndex) {
+function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, ownerIndex, tickSeconds) {
   const resolvedDefinition = resolveAccumulationZoneDefinition(allEquipment, ownerIndex);
   const definition = resolvedDefinition.definition;
-  const physical = definition ? normalizePhysicalZone(definition) : null;
-  const capacityUnits = physical ? physical.capacityUnits : owner.bufferAfterCapacity;
+  const isInternalHandoff = definition?.kind === 'INTERNAL_HANDOFF';
+  const physical = !isInternalHandoff && definition ? normalizePhysicalZone(definition) : null;
+  const capacityUnits = isInternalHandoff
+    ? createHandoffCapacityUnits(owner, downstreamModel, tickSeconds)
+    : physical?.capacityUnits;
   const upstreamControlEquipmentId = definition?.upstreamControlEquipmentId || owner.id;
   const downstreamControlEquipmentId = definition?.downstreamControlEquipmentId || downstreamModel.id;
 
@@ -101,6 +105,8 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     ownerEquipmentId: owner.id,
     upstreamControlEquipmentId,
     downstreamControlEquipmentId,
+    visible: Boolean(physical),
+    internalHandoff: isInternalHandoff,
     physicalModelEnabled: Boolean(physical),
     modelOrigin: resolvedDefinition.origin,
     geometrySources: resolvedDefinition.sources || {},
@@ -135,6 +141,11 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     overflowUnits: 0,
     overflowEvents: 0
   };
+}
+
+function createHandoffCapacityUnits(owner, downstreamModel, tickSeconds) {
+  const rate = Math.max(owner?.nominalRatePerSecond || 0, downstreamModel?.nominalRatePerSecond || 0, 1);
+  return Math.max(1, Math.ceil(rate * Math.max(tickSeconds || 1, 1) * 2));
 }
 
 function normalizePhysicalZone(definition) {
@@ -214,6 +225,17 @@ function initializeInitialMaterialStates(runtime) {
 
 function advanceAccumulationZones(runtime) {
   runtime.zones.forEach((zone) => {
+    const owner = getEquipment(runtime, zone.ownerEquipmentId);
+    const conveyorStopped = zone.physicalModelEnabled && owner && !isAvailable(owner);
+    if (conveyorStopped) {
+      zone.transit.forEach((packet) => {
+        packet.primeAtVirtualSecond += runtime.run.tickSeconds;
+        packet.arrivesAtVirtualSecond += runtime.run.tickSeconds;
+      });
+      updateBackupSensor(runtime, zone);
+      return;
+    }
+
     const remainingTransit = [];
     zone.transit.forEach((packet) => {
       if (!packet.primeDetected && zone.hasPrimeSensor && packet.primeAtVirtualSecond <= runtime.virtualSecond) {
@@ -717,11 +739,12 @@ function addSampleIfDue(runtime) {
 }
 
 function addSample(runtime) {
+  const visibleZones = runtime.zones.filter((zone) => zone.visible);
   runtime.samples.push({
     virtualSecond: runtime.virtualSecond,
     outputCount: round(runtime.outputCount),
-    buffers: runtime.zones.map((zone) => round(getZoneInventory(zone))),
-    accumulationZones: runtime.zones.map(createZoneSample),
+    buffers: visibleZones.map((zone) => round(getZoneInventory(zone))),
+    accumulationZones: visibleZones.map(createZoneSample),
     equipment: runtime.equipment.map((item) => ({
       id: item.id,
       mode: item.mode,
@@ -796,12 +819,12 @@ function createResult(runtime) {
   return {
     caseId: runtime.caseId,
     unitOfFlow: runtime.unitOfFlow,
-    engineVersion: '0.7.0',
+    engineVersion: '0.8.0',
     seed: runtime.run.seed,
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),
     equipmentMetrics: Object.fromEntries(runtime.equipment.map((item) => [item.id, createEquipmentMetrics(item, runtime.run.durationSeconds)])),
-    accumulationZoneMetrics: Object.fromEntries(runtime.zones.map((zone) => [zone.id, createZoneMetrics(zone)])),
+    accumulationZoneMetrics: Object.fromEntries(runtime.zones.filter((zone) => zone.visible).map((zone) => [zone.id, createZoneMetrics(zone)])),
     events: runtime.events,
     samples: runtime.samples
   };

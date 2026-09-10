@@ -1,126 +1,49 @@
-# Accumulation-zone control
+# Mandatory physical conveyor geometry
 
-## Purpose
+## Model rule
 
-This module makes a conveyor interface visible as a bounded accumulation zone rather than an abstract buffer. It models the control behaviour shown in the **Prime / Back-up photocell** reference:
+Every conveyor is a physical accumulation zone. There is no abstract buffer, no `bufferAfterCapacity`, and no `accumulationZone` override.
 
-- **Prime sensor:** requests the controlled downstream machine to start when the leading product reaches the configured sensor position.
-- **Back-up sensor:** requests a controlled stop of the selected upstream machine when accumulated product reaches the high-level threshold.
-- **Back-up reset position:** releases the upstream stop only after enough inventory has cleared, preventing rapid start/stop chatter.
-- **Residual discharge:** product still discharged during the configured upstream stop response is tracked. If the physical zone cannot hold it, the result records an `OVERFLOW` loss event.
+A valid line alternates:
 
-This is a deterministic scenario model. It does not command PLCs, safety systems, or real equipment.
-
-## Coordinate convention
-
-For every `accumulationZone`, positions are measured in millimetres from the **upstream discharge** toward the **downstream infeed**.
-
-```json
-{
-  "usableLengthMm": 24000,
-  "productPitchMm": 92,
-  "conveyorSpeedMmPerSecond": 795,
-  "primeSensorPositionMm": 21500,
-  "backupSensorPositionMm": 8000,
-  "backupRestartPositionMm": 11000
-}
+```text
+Machine → Conveyor → Machine → Conveyor → Machine
 ```
 
-The Back-up sensor is upstream of Prime. Its upstream free distance reserves room for response delay and bottles discharged after the stop request.
+The simulator derives the controlled upstream and downstream machines from this sequence.
 
-## Format-driven zones
+## Required data on each conveyor
 
-A conveyor can now derive its physical zone from named `processData.accumulation` fields. This avoids treating generic metadata as if it were geometry.
-
-| Format field | Simulation use |
+| Field | Simulation use |
 |---|---|
-| `usableLengthMm` | Physical length available for accumulation. |
-| `productPitchMm` | Direct pitch override. |
-| `productLengthMm` + `gapMm` | Calculates pitch when an explicit pitch is absent. |
-| `processData.upstream.packageLengthMm` | Fallback product length when `productLengthMm` is blank. |
-| `processData.upstream.dischargePitchMm` | Fallback pitch when neither explicit pitch nor length + gap are available. |
-| `conveyorSpeedMmPerSecond` | Explicit conveyor speed. |
-| `conveyorSpeedFactorPercent` / named speed factor | Can derive speed from upstream nominal rate × pitch × factor. |
-| Prime / Back-up / reset positions | Must be entered explicitly in `processData.accumulation`. |
+| `usableLengthMm` | Physical accumulation length. |
+| `productPitchMm`, or `productLengthMm` + `gapMm` | Capacity: `floor(length / pitch)`. |
+| `conveyorSpeedMmPerSecond` | Product travel time and sensor timing. |
+| `primeSensorPositionMm` | Starts the next machine after product reaches Prime. |
+| `backupSensorPositionMm` | Requests the preceding machine to stop when accumulation reaches Back-up. |
+| `backupRestartPositionMm` | Releases that stop after inventory clears. |
+| `upstreamStopResponseSeconds` | Delay from Back-up request to upstream stop. |
+| `bottlesDischargedAtStop` | Residual product discharged after the stop request. |
+| `downstreamRampUpSeconds` | Ramp requested for the downstream machine after Prime. |
 
-The derived zone automatically controls the nearest upstream and downstream non-conveyor equipment, unless IDs are explicitly provided. An existing `accumulationZone` JSON object remains an advanced override and takes precedence.
+Positions are measured from upstream discharge toward downstream infeed. Back-up must be upstream of Prime; reset must be downstream of Back-up.
 
-`LACT`, `LP Prime`, `actualDischargeMm`, and `actualCodingMm` are deliberately **not** mapped to zone length or sensor positions. Their plant meaning still needs confirmation.
+## What geometry changes
 
-## Calculations
+- Capacity changes with usable length and pitch.
+- Product reaches Prime after `primeSensorPositionMm / conveyorSpeedMmPerSecond`.
+- It reaches the downstream end after `usableLengthMm / conveyorSpeedMmPerSecond`.
+- A stopped conveyor freezes product travel; it does not teleport material to the next machine when it restarts.
+- Back-up uses real occupancy of the conveyor, not an arbitrary buffer number.
 
-For a physical zone:
+The line begins empty. A downstream machine remains `WAITING_FOR_PRIME` until its upstream conveyor sees product at Prime.
 
-- Physical capacity: `floor(usableLengthMm / productPitchMm)`
-- Leading-product travel to Prime: `primeSensorPositionMm / conveyorSpeedMmPerSecond`
-- Full conveyor travel: `usableLengthMm / conveyorSpeedMmPerSecond`
-- Back-up trigger: downstream waiting inventory reaches the portion from the Back-up sensor to the downstream end.
-- Back-up clear: waiting inventory falls below the shorter portion from the reset position to the downstream end.
+## Deliberately not inferred
 
-The engine separates:
-
-- **In transit:** product moving toward the downstream infeed.
-- **Waiting:** product already at the downstream end because the next machine cannot consume it.
-- **Overflow:** residual product that exceeds physical capacity after a Back-up stop request.
-
-The model uses one-second calculation ticks. Therefore it is a control-oriented approximation, not an individual-bottle PLC or collision model.
-
-## Controlled recovery after a Back-up clear
-
-A Back-up clear does **not** make all upstream equipment instantly run at nominal rate.
-
-1. The downstream machine must first consume enough material for the Back-up reset position to clear.
-2. The affected upstream machine then receives a start request.
-3. It applies its configured start delay and speed ramp.
-4. As each accumulation zone drains and its own sensor clears, the preceding machine receives its own start request.
-
-By default, the controlled machine uses:
-
-- `processData.upstream.startupTimeSeconds` as its start/restart delay.
-- `processData.downstream.rampUpTimeSeconds` as its speed-ramp duration.
-
-A Case may override these with equipment-level `startupDelaySeconds` / `restartRampUpSeconds`, or with zone-level `upstreamRestartDelaySeconds` / `upstreamRestartRampUpSeconds` for a particular Back-up interface.
-
-The new live state `STARTING` means the delay is running at zero effective speed; `RAMPING_UP` means the machine is accelerating. This models a controlled recovery cascade, but it is still a deterministic approximation—not a PLC logic replica.
-
-## Equipment and zone states
-
-A live equipment card can now show:
-
-- `WAITING_FOR_PRIME`
-- `STARTING`
-- `RAMPING_UP`
-- `RUNNING`
-- `STARVED`
-- `BLOCKED`
-- `BACKUP_STOPPING`
-- `BACKUP_STOP`
-- `FAILURE`, `MICRO_STOP`, `PAUSED`, and `EMERGENCY_STOP`
-
-Every physical zone on the card that owns it shows inventory/capacity, in-transit units, Prime, Back-up, and overflow loss. The machine selected by `upstreamControlEquipmentId` shows its accumulated Back-up control time.
-
-## Rolling speed traces
-
-Every live equipment card includes a small rolling chart of its **actual** rate over the last 60 virtual seconds. The consolidated chart above the cards overlays the actual rates of every equipment unit, with a colour legend.
-
-The X-axis moves with the current virtual time; 1× affects playback only, not the calculated rate. A zero in either chart can mean a commanded stop, failure, starvation, Back-up control, start delay, or ramp phase; use the state chip and the accumulated time metrics on the same card to identify the cause.
-
-## Public demonstration Case
-
-The 13-unit public Case configures its six conveyor objects as physical zones. Their length, pitch, speed, sensor positions, response time, and restart threshold are **synthetic demonstration values**. They are deliberately visible in the Case JSON and must not be treated as plant measurements or sensor-placement recommendations.
-
-The Case starts empty. At 1×, downstream equipment waits for product to reach successive Prime sensors; the demo first produces final output only after the virtual product path has propagated through the conveyor zones.
+`LACT`, `LP Prime`, `actualDischargeMm`, and `actualCodingMm` are preserved as format data but are not translated automatically to length or sensor positions. Their plant definition must be confirmed first.
 
 ## Calibration boundary
 
-Before using the model for an engineering decision, confirm at least:
+The public 13-unit demo contains complete synthetic geometry and controls so it can run immediately. Its values are not plant measurements or sensor-placement recommendations.
 
-1. Coordinate reference for each sensor position.
-2. Usable accumulation length, excluding reject/inspection/non-accumulating sections.
-3. Product pitch or verified product length plus gap.
-4. Conveyor velocity during normal operation and at speed changes.
-5. Sensor debounce/filter and restart logic.
-6. Actual upstream stop response and bottles discharged after a stop.
-7. Whether a sensor controls a single machine, a conveyor, or a linked zone.
-
-`LACT`, `LP Prime`, and unnamed Speed & sensors fields remain unassigned until their plant definitions are confirmed.
+For a real Case, the engine refuses to run until every conveyor has complete physical geometry. This is intentional: an incomplete geometry must not silently become an abstract buffer.

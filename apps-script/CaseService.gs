@@ -29,6 +29,13 @@ function getCase_(caseId, user) {
   return getOwnedCaseFile_(caseId, user).caseData;
 }
 
+function deleteCase_(caseId, user) {
+  var owned = getOwnedCaseFile_(caseId, user);
+  var summary = { id: owned.caseData.id, name: owned.caseData.name };
+  owned.file.setTrashed(true);
+  return summary;
+}
+
 function saveCase_(request, user) {
   if (!request || typeof request !== 'object') {
     throw createSimulatorError_('INVALID_CASE', 'The case must be an object.');
@@ -143,9 +150,6 @@ function normalizeEquipmentList_(equipment) {
     if (!isPositiveFiniteNumber_(unit.nominalRatePerSecond)) {
       throw createSimulatorError_('INVALID_CASE', path + '.nominalRatePerSecond must be greater than zero.');
     }
-    if (!isNonNegativeFiniteNumber_(unit.bufferAfterCapacity)) {
-      throw createSimulatorError_('INVALID_CASE', path + '.bufferAfterCapacity must be zero or greater.');
-    }
     if (['AUTO', 'MANUAL', 'PAUSE', 'STOP'].indexOf(unit.initialMode) === -1) {
       throw createSimulatorError_('INVALID_CASE', path + '.initialMode is not supported.');
     }
@@ -154,7 +158,6 @@ function normalizeEquipmentList_(equipment) {
       type: unit.type,
       name: unit.name.trim(),
       nominalRatePerSecond: Number(unit.nominalRatePerSecond),
-      bufferAfterCapacity: Number(unit.bufferAfterCapacity),
       initialMode: unit.initialMode,
       characteristics: normalizeObject_(unit.characteristics),
       noiseProfile: normalizeObject_(unit.noiseProfile),
@@ -200,10 +203,6 @@ function normalizeStringList_(value) {
 
 function isPositiveFiniteNumber_(value) {
   return typeof value === 'number' && isFinite(value) && value > 0;
-}
-
-function isNonNegativeFiniteNumber_(value) {
-  return typeof value === 'number' && isFinite(value) && value >= 0;
 }
 
 function generateCaseId_(name) {

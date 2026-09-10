@@ -25,9 +25,9 @@
     function bindEvents() {
       document.getElementById('workspace-form').addEventListener('submit', saveWorkspace);
       document.getElementById('new-case-form').addEventListener('submit', createDraftCase);
-      document.getElementById('create-reference-case').addEventListener('click', createReferenceCase);
       document.getElementById('create-public-demo-case').addEventListener('click', createPublicDemoCase);
       document.getElementById('reload-case').addEventListener('click', reloadActiveCase);
+      document.getElementById('delete-case').addEventListener('click', deleteActiveCase);
       document.getElementById('save-case').addEventListener('click', saveActiveCase);
       document.getElementById('add-equipment').addEventListener('click', addEquipment);
       document.getElementById('case-editor-form').addEventListener('input', markCaseDirty);
@@ -93,17 +93,9 @@
       });
     }
 
-    function createReferenceCase() {
-      setBusy('create-reference-case', true);
-      callServer('createReferenceCase', [], function(response) {
-        setBusy('create-reference-case', false);
-        if (!response.ok) return showError(response.error);
-        openCase(response.data.id);
-        initialize();
-      });
-    }
+    
 
-    function createPublicDemoCase() {
+function createPublicDemoCase() {
       setBusy('create-public-demo-case', true);
       callServer('createPublicDemoCase', [], function(response) {
         setBusy('create-public-demo-case', false);
@@ -113,7 +105,34 @@
       });
     }
 
-    function openCase(caseId) {
+    function deleteActiveCase() {
+      if (!state.activeCase) return;
+      requestCaseDeletion(state.activeCase.id, state.activeCase.name, document.getElementById('delete-case'));
+    }
+
+    function requestCaseDeletion(caseId, caseName, button) {
+      if (!window.confirm('Move Case "' + caseName + '" to the Drive trash?')) return;
+      if (button) button.disabled = true;
+      callServer('deleteCase', [caseId], function(response) {
+        if (button) button.disabled = false;
+        if (!response.ok) return showError(response.error);
+        var deletedActiveCase = state.activeCase && state.activeCase.id === caseId;
+        if (deletedActiveCase) {
+          stopPlaybackTimer();
+          state.activeCase = null;
+          state.isDirty = false;
+          state.run.commands = [];
+          state.run.result = null;
+          state.run.configuration = null;
+          toggle('editor-panel', false);
+          toggle('run-panel', false);
+        }
+        initialize();
+        setStatus('Case moved to Drive trash.');
+      });
+    }
+
+function openCase(caseId) {
       callServer('getCase', [caseId], function(response) {
         if (!response.ok) return showError(response.error);
         stopPlaybackTimer();
@@ -166,23 +185,26 @@
       var target = document.getElementById('cases-list');
       target.textContent = '';
       if (!cases || !cases.length) {
-        target.innerHTML = '<p class="empty">No cases yet. Start with a draft or the explicit reference line.</p>';
+        target.innerHTML = '<p class="empty">No cases yet. Start with the physical 13-unit demo or create a new Case.</p>';
         return;
       }
       cases.forEach(function(caseSummary) {
         var row = document.createElement('article');
         row.className = 'case-row';
-        row.innerHTML = '<div><strong></strong><span></span></div><div class="case-actions"><span></span><button type="button">Open</button></div>';
+        row.innerHTML = '<div><strong></strong><span></span></div><div class="case-actions"><span></span><button class="open-case" type="button">Open</button><button class="delete-case danger" type="button">Delete</button></div>';
         row.querySelector('strong').textContent = caseSummary.name;
         var dataLabel = caseSummary.dataClassification === 'PUBLIC_DEMONSTRATION_ONLY' ? ' · public demo data' : '';
         row.querySelector('div span').textContent = caseSummary.equipmentCount + ' equipment units · ' + (caseSummary.isSimulationReady ? 'simulation-ready' : 'draft') + dataLabel;
         row.querySelector('.case-actions span').textContent = new Date(caseSummary.updatedAt).toLocaleString();
-        row.querySelector('button').addEventListener('click', function() { openCase(caseSummary.id); });
+        row.querySelector('.open-case').addEventListener('click', function() { openCase(caseSummary.id); });
+        row.querySelector('.delete-case').addEventListener('click', function(event) {
+          requestCaseDeletion(caseSummary.id, caseSummary.name, event.currentTarget);
+        });
         target.appendChild(row);
       });
     }
 
-    function renderEditor() {
+function renderEditor() {
       if (!state.activeCase) return;
       toggle('editor-panel', true);
       document.getElementById('editor-title').textContent = state.activeCase.name;
@@ -225,22 +247,18 @@
       var card = document.createElement('article');
       card.className = 'equipment-card';
       card.dataset.index = String(index);
-      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="BLOWMOLDER">Blowmolder</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PUCKER">Pucker</option><option value="FILLER">Filler</option><option value="DEPUCKER">De-pucker</option><option value="SLEEVER">Sleever</option><option value="CASE_PACKER">Case packer</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Buffer after unit<input class="equipment-buffer" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><section class="format-zone-setup"><div class="format-zone-heading"><div><strong>Physical accumulation zone</strong><p>Use named format fields; the simulator derives capacity, travel, Prime and Back-up control.</p></div><label class="format-zone-toggle"><input class="format-zone-enabled" type="checkbox"> Use format fields</label></div><div class="format-zone-grid"><label>Usable length (mm)<input class="format-zone-length" type="number" min="0" step="any"></label><label>Product length (mm)<input class="format-zone-product-length" type="number" min="0" step="any"></label><label>Gap (mm)<input class="format-zone-gap" type="number" min="0" step="any"></label><label>Effective pitch (mm)<input class="format-zone-pitch" type="number" min="0" step="any"></label><label>Conveyor speed (mm/s)<input class="format-zone-speed" type="number" min="0" step="any"></label><label>Speed factor (%)<input class="format-zone-speed-factor" type="number" min="0" step="any"></label><label>Prime sensor (mm)<input class="format-zone-prime" type="number" min="0" step="any"></label><label>Back-up sensor (mm)<input class="format-zone-backup" type="number" min="0" step="any"></label><label>Back-up reset (mm)<input class="format-zone-backup-reset" type="number" min="0" step="any"></label><label>Upstream stop response (s)<input class="format-zone-stop-response" type="number" min="0" step="any"></label><label>Units discharged at stop<input class="format-zone-residual" type="number" min="0" step="any"></label><label>Downstream ramp-up (s)<input class="format-zone-downstream-ramp" type="number" min="0" step="any"></label></div><p class="format-zone-preview"></p></section><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label><label class="characteristics-label">Advanced process format JSON (optional)<textarea class="equipment-process-data" spellcheck="false"></textarea></label><label class="characteristics-label">Explicit accumulation-zone override JSON (advanced)<textarea class="equipment-accumulation-zone" spellcheck="false" placeholder="Only use for an explicit override. Format fields above take effect when enabled."></textarea></label>';
+      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="BLOWMOLDER">Blowmolder</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PUCKER">Pucker</option><option value="FILLER">Filler</option><option value="DEPUCKER">De-pucker</option><option value="SLEEVER">Sleever</option><option value="CASE_PACKER">Case packer</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><section class="format-zone-setup"><div class="format-zone-heading"><div><strong>Physical accumulation zone</strong><p>Required for every conveyor. These values always determine physical capacity, product travel, and Prime / Back-up control.</p></div></div><div class="format-zone-grid"><label>Usable length (mm)<input class="format-zone-length" type="number" min="0" step="any"></label><label>Product length (mm)<input class="format-zone-product-length" type="number" min="0" step="any"></label><label>Gap (mm)<input class="format-zone-gap" type="number" min="0" step="any"></label><label>Effective pitch (mm)<input class="format-zone-pitch" type="number" min="0" step="any"></label><label>Conveyor speed (mm/s)<input class="format-zone-speed" type="number" min="0" step="any"></label><label>Speed factor (%)<input class="format-zone-speed-factor" type="number" min="0" step="any"></label><label>Prime sensor (mm)<input class="format-zone-prime" type="number" min="0" step="any"></label><label>Back-up sensor (mm)<input class="format-zone-backup" type="number" min="0" step="any"></label><label>Back-up reset (mm)<input class="format-zone-backup-reset" type="number" min="0" step="any"></label><label>Upstream stop response (s)<input class="format-zone-stop-response" type="number" min="0" step="any"></label><label>Units discharged at stop<input class="format-zone-residual" type="number" min="0" step="any"></label><label>Downstream ramp-up (s)<input class="format-zone-downstream-ramp" type="number" min="0" step="any"></label></div><p class="format-zone-preview"></p></section><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label><label class="characteristics-label">Advanced process format JSON (optional)<textarea class="equipment-process-data" spellcheck="false"></textarea></label>';
       card.querySelector('strong').textContent = 'Step ' + (index + 1);
       card.querySelector('.equipment-id').value = equipment.id || '';
       card.querySelector('.equipment-type').value = equipment.type || 'CUSTOM';
       card.querySelector('.equipment-name').value = equipment.name || '';
       card.querySelector('.equipment-rate').value = equipment.nominalRatePerSecond === undefined ? '' : equipment.nominalRatePerSecond;
-      card.querySelector('.equipment-buffer').value = equipment.bufferAfterCapacity === undefined ? '' : equipment.bufferAfterCapacity;
       card.querySelector('.equipment-mode').value = equipment.initialMode || 'AUTO';
       card.querySelector('.equipment-characteristics').value = JSON.stringify(equipment.characteristics || {}, null, 2);
       card.querySelector('.equipment-noise-profile').value = JSON.stringify(equipment.noiseProfile || {}, null, 2);
       card.querySelector('.equipment-process-data').value = JSON.stringify(equipment.processData || {}, null, 2);
-      card.querySelector('.equipment-accumulation-zone').value = equipment.accumulationZone ? JSON.stringify(equipment.accumulationZone, null, 2) : '';
 
       populateFormatZoneInputs(card, equipment);
-      card.dataset.formatZoneDirty = 'false';
-      card.querySelector('.format-zone-enabled').checked = !equipment.accumulationZone && hasFormatZoneValues(equipment.processData?.accumulation);
       updateFormatZoneVisibility(card);
       renderFormatZonePreview(card);
 
@@ -253,12 +271,8 @@
         updateFormatZoneVisibility(card);
         renderFormatZonePreview(card);
       });
-      card.querySelector('.format-zone-enabled').addEventListener('change', function() {
-        renderFormatZonePreview(card);
-      });
       Array.prototype.slice.call(card.querySelectorAll('.format-zone-grid input')).forEach(function(input) {
         input.addEventListener('input', function() {
-          card.dataset.formatZoneDirty = 'true';
           state.isDirty = true;
           renderFormatZonePreview(card);
         });
@@ -266,26 +280,21 @@
       return card;
     }
 
-    function populateFormatZoneInputs(card, equipment) {
-      var explicitZone = equipment.accumulationZone || {};
+function populateFormatZoneInputs(card, equipment) {
       var formatZone = equipment.processData?.accumulation || {};
-      var speedAndSensors = equipment.processData?.speedAndSensors || {};
       var values = {
-        length: firstDefinedValue(formatZone.usableLengthMm, explicitZone.usableLengthMm),
-        productLength: firstDefinedValue(formatZone.productLengthMm, explicitZone.productLengthMm),
-        gap: firstDefinedValue(formatZone.gapMm, explicitZone.gapMm),
-        pitch: firstDefinedValue(formatZone.productPitchMm, explicitZone.productPitchMm),
-        speed: firstDefinedValue(formatZone.conveyorSpeedMmPerSecond, explicitZone.conveyorSpeedMmPerSecond),
-        speedFactor: firstDefinedValue(
-          formatZone.conveyorSpeedFactorPercent,
-          speedAndSensors.conveyorSpeedFactorVsDischargeVelocityPercent
-        ),
-        prime: firstDefinedValue(formatZone.primeSensorPositionMm, explicitZone.primeSensorPositionMm),
-        backup: firstDefinedValue(formatZone.backupSensorPositionMm, explicitZone.backupSensorPositionMm),
-        backupReset: firstDefinedValue(formatZone.backupRestartPositionMm, explicitZone.backupRestartPositionMm),
-        stopResponse: firstDefinedValue(formatZone.upstreamStopResponseSeconds, explicitZone.upstreamStopResponseSeconds),
-        residual: firstDefinedValue(formatZone.bottlesDischargedAtStop, explicitZone.bottlesDischargedAtStop),
-        downstreamRamp: firstDefinedValue(formatZone.downstreamRampUpSeconds, explicitZone.downstreamRampUpSeconds)
+        length: formatZone.usableLengthMm,
+        productLength: firstDefinedValue(formatZone.productLengthMm, equipment.processData?.upstream?.packageLengthMm),
+        gap: formatZone.gapMm,
+        pitch: formatZone.productPitchMm,
+        speed: formatZone.conveyorSpeedMmPerSecond,
+        speedFactor: firstDefinedValue(formatZone.conveyorSpeedFactorPercent, equipment.processData?.speedAndSensors?.conveyorSpeedFactorVsDischargeVelocityPercent),
+        prime: formatZone.primeSensorPositionMm,
+        backup: formatZone.backupSensorPositionMm,
+        backupReset: formatZone.backupRestartPositionMm,
+        stopResponse: formatZone.upstreamStopResponseSeconds,
+        residual: formatZone.bottlesDischargedAtStop,
+        downstreamRamp: formatZone.downstreamRampUpSeconds
       };
       Object.keys(values).forEach(function(key) {
         var input = card.querySelector('.format-zone-' + kebabCase(key));
@@ -293,7 +302,7 @@
       });
     }
 
-    function updateFormatZoneVisibility(card) {
+function updateFormatZoneVisibility(card) {
       var isConveyor = card.querySelector('.equipment-type').value === 'CONVEYOR';
       card.querySelector('.format-zone-setup').classList.toggle('hidden', !isConveyor);
     }
@@ -301,15 +310,17 @@
     function renderFormatZonePreview(card) {
       var target = card.querySelector('.format-zone-preview');
       if (!target) return;
-      var useFormat = card.querySelector('.format-zone-enabled').checked;
-      var explicitRaw = card.querySelector('.equipment-accumulation-zone').value.trim();
+      if (card.querySelector('.equipment-type').value !== 'CONVEYOR') {
+        target.textContent = '';
+        return;
+      }
+
       var values = readFormatZoneInputs(card);
       var processData = parseJsonForPreview(card.querySelector('.equipment-process-data').value);
       var packageLength = firstDefinedValue(values.productLengthMm, processData?.upstream?.packageLengthMm);
       var pitch = firstDefinedValue(
         values.productPitchMm,
-        isFiniteNumber(packageLength) && isFiniteNumber(values.gapMm) ? packageLength + values.gapMm : undefined,
-        processData?.upstream?.dischargePitchMm
+        isFiniteNumber(packageLength) && isFiniteNumber(values.gapMm) ? packageLength + values.gapMm : undefined
       );
       var capacity = isFiniteNumber(values.usableLengthMm) && isFiniteNumber(pitch) && pitch > 0
         ? Math.floor(values.usableLengthMm / pitch)
@@ -318,28 +329,29 @@
         values.conveyorSpeedMmPerSecond > 0
         ? values.usableLengthMm / values.conveyorSpeedMmPerSecond
         : undefined;
-
-      if (!useFormat) {
-        target.textContent = explicitRaw
-          ? 'Explicit JSON override is active. Check “Use format fields” to replace it when you save.'
-          : hasFormatZoneValues(values)
-            ? 'Format fields are saved as data but are not active. Check “Use format fields” to simulate this zone.'
-            : 'No physical zone is active for this equipment.';
-        return;
-      }
+      var sensorsReady = isFiniteNumber(values.primeSensorPositionMm) &&
+        isFiniteNumber(values.backupSensorPositionMm) &&
+        isFiniteNumber(values.backupRestartPositionMm);
 
       if (!(capacity >= 1)) {
-        target.textContent = 'Format-driven zone needs usable length plus either effective pitch, or product length and gap. Package length / discharge pitch may be used only when present in Process format JSON.';
+        target.textContent = 'Required: usable length plus either effective pitch, or product length and gap.';
+        return;
+      }
+      if (travel === undefined) {
+        target.textContent = 'Capacity: ' + formatNumber(capacity) + ' units. Required: physical conveyor speed.';
+        return;
+      }
+      if (!sensorsReady) {
+        target.textContent = 'Capacity: ' + formatNumber(capacity) + ' units · Travel: ' + formatNumber(travel) + ' s. Required: Prime, Back-up, and Back-up reset positions.';
         return;
       }
 
-      target.textContent = 'Format-derived preview: ' + formatNumber(values.usableLengthMm) + ' mm ÷ ' +
-        formatNumber(pitch) + ' mm pitch = ' + formatNumber(capacity) + ' units.' +
-        (travel === undefined ? ' Add conveyor speed to calculate travel.' : ' Travel = ' + formatNumber(travel) + ' s.') +
-        ' Prime and Back-up positions are optional but must be entered explicitly; LACT and LP Prime are not inferred.';
+      target.textContent = 'Physical preview: ' + formatNumber(values.usableLengthMm) + ' mm ÷ ' +
+        formatNumber(pitch) + ' mm pitch = ' + formatNumber(capacity) + ' units · Travel = ' +
+        formatNumber(travel) + ' s. Geometry is active by default.';
     }
 
-    function readFormatZoneInputs(card) {
+function readFormatZoneInputs(card) {
       return {
         usableLengthMm: numericInputValue(card.querySelector('.format-zone-length')),
         productLengthMm: numericInputValue(card.querySelector('.format-zone-product-length')),
@@ -356,15 +368,9 @@
       };
     }
 
-    function mergeFormatZoneData(processData, values, useFormat) {
-      var hasValues = hasFormatZoneValues(values);
-      if (!hasValues && !useFormat) return processData;
+    function mergeFormatZoneData(processData, values) {
       var result = Object.assign({}, processData);
-      if (!hasValues) {
-        delete result.accumulation;
-        return result;
-      }
-      result.accumulation = Object.assign({}, result.accumulation || {}, values);
+      result.accumulation = Object.assign({}, values);
       Object.keys(result.accumulation).forEach(function(key) {
         if (result.accumulation[key] === undefined) delete result.accumulation[key];
       });
@@ -376,13 +382,9 @@
       return result;
     }
 
-    function hasFormatZoneValues(values) {
-      return Boolean(values && typeof values === 'object' && Object.keys(values).some(function(key) {
-        return values[key] !== undefined && values[key] !== null;
-      }));
-    }
 
-    function numericInputValue(input) {
+
+function numericInputValue(input) {
       if (!input || !String(input.value).trim()) return undefined;
       return Number(input.value);
     }
@@ -459,26 +461,21 @@
         if (noiseProfile === null) return false;
         var processData = parseJsonObject(card.querySelector('.equipment-process-data').value, 'Process format data', index + 1);
         if (processData === null) return false;
-        var useFormatZone = card.querySelector('.format-zone-enabled').checked;
-        var formatZoneValues = readFormatZoneInputs(card);
-        if (useFormatZone || card.dataset.formatZoneDirty === 'true') {
-          processData = mergeFormatZoneData(processData, formatZoneValues, useFormatZone);
+        var type = card.querySelector('.equipment-type').value;
+        if (type === 'CONVEYOR') {
+          processData = mergeFormatZoneData(processData, readFormatZoneInputs(card));
+        } else {
+          delete processData.accumulation;
         }
-        var accumulationZone = useFormatZone
-          ? undefined
-          : parseOptionalJsonObject(card.querySelector('.equipment-accumulation-zone').value, 'Accumulation zone', index + 1);
-        if (accumulationZone === null) return false;
         equipment.push({
           id: card.querySelector('.equipment-id').value.trim(),
-          type: card.querySelector('.equipment-type').value,
+          type: type,
           name: card.querySelector('.equipment-name').value.trim(),
           nominalRatePerSecond: Number(card.querySelector('.equipment-rate').value),
-          bufferAfterCapacity: Number(card.querySelector('.equipment-buffer').value),
           initialMode: card.querySelector('.equipment-mode').value,
           characteristics: characteristics,
           noiseProfile: noiseProfile,
-          processData: processData,
-          accumulationZone: accumulationZone
+          processData: processData
         });
       }
       state.activeCase.equipment = equipment;
@@ -486,7 +483,7 @@
       return true;
     }
 
-    function parseJsonObject(rawValue, label, step) {
+function parseJsonObject(rawValue, label, step) {
       if (!rawValue.trim()) return {};
       try {
         var parsed = JSON.parse(rawValue);
@@ -498,18 +495,14 @@
       }
     }
 
-    function parseOptionalJsonObject(rawValue, label, step) {
-      if (!rawValue.trim()) return undefined;
-      return parseJsonObject(rawValue, label, step);
-    }
+    
 
-    function createBlankEquipment() {
+function createBlankEquipment() {
       return {
         id: '',
         type: 'CUSTOM',
         name: '',
         nominalRatePerSecond: undefined,
-        bufferAfterCapacity: undefined,
         initialMode: 'AUTO',
         characteristics: {},
         noiseProfile: {},
@@ -517,7 +510,7 @@
       };
     }
 
-    function renderRawJson() {
+function renderRawJson() {
       var preview = document.getElementById('case-json-preview');
       if (state.activeCase) preview.value = JSON.stringify(state.activeCase, null, 2);
     }
@@ -781,7 +774,9 @@
         bindLiveEquipmentControl(card.querySelector('.live-control-emergency'), unit.id, 'EMERGENCY_STOP');
         bindLiveEquipmentControl(card.querySelector('.live-control-reset'), unit.id, 'RESET_AND_RUN');
 
-        var zone = sample.accumulationZones ? sample.accumulationZones[index] : null;
+        var zone = sample.accumulationZones ? sample.accumulationZones.find(function(candidate) {
+          return candidate.ownerEquipmentId === unit.id;
+        }) : null;
         if (zone && zone.physicalModelEnabled) {
           card.appendChild(createAccumulationZonePanel(zone));
         }
@@ -803,7 +798,7 @@
       panel.querySelector('.zone-backup').textContent = zone.backup && zone.backup.configured ? zone.backup.state : 'Not configured';
       panel.querySelector('.zone-geometry').textContent = geometry.usableLengthMm && geometry.productPitchMm
         ? formatNumber(geometry.usableLengthMm) + ' mm / ' + formatNumber(geometry.productPitchMm) + ' mm'
-        : 'Abstract buffer';
+        : 'Not available';
       panel.querySelector('.zone-travel').textContent = geometry.travelSeconds > 0
         ? formatNumber(geometry.travelSeconds) + ' s'
         : '—';
@@ -816,12 +811,10 @@
     }
 
     function zoneOriginLabel(origin) {
-      if (origin === 'FORMAT_DERIVED') return 'Format-derived physical zone';
-      if (origin === 'EXPLICIT_ZONE') return 'Explicit physical zone';
-      return 'Abstract transfer buffer';
+      return origin === 'FORMAT_GEOMETRY' ? 'Physical conveyor zone' : 'Physical zone';
     }
 
-    function summarizeGeometrySources(sources, assumptions) {
+function summarizeGeometrySources(sources, assumptions) {
       var details = [];
       if (sources && sources.productPitchMm) details.push('Pitch: ' + sources.productPitchMm);
       if (sources && sources.conveyorSpeedMmPerSecond) details.push('Speed: ' + sources.conveyorSpeedMmPerSecond);

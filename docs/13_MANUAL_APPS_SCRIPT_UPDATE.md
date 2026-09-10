@@ -27,13 +27,14 @@ For a test deployment, use the editor's current saved code. For the stable `/exe
 
 Do not hand-edit the generated root files in GitHub. The editable sources are the modular files in `apps-script/`; its page template is named `WebApp.html` specifically so it is not confused with the manual `Index.html`. The generated bundle is rebuilt and verified by the repository tests.
 
-## Current release: one entry point, one changed file
+## Current release: replace the root pair
 
-For an existing manual Apps Script project created from this package, replace only:
+For an existing manual Apps Script project, replace both:
 
+- repository-root `Code.gs` → your Apps Script file named `Code.gs`
 - repository-root `Index.html` → your Apps Script HTML file named `Index`
 
-`Code.gs` is unchanged in this release. For a brand-new Apps Script project, still copy the root pair once: `Code.gs` and `Index.html`.
+This release adds Case deletion and changes the simulation contract: physical geometry is mandatory on every conveyor. Old Cases that use abstract buffers or `accumulationZone` overrides must be deleted or rebuilt from the new public demo.
 
 Do not copy files from `apps-script/`, `src/`, `test/`, or `docs/` into Apps Script. There is no third file for sensor control, the browser engine, styles, or charts: all browser code is embedded in the root `Index.html`.
 
