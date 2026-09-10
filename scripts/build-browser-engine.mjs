@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sourceFiles = [
   'src/simulation/SeededRandom.js',
+  'src/simulation/FormatGeometryAdapter.js',
   'src/simulation/SimulationValidation.js',
   'src/simulation/LineSimulationEngine.js'
 ];

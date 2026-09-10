@@ -408,3 +408,162 @@ test('Back-up recovery waits for the sensor clear and then uses the upstream sta
   assert.equal(sourceAfterClear.availabilityState, 'STARTING');
   assert.equal(sourceAfterClear.actualRatePerSecond, 0);
 });
+
+
+test('derives a conveyor accumulation zone from named format geometry and uses length plus gap for capacity', () => {
+  const input = {
+    case: {
+      id: 'format-derived-zone',
+      unitOfFlow: 'bottles',
+      equipment: [
+        { id: 'source', type: 'BLOWMOLDER', nominalRatePerSecond: 10, bufferAfterCapacity: 100, initialMode: 'AUTO' },
+        {
+          id: 'conveyor',
+          type: 'CONVEYOR',
+          nominalRatePerSecond: 10,
+          bufferAfterCapacity: 0,
+          initialMode: 'AUTO',
+          processData: {
+            role: 'CONVEYOR',
+            upstream: { packageLengthMm: 66, dischargePitchMm: null },
+            accumulation: {
+              usableLengthMm: 20000,
+              gapMm: 22,
+              conveyorSpeedMmPerSecond: 760,
+              primeSensorPositionMm: 18000,
+              backupSensorPositionMm: 7000,
+              backupRestartPositionMm: 9500
+            }
+          }
+        },
+        { id: 'downstream', type: 'PUCKER', nominalRatePerSecond: 10, bufferAfterCapacity: 0, initialMode: 'AUTO' }
+      ]
+    },
+    run: { durationSeconds: 1, tickSeconds: 1, sampleEverySeconds: 1, seed: 7 }
+  };
+
+  const response = simulateLine(input);
+  const zone = response.result.samples[0].accumulationZones[1];
+
+  assert.equal(response.ok, true);
+  assert.equal(zone.physicalModelEnabled, true);
+  assert.equal(zone.modelOrigin, 'FORMAT_DERIVED');
+  assert.equal(zone.capacityUnits, 227);
+  assert.equal(zone.geometry.productPitchMm, 88);
+  assert.equal(zone.geometry.travelSeconds, 26.315789);
+  assert.equal(zone.geometrySources.productPitchMm, 'processData.upstream.packageLengthMm + processData.accumulation.gapMm');
+  assert.equal(zone.upstreamControlEquipmentId, 'source');
+  assert.equal(zone.downstreamControlEquipmentId, 'downstream');
+});
+
+test('uses an explicit accumulationZone as an override over format-derived geometry', () => {
+  const input = {
+    case: {
+      id: 'explicit-zone-override',
+      unitOfFlow: 'bottles',
+      equipment: [
+        { id: 'source', nominalRatePerSecond: 10, bufferAfterCapacity: 100, initialMode: 'AUTO' },
+        {
+          id: 'conveyor',
+          type: 'CONVEYOR',
+          nominalRatePerSecond: 10,
+          bufferAfterCapacity: 0,
+          initialMode: 'AUTO',
+          processData: {
+            accumulation: {
+              usableLengthMm: 20000,
+              productPitchMm: 88,
+              conveyorSpeedMmPerSecond: 760
+            }
+          },
+          accumulationZone: {
+            usableLengthMm: 100,
+            productPitchMm: 10,
+            conveyorSpeedMmPerSecond: 100,
+            upstreamControlEquipmentId: 'source',
+            downstreamControlEquipmentId: 'downstream'
+          }
+        },
+        { id: 'downstream', nominalRatePerSecond: 10, bufferAfterCapacity: 0, initialMode: 'AUTO' }
+      ]
+    },
+    run: { durationSeconds: 1, tickSeconds: 1, sampleEverySeconds: 1, seed: 7 }
+  };
+
+  const response = simulateLine(input);
+  const zone = response.result.samples[0].accumulationZones[1];
+
+  assert.equal(response.ok, true);
+  assert.equal(zone.modelOrigin, 'EXPLICIT_ZONE');
+  assert.equal(zone.capacityUnits, 10);
+});
+
+test('rejects an incomplete format-driven zone rather than silently using an abstract buffer', () => {
+  const input = {
+    case: {
+      id: 'incomplete-format-zone',
+      unitOfFlow: 'bottles',
+      equipment: [
+        { id: 'source', nominalRatePerSecond: 10, bufferAfterCapacity: 100, initialMode: 'AUTO' },
+        {
+          id: 'conveyor',
+          type: 'CONVEYOR',
+          nominalRatePerSecond: 10,
+          initialMode: 'AUTO',
+          processData: {
+            accumulation: { usableLengthMm: 100 }
+          }
+        },
+        { id: 'downstream', nominalRatePerSecond: 10, bufferAfterCapacity: 0, initialMode: 'AUTO' }
+      ]
+    },
+    run: { durationSeconds: 1, tickSeconds: 1, sampleEverySeconds: 1, seed: 7 }
+  };
+
+  const response = simulateLine(input);
+
+  assert.equal(response.ok, false);
+  assert.ok(response.error.details.some((detail) =>
+    detail.path === 'case.equipment[1].processData.accumulation.conveyorSpeedMmPerSecond'
+  ));
+  assert.ok(response.error.details.some((detail) =>
+    detail.path === 'case.equipment[1].processData.accumulation'
+  ));
+});
+
+
+test('derives conveyor speed from upstream nominal rate, pitch, and the named speed factor when direct speed is absent', () => {
+  const input = {
+    case: {
+      id: 'format-derived-speed',
+      unitOfFlow: 'bottles',
+      equipment: [
+        { id: 'source', type: 'FILLER', nominalRatePerSecond: 10, bufferAfterCapacity: 100, initialMode: 'AUTO' },
+        {
+          id: 'conveyor',
+          type: 'CONVEYOR',
+          nominalRatePerSecond: 12,
+          bufferAfterCapacity: 0,
+          initialMode: 'AUTO',
+          processData: {
+            upstream: { dischargePitchMm: 88 },
+            speedAndSensors: { conveyorSpeedFactorVsDischargeVelocityPercent: 105 },
+            accumulation: { usableLengthMm: 20000, productPitchMm: 88 }
+          }
+        },
+        { id: 'downstream', type: 'SLEEVER', nominalRatePerSecond: 10, bufferAfterCapacity: 0, initialMode: 'AUTO' }
+      ]
+    },
+    run: { durationSeconds: 1, tickSeconds: 1, sampleEverySeconds: 1, seed: 3 }
+  };
+
+  const response = simulateLine(input);
+  const zone = response.result.samples[0].accumulationZones[1];
+
+  assert.equal(response.ok, true);
+  assert.equal(zone.geometry.conveyorSpeedMmPerSecond, 924);
+  assert.equal(
+    zone.geometrySources.conveyorSpeedMmPerSecond,
+    'upstream nominal rate × product pitch × conveyor speed factor'
+  );
+});

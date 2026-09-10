@@ -222,6 +222,9 @@
         },
         "speedAndSensors": {
           "type": "object"
+        },
+        "accumulation": {
+          "$ref": "#/$defs/accumulationFormat"
         }
       }
     },
@@ -317,6 +320,123 @@
           ]
         }
       ]
+    },
+    "accumulationFormat": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Named physical accumulation-zone inputs. Positions are measured from the upstream discharge toward the downstream infeed; LACT and LP Prime are not inferred.",
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "usableLengthMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "productLengthMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "gapMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "productPitchMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "conveyorSpeedMmPerSecond": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "conveyorSpeedFactorPercent": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "primeSensorPositionMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "backupSensorPositionMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "backupRestartPositionMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "upstreamStopResponseSeconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "bottlesDischargedAtStop": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "downstreamRampUpSeconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "upstreamRestartDelaySeconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "upstreamRestartRampUpSeconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "upstreamControlEquipmentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "downstreamControlEquipmentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   }
 }

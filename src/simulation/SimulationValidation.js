@@ -1,3 +1,5 @@
+import { resolveAccumulationZoneDefinition, hasFormatAccumulationData } from './FormatGeometryAdapter.js';
+
 export function validateSimulationInput(input) {
   const details = [];
   validateCase(input?.case, details);
@@ -43,7 +45,8 @@ function validateCase(caseModel, details) {
     if (equipment.bufferAfterCapacity !== undefined && !nonNegativeNumber(equipment.bufferAfterCapacity)) {
       details.push(invalid(path + '.bufferAfterCapacity', 'must be a number greater than or equal to zero'));
     }
-    if (equipment.accumulationZone === undefined && !nonNegativeNumber(equipment.bufferAfterCapacity)) {
+    if (equipment.accumulationZone === undefined && !hasFormatAccumulationData(equipment) &&
+        !nonNegativeNumber(equipment.bufferAfterCapacity)) {
       details.push(required(path + '.bufferAfterCapacity'));
     }
     if (!['AUTO', 'MANUAL', 'PAUSE', 'STOP'].includes(equipment.initialMode)) {
@@ -54,10 +57,35 @@ function validateCase(caseModel, details) {
   });
 
   caseModel.equipment.forEach((equipment, index) => {
-    if (equipment && typeof equipment === 'object') {
-      validateAccumulationZone(equipment.accumulationZone, 'case.equipment[' + index + '].accumulationZone', ids, details);
+    if (!equipment || typeof equipment !== 'object') return;
+    const path = 'case.equipment[' + index + ']';
+
+    if (equipment.accumulationZone === undefined) {
+      if (!validateFormatAccumulationContainer(equipment, path, details)) return;
+      const resolvedDefinition = resolveAccumulationZoneDefinition(caseModel.equipment, index);
+      if (resolvedDefinition.definition !== undefined) {
+        validateAccumulationZone(
+          resolvedDefinition.definition,
+          path + '.processData.accumulation',
+          ids,
+          details
+        );
+      }
+      return;
     }
+
+    validateAccumulationZone(equipment.accumulationZone, path + '.accumulationZone', ids, details);
   });
+}
+
+function validateFormatAccumulationContainer(equipment, path, details) {
+  const accumulation = equipment.processData?.accumulation;
+  if (accumulation === undefined || accumulation === null) return true;
+  if (!accumulation || typeof accumulation !== 'object' || Array.isArray(accumulation)) {
+    details.push(invalid(path + '.processData.accumulation', 'must be an object when configured'));
+    return false;
+  }
+  return true;
 }
 
 function validateStartProfile(equipment, path, details) {
@@ -90,6 +118,16 @@ function validateAccumulationZone(zone, path, equipmentIds, details) {
 
   if (!positiveNumber(zone.usableLengthMm)) {
     details.push(invalid(path + '.usableLengthMm', 'must be a number greater than zero'));
+  }
+
+  if (zone.productPitchMm !== undefined && !positiveNumber(zone.productPitchMm)) {
+    details.push(invalid(path + '.productPitchMm', 'must be a number greater than zero'));
+  }
+  if (zone.productLengthMm !== undefined && !positiveNumber(zone.productLengthMm)) {
+    details.push(invalid(path + '.productLengthMm', 'must be a number greater than zero'));
+  }
+  if (zone.gapMm !== undefined && !nonNegativeNumber(zone.gapMm)) {
+    details.push(invalid(path + '.gapMm', 'must be a number greater than or equal to zero'));
   }
 
   const hasExplicitPitch = positiveNumber(zone.productPitchMm);

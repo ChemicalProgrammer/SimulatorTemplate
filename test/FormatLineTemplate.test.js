@@ -29,13 +29,33 @@ test('every format object keeps the agreed process-data sections and neutral geo
   const template = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'examples/format-line-13.template.json'), 'utf8'));
 
   for (const item of template.objects) {
-    assert.deepEqual(Object.keys(item.processData).sort(), [
-      'downstream', 'equipment', 'geometry', 'machineType', 'role', 'speedAndSensors', 'upstream'
-    ]);
+    const keys = Object.keys(item.processData).sort();
+    const expected = item.type === 'CONVEYOR'
+      ? ['accumulation', 'downstream', 'equipment', 'geometry', 'machineType', 'role', 'speedAndSensors', 'upstream']
+      : ['downstream', 'equipment', 'geometry', 'machineType', 'role', 'speedAndSensors', 'upstream'];
+    assert.deepEqual(keys, expected);
     assert.deepEqual(Object.keys(item.processData.geometry).sort(), [
       'actualCodingMm', 'actualDischargeMm', 'lactMm', 'lpPrimeMm'
     ]);
     assert.equal(item.processData.geometry.actualDischargeMm, null);
     assert.equal(item.processData.geometry.actualCodingMm, null);
+  }
+});
+
+test('the six conveyor objects expose explicit, still-unknown format-driven zone fields', () => {
+  const template = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'examples/format-line-13.template.json'), 'utf8'));
+  const conveyors = template.objects.filter((item) => item.type === 'CONVEYOR');
+
+  assert.equal(conveyors.length, 6);
+  for (const conveyor of conveyors) {
+    assert.deepEqual(Object.keys(conveyor.processData.accumulation).sort(), [
+      'backupRestartPositionMm', 'backupSensorPositionMm', 'bottlesDischargedAtStop',
+      'conveyorSpeedFactorPercent', 'conveyorSpeedMmPerSecond', 'downstreamRampUpSeconds',
+      'gapMm', 'primeSensorPositionMm', 'productLengthMm', 'productPitchMm',
+      'upstreamStopResponseSeconds', 'usableLengthMm'
+    ]);
+    assert.equal(conveyor.processData.accumulation.usableLengthMm, null);
+    assert.equal(conveyor.processData.accumulation.productPitchMm, null);
+    assert.equal(conveyor.processData.accumulation.primeSensorPositionMm, null);
   }
 });

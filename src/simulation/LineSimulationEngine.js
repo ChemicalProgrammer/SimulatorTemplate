@@ -1,5 +1,6 @@
 import { createSeededRandom } from './SeededRandom.js';
 import { validateSimulationInput } from './SimulationValidation.js';
+import { resolveAccumulationZoneDefinition } from './FormatGeometryAdapter.js';
 
 export function simulateLine(input) {
   const validation = validateSimulationInput(input);
@@ -18,7 +19,9 @@ function createRuntime(input) {
   const equipment = input.case.equipment.map((model) => createEquipmentRuntime(model, random));
   const zones = equipment.slice(0, -1).map((equipment, index) => createAccumulationZoneRuntime(
     equipment,
-    input.case.equipment[index + 1]
+    input.case.equipment[index + 1],
+    input.case.equipment,
+    index
   ));
 
   equipment.forEach((equipment, index) => {
@@ -84,8 +87,9 @@ function createEquipmentRuntime(model, random) {
   };
 }
 
-function createAccumulationZoneRuntime(owner, downstreamModel) {
-  const definition = owner.accumulationZone;
+function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, ownerIndex) {
+  const resolvedDefinition = resolveAccumulationZoneDefinition(allEquipment, ownerIndex);
+  const definition = resolvedDefinition.definition;
   const physical = definition ? normalizePhysicalZone(definition) : null;
   const capacityUnits = physical ? physical.capacityUnits : owner.bufferAfterCapacity;
   const upstreamControlEquipmentId = definition?.upstreamControlEquipmentId || owner.id;
@@ -98,6 +102,9 @@ function createAccumulationZoneRuntime(owner, downstreamModel) {
     upstreamControlEquipmentId,
     downstreamControlEquipmentId,
     physicalModelEnabled: Boolean(physical),
+    modelOrigin: resolvedDefinition.origin,
+    geometrySources: resolvedDefinition.sources || {},
+    formatAssumptions: resolvedDefinition.assumptions || [],
     capacityUnits,
     usableLengthMm: physical?.usableLengthMm || null,
     productPitchMm: physical?.productPitchMm || null,
@@ -741,6 +748,18 @@ function createZoneSample(zone) {
     upstreamControlEquipmentId: zone.upstreamControlEquipmentId,
     downstreamControlEquipmentId: zone.downstreamControlEquipmentId,
     physicalModelEnabled: zone.physicalModelEnabled,
+    modelOrigin: zone.modelOrigin,
+    geometrySources: zone.geometrySources,
+    formatAssumptions: zone.formatAssumptions,
+    geometry: {
+      usableLengthMm: zone.usableLengthMm,
+      productPitchMm: zone.productPitchMm,
+      productLengthMm: zone.productLengthMm,
+      gapMm: zone.gapMm,
+      conveyorSpeedMmPerSecond: zone.conveyorSpeedMmPerSecond,
+      travelSeconds: round(zone.travelSeconds),
+      capacityFormula: zone.physicalModelEnabled ? 'floor(usableLengthMm / productPitchMm)' : null
+    },
     inventoryUnits: round(inventoryUnits),
     waitingUnits: round(zone.waitingUnits),
     inTransitUnits: round(sum(zone.transit.map((packet) => packet.units))),
@@ -777,7 +796,7 @@ function createResult(runtime) {
   return {
     caseId: runtime.caseId,
     unitOfFlow: runtime.unitOfFlow,
-    engineVersion: '0.6.0',
+    engineVersion: '0.7.0',
     seed: runtime.run.seed,
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),
@@ -822,6 +841,8 @@ function createEquipmentMetrics(equipment, durationSeconds) {
 function createZoneMetrics(zone) {
   return {
     capacityUnits: round(zone.capacityUnits),
+    modelOrigin: zone.modelOrigin,
+    geometrySources: zone.geometrySources,
     finalInventoryUnits: round(getZoneInventory(zone)),
     finalWaitingUnits: round(zone.waitingUnits),
     finalInTransitUnits: round(sum(zone.transit.map((packet) => packet.units))),

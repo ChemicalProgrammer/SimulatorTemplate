@@ -42,3 +42,14 @@ test('manual bundle keeps time-faithful playback and direct equipment scenario c
   assert.match(index, /Reset \+ run/);
   assert.match(index, /function applyLiveScenarioControl\(/);
 });
+
+
+test('manual bundle exposes format-driven accumulation inputs and provenance in the live zone card', () => {
+  const output = buildManualAppsScriptBundle(repositoryRoot);
+  const index = fs.readFileSync(output.indexPath, 'utf8');
+
+  assert.match(index, /Physical accumulation zone/);
+  assert.match(index, /Use format fields/);
+  assert.match(index, /Format-derived physical zone/);
+  assert.match(index, /processData\.accumulation/);
+});

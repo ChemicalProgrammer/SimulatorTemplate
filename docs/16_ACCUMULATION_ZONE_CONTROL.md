@@ -28,6 +28,25 @@ For every `accumulationZone`, positions are measured in millimetres from the **u
 
 The Back-up sensor is upstream of Prime. Its upstream free distance reserves room for response delay and bottles discharged after the stop request.
 
+## Format-driven zones
+
+A conveyor can now derive its physical zone from named `processData.accumulation` fields. This avoids treating generic metadata as if it were geometry.
+
+| Format field | Simulation use |
+|---|---|
+| `usableLengthMm` | Physical length available for accumulation. |
+| `productPitchMm` | Direct pitch override. |
+| `productLengthMm` + `gapMm` | Calculates pitch when an explicit pitch is absent. |
+| `processData.upstream.packageLengthMm` | Fallback product length when `productLengthMm` is blank. |
+| `processData.upstream.dischargePitchMm` | Fallback pitch when neither explicit pitch nor length + gap are available. |
+| `conveyorSpeedMmPerSecond` | Explicit conveyor speed. |
+| `conveyorSpeedFactorPercent` / named speed factor | Can derive speed from upstream nominal rate × pitch × factor. |
+| Prime / Back-up / reset positions | Must be entered explicitly in `processData.accumulation`. |
+
+The derived zone automatically controls the nearest upstream and downstream non-conveyor equipment, unless IDs are explicitly provided. An existing `accumulationZone` JSON object remains an advanced override and takes precedence.
+
+`LACT`, `LP Prime`, `actualDischargeMm`, and `actualCodingMm` are deliberately **not** mapped to zone length or sensor positions. Their plant meaning still needs confirmation.
+
 ## Calculations
 
 For a physical zone:

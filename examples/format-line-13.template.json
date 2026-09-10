@@ -4,7 +4,8 @@
   "unitOfFlow": "bottles",
   "knownGaps": [
     "The engineering meaning of LACT and LP Prime has not yet been defined.",
-    "Four additional Speed & sensors fields have not yet been named."
+    "Four additional Speed & sensors fields have not yet been named.",
+    "Physical conveyor geometry and sensors use processData.accumulation; LACT and LP Prime are not mapped automatically."
   ],
   "objects": [
     {
@@ -15,11 +16,33 @@
       "processData": {
         "role": "CRITICAL_MACHINE",
         "machineType": "BLOWMOLDER",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        }
       }
     },
     {
@@ -30,11 +53,47 @@
       "processData": {
         "role": "CONVEYOR",
         "machineType": "CONVEYOR",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        },
+        "accumulation": {
+          "usableLengthMm": null,
+          "productLengthMm": null,
+          "gapMm": null,
+          "productPitchMm": null,
+          "conveyorSpeedMmPerSecond": null,
+          "conveyorSpeedFactorPercent": null,
+          "primeSensorPositionMm": null,
+          "backupSensorPositionMm": null,
+          "backupRestartPositionMm": null,
+          "upstreamStopResponseSeconds": null,
+          "bottlesDischargedAtStop": null,
+          "downstreamRampUpSeconds": null
+        }
       }
     },
     {
@@ -45,11 +104,33 @@
       "processData": {
         "role": "CRITICAL_MACHINE",
         "machineType": "PUCKER",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        }
       }
     },
     {
@@ -60,11 +141,47 @@
       "processData": {
         "role": "CONVEYOR",
         "machineType": "CONVEYOR",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        },
+        "accumulation": {
+          "usableLengthMm": null,
+          "productLengthMm": null,
+          "gapMm": null,
+          "productPitchMm": null,
+          "conveyorSpeedMmPerSecond": null,
+          "conveyorSpeedFactorPercent": null,
+          "primeSensorPositionMm": null,
+          "backupSensorPositionMm": null,
+          "backupRestartPositionMm": null,
+          "upstreamStopResponseSeconds": null,
+          "bottlesDischargedAtStop": null,
+          "downstreamRampUpSeconds": null
+        }
       }
     },
     {
@@ -75,11 +192,33 @@
       "processData": {
         "role": "CRITICAL_MACHINE",
         "machineType": "FILLER",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        }
       }
     },
     {
@@ -90,11 +229,47 @@
       "processData": {
         "role": "CONVEYOR",
         "machineType": "CONVEYOR",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        },
+        "accumulation": {
+          "usableLengthMm": null,
+          "productLengthMm": null,
+          "gapMm": null,
+          "productPitchMm": null,
+          "conveyorSpeedMmPerSecond": null,
+          "conveyorSpeedFactorPercent": null,
+          "primeSensorPositionMm": null,
+          "backupSensorPositionMm": null,
+          "backupRestartPositionMm": null,
+          "upstreamStopResponseSeconds": null,
+          "bottlesDischargedAtStop": null,
+          "downstreamRampUpSeconds": null
+        }
       }
     },
     {
@@ -105,11 +280,33 @@
       "processData": {
         "role": "CRITICAL_MACHINE",
         "machineType": "DEPUCKER",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        }
       }
     },
     {
@@ -120,11 +317,47 @@
       "processData": {
         "role": "CONVEYOR",
         "machineType": "CONVEYOR",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        },
+        "accumulation": {
+          "usableLengthMm": null,
+          "productLengthMm": null,
+          "gapMm": null,
+          "productPitchMm": null,
+          "conveyorSpeedMmPerSecond": null,
+          "conveyorSpeedFactorPercent": null,
+          "primeSensorPositionMm": null,
+          "backupSensorPositionMm": null,
+          "backupRestartPositionMm": null,
+          "upstreamStopResponseSeconds": null,
+          "bottlesDischargedAtStop": null,
+          "downstreamRampUpSeconds": null
+        }
       }
     },
     {
@@ -135,11 +368,33 @@
       "processData": {
         "role": "CRITICAL_MACHINE",
         "machineType": "SLEEVER",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        }
       }
     },
     {
@@ -150,11 +405,47 @@
       "processData": {
         "role": "CONVEYOR",
         "machineType": "CONVEYOR",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        },
+        "accumulation": {
+          "usableLengthMm": null,
+          "productLengthMm": null,
+          "gapMm": null,
+          "productPitchMm": null,
+          "conveyorSpeedMmPerSecond": null,
+          "conveyorSpeedFactorPercent": null,
+          "primeSensorPositionMm": null,
+          "backupSensorPositionMm": null,
+          "backupRestartPositionMm": null,
+          "upstreamStopResponseSeconds": null,
+          "bottlesDischargedAtStop": null,
+          "downstreamRampUpSeconds": null
+        }
       }
     },
     {
@@ -165,11 +456,33 @@
       "processData": {
         "role": "CRITICAL_MACHINE",
         "machineType": "CASE_PACKER",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        }
       }
     },
     {
@@ -180,11 +493,47 @@
       "processData": {
         "role": "CONVEYOR",
         "machineType": "CONVEYOR",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        },
+        "accumulation": {
+          "usableLengthMm": null,
+          "productLengthMm": null,
+          "gapMm": null,
+          "productPitchMm": null,
+          "conveyorSpeedMmPerSecond": null,
+          "conveyorSpeedFactorPercent": null,
+          "primeSensorPositionMm": null,
+          "backupSensorPositionMm": null,
+          "backupRestartPositionMm": null,
+          "upstreamStopResponseSeconds": null,
+          "bottlesDischargedAtStop": null,
+          "downstreamRampUpSeconds": null
+        }
       }
     },
     {
@@ -195,11 +544,33 @@
       "processData": {
         "role": "CRITICAL_MACHINE",
         "machineType": "PALLETIZER",
-        "equipment": { "mtbfMinutes": null, "mttrMinutes": null, "maximumSpeedBpm": null, "bufferMinutes": null },
-        "geometry": { "lactMm": null, "lpPrimeMm": null, "actualDischargeMm": null, "actualCodingMm": null },
-        "upstream": { "packageLengthMm": null, "dischargePitchMm": null, "startupTimeSeconds": null, "bottlesDischargedAtStop": null },
-        "downstream": { "infeedPitchMm": null, "rampUpTimeSeconds": null },
-        "speedAndSensors": { "conveyorSpeedFactorVsDischargeVelocityPercent": null, "codingConveyorSpeedFactorVsPreviousConveyorPercent": null, "additionalParameters": [] }
+        "equipment": {
+          "mtbfMinutes": null,
+          "mttrMinutes": null,
+          "maximumSpeedBpm": null,
+          "bufferMinutes": null
+        },
+        "geometry": {
+          "lactMm": null,
+          "lpPrimeMm": null,
+          "actualDischargeMm": null,
+          "actualCodingMm": null
+        },
+        "upstream": {
+          "packageLengthMm": null,
+          "dischargePitchMm": null,
+          "startupTimeSeconds": null,
+          "bottlesDischargedAtStop": null
+        },
+        "downstream": {
+          "infeedPitchMm": null,
+          "rampUpTimeSeconds": null
+        },
+        "speedAndSensors": {
+          "conveyorSpeedFactorVsDischargeVelocityPercent": null,
+          "codingConveyorSpeedFactorVsPreviousConveyorPercent": null,
+          "additionalParameters": []
+        }
       }
     }
   ]

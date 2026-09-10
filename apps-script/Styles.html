@@ -43,6 +43,16 @@
   .equipment-list { display: grid; gap: 14px; margin-top: 14px; }
   .equipment-card { background: #f8faff; border: 1px solid #e0e6f0; border-radius: 10px; padding: 16px; }
   .equipment-header strong { color: #264ca7; }
+  .format-zone-setup { background: #eef5ff; border: 1px solid #cfe0fb; border-radius: 9px; margin-top: 14px; padding: 13px; }
+  .format-zone-heading { align-items: flex-start; display: flex; gap: 14px; justify-content: space-between; }
+  .format-zone-heading strong { color: #264ca7; font-size: 14px; }
+  .format-zone-heading p { font-size: 12px; margin: 4px 0 0; max-width: 530px; }
+  .format-zone-toggle { align-items: center; color: #264ca7; display: inline-flex; font-size: 12px; gap: 7px; white-space: nowrap; }
+  .format-zone-toggle input { margin: 0; padding: 0; }
+  .format-zone-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
+  .format-zone-grid label { color: #4f5d72; font-size: 11px; }
+  .format-zone-grid input { padding: 8px 9px; }
+  .format-zone-preview { background: #fff; border-radius: 7px; color: #47607f; font-size: 12px; margin: 12px 0 0; padding: 9px 10px; }
   .characteristics-label { margin-top: 12px; }
   textarea { border: 1px solid #c7d1e0; min-height: 104px; resize: vertical; width: 100%; }
   .raw-viewer { margin-top: 22px; }
@@ -117,11 +127,12 @@
   .accumulation-zone-stats span { color: #657187; display: block; font-size: 9px; text-transform: uppercase; }
   .accumulation-zone-stats b { color: #264ca7; display: block; font-size: 12px; margin-top: 2px; }
   .zone-caption { color: #657187; font-size: 11px; margin: 9px 0 0; }
+  .zone-assumptions { color: #657187; font-size: 10px; margin: 5px 0 0; }
   .accumulation-zone.state-backup-active { border-left-color: #9b5dd1; }
   .accumulation-zone.state-overflow { background: #fff0ed; border-color: #f0b5a8; border-left-color: #c85a42; }
   .accumulation-zone.state-overflow .accumulation-zone-heading strong,
   .accumulation-zone.state-overflow .accumulation-zone-stats b { color: #a33d28; }
   .sr-only { height: 1px; margin: -1px; overflow: hidden; position: absolute; width: 1px; }
-  @media (max-width: 760px) { .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .run-fields, .control-event { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 600px) { .topbar, .section-heading, .editor-subheading, .equipment-header { align-items: flex-start; flex-direction: column; } .field-grid, .equipment-grid, .new-case-form, .run-fields, .control-event, .metrics-grid { grid-template-columns: 1fr; } .case-row, .case-actions { align-items: flex-start; flex-direction: column; } .live-equipment-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-equipment-controls .live-control-run { grid-column: span 1; } }
+  @media (max-width: 760px) { .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .run-fields, .control-event, .format-zone-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .topbar, .section-heading, .editor-subheading, .equipment-header, .format-zone-heading { align-items: flex-start; flex-direction: column; } .field-grid, .equipment-grid, .new-case-form, .run-fields, .control-event, .metrics-grid, .format-zone-grid { grid-template-columns: 1fr; } .case-row, .case-actions { align-items: flex-start; flex-direction: column; } .live-equipment-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-equipment-controls .live-control-run { grid-column: span 1; } }
 </style>
