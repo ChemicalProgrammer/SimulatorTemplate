@@ -82,12 +82,37 @@ test('calculates FlowPilot velocity, population, overflow, recovery, and audit d
   closeTo(result.calculated.conveyorSpeedMmPerSecond, 624.75);
   closeTo(result.calculated.populationPercent, 73.9495798319, 1e-8);
   closeTo(result.calculated.effectiveProductPitchMm, 89.25);
+  closeTo(result.calculated.packagePassSensorSeconds, 66 / 624.75);
+  closeTo(result.calculated.sensorClearGapSeconds, 23.25 / 624.75);
+  closeTo(result.calculated.sensorCycleSeconds, 89.25 / 624.75);
   closeTo(result.calculated.overflowLengthMm, 1447.875);
   closeTo(result.calculated.usefulAccumulationLengthMm, 17052.125);
   assert.equal(result.calculated.primeSensorPositionMm, 18500);
   assert.equal(result.calculated.recommendedBackupSensorPositionMm, 1447.875);
   assert.equal(result.calculated.conveyorCapacityUnits, 224);
   assert.equal(result.audit.status, 'PASS');
+  assert.equal(result.audit.goals.find((goal) => goal.id === 'SENSOR_DEBOUNCE').status, 'PASS');
+});
+
+test('warns when a Back-up debounce is no longer than normal package pulses or gaps', () => {
+  const result = calculateConveyorEngineering({
+    installedLengthMm: 20000,
+    primeReserveMm: 1500,
+    packageLengthMm: 66,
+    upstreamDischargePitchMm: 85,
+    upstreamNominalSpeedBpm: 420,
+    downstreamHighSpeedBpm: 430,
+    downstreamInfeedPitchMm: 90,
+    conveyorSpeedFactorPercent: 5,
+    blockedTimeDelaySeconds: 0.1,
+    clearTimeDelaySeconds: 0.03,
+    insuranceFactorUnits: 2,
+    backupSensorPositionMm: 1600,
+    bottlesDischargedAtStop: 4,
+    upstreamStartupTimeSeconds: 8
+  });
+
+  assert.equal(result.audit.goals.find((goal) => goal.id === 'SENSOR_DEBOUNCE').status, 'WARNING');
 });
 
 test('uses the FlowPilot fields as the physical conveyor model instead of direct geometry overrides', () => {

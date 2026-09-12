@@ -70,6 +70,43 @@ function createInput(overrides = {}) {
   };
 }
 
+function createDebouncedSensorLine() {
+  return {
+    id: 'debounced-sensor-line',
+    unitOfFlow: 'bottles',
+    equipment: [
+      {
+        id: 'source', type: 'FILLER', name: 'Source', nominalRatePerSecond: 2, initialMode: 'AUTO',
+        processData: { upstream: { startupTimeSeconds: 0, bottlesDischargedAtStop: 0 }, downstream: { rampUpTimeSeconds: 0 } }
+      },
+      {
+        id: 'conveyor', type: 'CONVEYOR', name: 'Conveyor', nominalRatePerSecond: 2, initialMode: 'AUTO',
+        processData: {
+          role: 'CONVEYOR',
+          accumulation: {
+            usableLengthMm: 1000,
+            productLengthMm: 80,
+            gapMm: 20,
+            conveyorSpeedMmPerSecond: 200,
+            primeSensorPositionMm: 900,
+            backupSensorPositionMm: 800,
+            backupRestartPositionMm: 800,
+            blockedTimeDelaySeconds: 0.5,
+            clearTimeDelaySeconds: 0.5,
+            upstreamStopResponseSeconds: 0,
+            bottlesDischargedAtStop: 0,
+            downstreamRampUpSeconds: 0
+          }
+        }
+      },
+      {
+        id: 'downstream', type: 'SLEEVER', name: 'Downstream', nominalRatePerSecond: 2, initialMode: 'AUTO',
+        processData: { upstream: { startupTimeSeconds: 0, bottlesDischargedAtStop: 0 }, downstream: { rampUpTimeSeconds: 0 } }
+      }
+    ]
+  };
+}
+
 test('returns a structured error when required input is absent', () => {
   const response = simulateLine({});
   assert.equal(response.ok, false);
@@ -161,6 +198,49 @@ test('a stopped conveyor freezes material travel until it runs again', () => {
   const primeEvent = response.result.events.find((event) => event.type === 'PRIME_SENSOR_TRIGGERED');
   assert.ok(primeEvent);
   assert.ok(primeEvent.atVirtualSecond >= 5);
+});
+
+test('normal product pulses are visible at photoeyes but do not trigger Back-up control', () => {
+  const response = simulateLine({
+    case: createDebouncedSensorLine(),
+    run: { durationSeconds: 12, tickSeconds: 0.1, sampleEverySeconds: 0.5, seed: 7 }
+  });
+
+  assert.equal(response.ok, true);
+  const metrics = response.result.accumulationZoneMetrics['conveyor--physical-zone'];
+  assert.ok(metrics.primePassedUnits > 0);
+  assert.ok(metrics.backupPassedUnits > 0);
+  assert.ok(metrics.backupSignalPulsingSeconds > 0);
+  assert.equal(response.result.events.some((event) => event.type === 'BACKUP_SENSOR_BLOCKED'), false);
+  assert.ok(response.result.samples.some((sample) => {
+    const zone = sample.accumulationZones[0];
+    return zone && zone.inventoryUnits === Number((zone.inTransitUnits + zone.waitingUnits).toFixed(6));
+  }));
+});
+
+test('Back-up needs a sustained blocked signal and a sustained clear signal before restart', () => {
+  const response = simulateLine({
+    case: createDebouncedSensorLine(),
+    run: {
+      durationSeconds: 20,
+      tickSeconds: 0.1,
+      sampleEverySeconds: 0.5,
+      seed: 7,
+      commands: [
+        { atVirtualSecond: 6, equipmentId: 'downstream', action: 'PAUSE' },
+        { atVirtualSecond: 12, equipmentId: 'downstream', action: 'RUN' }
+      ]
+    }
+  });
+
+  assert.equal(response.ok, true);
+  const blocked = response.result.events.find((event) => event.type === 'BACKUP_SENSOR_BLOCKED');
+  const cleared = response.result.events.find((event) => event.type === 'BACKUP_SENSOR_CLEARED');
+  assert.ok(blocked);
+  assert.ok(cleared);
+  assert.ok(blocked.atVirtualSecond >= 6.5);
+  assert.ok(cleared.atVirtualSecond >= 12.5);
+  assert.ok(response.result.accumulationZoneMetrics['conveyor--physical-zone'].backupSignalBlockedSeconds >= 0.5);
 });
 
 test('uses MTBF and MTTR as seeded failure and repair events', () => {

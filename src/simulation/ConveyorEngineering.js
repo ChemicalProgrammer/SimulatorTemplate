@@ -54,6 +54,12 @@ function calculate(values) {
   const productGapMm = isFiniteNumber(effectiveProductPitchMm) && isFiniteNumber(values.packageLengthMm)
     ? effectiveProductPitchMm - values.packageLengthMm
     : undefined;
+  // A photoeye normally sees short occupied and clear intervals as packages
+  // pass.  These are design values, not the continuous Back-up condition
+  // produced by a queue reaching the sensor.
+  const packagePassSensorSeconds = safeDivide(values.packageLengthMm, conveyorSpeedMmPerSecond);
+  const sensorClearGapSeconds = safeDivide(productGapMm, conveyorSpeedMmPerSecond);
+  const sensorCycleSeconds = safeDivide(effectiveProductPitchMm, conveyorSpeedMmPerSecond);
   const downstreamConsumptionRateMmPerSecond = multiplyAndDivide(
     values.downstreamHighSpeedBpm,
     values.packageLengthMm,
@@ -119,6 +125,9 @@ function calculate(values) {
     populationPercent,
     effectiveProductPitchMm,
     productGapMm,
+    packagePassSensorSeconds,
+    sensorClearGapSeconds,
+    sensorCycleSeconds,
     downstreamConsumptionRateMmPerSecond,
     packagesDuringBlockedDelay,
     totalOverflowPackages,
@@ -162,6 +171,12 @@ function createAudit(values, calculated) {
   const recoveryEvaluated = isFiniteNumber(calculated.recoveryLengthMm);
   const backupPositionEvaluated = isFiniteNumber(calculated.actualBackupSensorPositionMm) &&
     isFiniteNumber(calculated.recommendedBackupSensorPositionMm);
+  const sensorTimingEvaluated = isFiniteNumber(calculated.packagePassSensorSeconds) &&
+    isFiniteNumber(calculated.sensorClearGapSeconds);
+  const blockedDebounceAdequate = sensorTimingEvaluated &&
+    values.blockedTimeDelaySeconds > calculated.packagePassSensorSeconds;
+  const clearDebounceAdequate = sensorTimingEvaluated &&
+    values.clearTimeDelaySeconds > calculated.sensorClearGapSeconds;
 
   const goals = [
     goal(
@@ -197,6 +212,15 @@ function createAudit(values, calculated) {
         : calculated.actualBackupSensorPositionMm >= calculated.recommendedBackupSensorPositionMm
           ? 'Back-up position leaves the calculated overflow margin.'
           : 'Back-up is too close to the upstream machine for the calculated residual flow.'
+    ),
+    goal(
+      'SENSOR_DEBOUNCE',
+      !sensorTimingEvaluated ? 'NOT_EVALUATED' : blockedDebounceAdequate && clearDebounceAdequate ? 'PASS' : 'WARNING',
+      !sensorTimingEvaluated
+        ? 'Sensor pulse timing cannot be evaluated until package length, pitch, and conveyor speed are available.'
+        : blockedDebounceAdequate && clearDebounceAdequate
+          ? 'Back-up blocked and clear delays exceed the normal package pulse and gap at the configured belt speed.'
+          : 'At least one Back-up delay is no longer than a normal package pulse or gap; the control can chatter or react to normal product spacing.'
     )
   ];
 

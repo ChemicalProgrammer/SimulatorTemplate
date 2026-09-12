@@ -267,6 +267,7 @@ function renderEditor() {
       card.querySelector('.equipment-noise-profile').value = JSON.stringify(equipment.noiseProfile || {}, null, 2);
       card.querySelector('.equipment-process-data').value = JSON.stringify(equipment.processData || {}, null, 2);
 
+      applyConceptTooltips(card);
       populateFormatZoneInputs(card, equipment);
       updateFormatZoneVisibility(card);
       renderFormatZonePreview(card);
@@ -287,6 +288,39 @@ function renderEditor() {
         });
       });
       return card;
+    }
+
+    function applyConceptTooltips(card) {
+      var concepts = [
+        ['.format-zone-lact', 'Total installed conveyor length, measured from the upstream discharge toward the downstream infeed.'],
+        ['.format-zone-lp-prime', 'Reserved downstream length between the Prime photocell and the downstream machine infeed.'],
+        ['.format-zone-package-length', 'Physical package length in the direction of travel. It determines the photoeye occupied time.'],
+        ['.format-zone-discharge-pitch', 'Centre-to-centre distance between packages leaving the upstream machine.'],
+        ['.format-zone-speed-factor', 'Belt-speed increase relative to upstream package discharge velocity. It changes package spacing and population.'],
+        ['.format-zone-backup', 'Installed Back-up photocell position, measured from the upstream discharge. A sustained blocked signal requests the upstream stop.'],
+        ['.format-zone-discharge-runout', 'Length that must be cleared after the upstream discharge before a stop fully takes effect.'],
+        ['.format-zone-reject-runout', 'Additional reject/runout length that must be cleared during an upstream stop.'],
+        ['.format-zone-blocked-delay', 'Continuous Back-up blocked time required before the simulator requests the upstream stop. Normal package pulses do not count.'],
+        ['.format-zone-clear-delay', 'Continuous Back-up clear time required before the simulator releases the upstream stop. Normal product gaps reset this timer.'],
+        ['.format-zone-insurance', 'Extra package margin reserved in the required overflow calculation. It is a design margin, not randomly created material.'],
+        ['.format-zone-stop-response', 'Delay from the upstream stop request until its discharge response is complete.'],
+        ['.format-zone-residual', 'Packages that can still leave the upstream machine after the stop request.'],
+        ['.format-zone-downstream-ramp', 'Time for the downstream machine to ramp after Prime authorizes its start.']
+      ];
+      concepts.forEach(function(entry) {
+        var input = card.querySelector(entry[0]);
+        if (input && input.closest('label')) input.closest('label').title = entry[1];
+      });
+      setFormatFieldLabel(card, '.format-zone-blocked-delay', 'Back-up blocked delay (s)');
+      setFormatFieldLabel(card, '.format-zone-clear-delay', 'Back-up clear delay (s)');
+    }
+
+    function setFormatFieldLabel(card, selector, labelText) {
+      var input = card.querySelector(selector);
+      var label = input && input.closest('label');
+      if (label && label.firstChild && label.firstChild.nodeType === Node.TEXT_NODE) {
+        label.firstChild.nodeValue = labelText;
+      }
     }
 
 function populateFormatZoneInputs(card, equipment) {
@@ -367,7 +401,9 @@ function updateFormatZoneVisibility(card) {
         formatNumber(derived.effectiveProductPitchMm) + ' mm pitch · ' + formatNumber(derived.conveyorCapacityUnits) +
         ' units · Prime ' + formatNumber(derived.primeSensorPositionMm) + ' mm · required Back-up ≥ ' +
         formatNumber(derived.recommendedBackupSensorPositionMm) + ' mm · L_rec ' +
-        formatNumber(derived.recoveryLengthMm) + ' mm (' + calculation.audit.status + ').';
+        formatNumber(derived.recoveryLengthMm) + ' mm · normal photoeye pulse ' +
+        formatSeconds(derived.packagePassSensorSeconds) + ' · normal clear gap ' +
+        formatSeconds(derived.sensorClearGapSeconds) + ' (' + calculation.audit.status + ').';
     }
 
 function readFormatZoneInputs(card) {
@@ -938,7 +974,7 @@ function renderRawJson() {
 
     function updateAccumulationZoneDetailsContent(details, zone) {
       details.querySelector('.accumulation-zone-summary-name').textContent = (zone.name || 'Accumulation zone') + ' · physical accumulation';
-      details.querySelector('.accumulation-zone-summary-reading').textContent = formatNumber(zone.inventoryUnits) + ' / ' + formatNumber(zone.capacityUnits) + ' units · ' + formatNumber(zone.fillPercent) + '%';
+      details.querySelector('.accumulation-zone-summary-reading').textContent = formatNumber(zone.inventoryUnits) + ' / ' + formatNumber(zone.capacityUnits) + ' units · Waiting ' + formatNumber(zone.waitingUnits) + ' · ' + formatNumber(zone.fillPercent) + '%';
       var panel = details.querySelector('.accumulation-zone');
       if (!panel) {
         panel = createAccumulationZonePanel(zone);
@@ -951,8 +987,51 @@ function renderRawJson() {
     function createAccumulationZonePanel(zone) {
       var panel = document.createElement('section');
       panel.innerHTML = '<div class="accumulation-zone-heading"><strong></strong><span></span></div><div class="accumulation-zone-stats"><div><span>Inventory</span><b class="zone-inventory"></b></div><div><span>In transit</span><b class="zone-transit"></b></div><div><span>Prime</span><b class="zone-prime"></b></div><div><span>Back-up</span><b class="zone-backup"></b></div><div><span>Geometry</span><b class="zone-geometry"></b></div><div><span>Travel</span><b class="zone-travel"></b></div><div><span>Overflow</span><b class="zone-overflow"></b></div></div><section class="zone-engineering hidden"><div class="zone-engineering-heading"><strong>Conveyor design audit</strong><span class="zone-audit-status"></span></div><div class="zone-engineering-stats"><div><span>Required overflow L_bu</span><b class="zone-overflow-length"></b></div><div><span>Useful accumulation L_ba</span><b class="zone-accumulation-length"></b></div><div><span>Recovery L_rec</span><b class="zone-recovery-length"></b></div><div><span>Anti-starve</span><b class="zone-anti-starve"></b></div><div><span>Anti-block</span><b class="zone-anti-block"></b></div><div><span>Recommended speed</span><b class="zone-recommended-speed"></b></div></div><p class="zone-audit-goals"></p></section><p class="zone-caption"></p><p class="zone-assumptions"></p>';
+      var statistics = panel.querySelector('.accumulation-zone-stats');
+      appendZoneMetric(statistics, 'Waiting', 'zone-waiting', 'Product already at the downstream end of the conveyor and available to the next machine. Inventory equals In transit plus Waiting.');
+      appendZoneMetric(statistics, 'Sensor timing', 'zone-sensor-timing', 'Normal photoeye occupied time and clear gap derived from product length, pitch, and belt speed.');
+      var engineeringStatistics = panel.querySelector('.zone-engineering-stats');
+      appendZoneMetric(engineeringStatistics, 'Normal sensor pulse', 'zone-sensor-pulse', 'Time one package normally blocks a photoeye at the calculated belt speed.');
+      appendZoneMetric(engineeringStatistics, 'Normal clear gap', 'zone-sensor-gap', 'Time the normal gap between packages leaves a photoeye clear.');
+      appendZoneMetric(engineeringStatistics, 'Insurance margin', 'zone-insurance', 'Extra package margin included in the required overflow calculation; it is not material generated during the run.');
+      applyZoneConceptTooltips(panel);
       updateAccumulationZonePanel(panel, zone);
       return panel;
+    }
+
+    function appendZoneMetric(host, labelText, valueClass, tooltip) {
+      if (!host) return;
+      var cell = document.createElement('div');
+      var label = document.createElement('span');
+      var value = document.createElement('b');
+      label.textContent = labelText;
+      label.title = tooltip;
+      value.className = valueClass;
+      cell.appendChild(label);
+      cell.appendChild(value);
+      host.appendChild(cell);
+    }
+
+    function applyZoneConceptTooltips(panel) {
+      setZoneMetricTooltip(panel, '.zone-inventory', 'All material on this physical conveyor: In transit plus Waiting.');
+      setZoneMetricTooltip(panel, '.zone-transit', 'Product moving between the upstream discharge and the downstream end of the conveyor.');
+      setZoneMetricTooltip(panel, '.zone-prime', 'Prime photocell signal. A product pass authorizes the downstream start; a blocked state means a queue has reached the sensor.');
+      setZoneMetricTooltip(panel, '.zone-backup', 'Back-up photocell signal. Only a continuously blocked signal starts the stop timer; normal product pulses do not request a stop.');
+      setZoneMetricTooltip(panel, '.zone-geometry', 'Installed usable length and effective product pitch used to calculate physical capacity.');
+      setZoneMetricTooltip(panel, '.zone-travel', 'Nominal time for material to travel through the physical conveyor.');
+      setZoneMetricTooltip(panel, '.zone-overflow', 'Material that could not enter a full physical zone.');
+      setZoneMetricTooltip(panel, '.zone-overflow-length', 'Required overflow length, including runout, residual discharge, blocked-delay output, and insurance margin.');
+      setZoneMetricTooltip(panel, '.zone-accumulation-length', 'Usable accumulation length after reserving Prime and required overflow space.');
+      setZoneMetricTooltip(panel, '.zone-recovery-length', 'Calculated recovery margin after Back-up clears. Positive values indicate a smoother modeled restart.');
+      setZoneMetricTooltip(panel, '.zone-anti-starve', 'Time the useful accumulation can continue feeding the downstream critical machine.');
+      setZoneMetricTooltip(panel, '.zone-anti-block', 'Time the useful accumulation can accept upstream output before the upstream machine must be stopped.');
+      setZoneMetricTooltip(panel, '.zone-recommended-speed', 'Minimum downstream infeed conveyor speed with the worksheet 5% overspeed margin.');
+    }
+
+    function setZoneMetricTooltip(panel, valueSelector, tooltip) {
+      var value = panel.querySelector(valueSelector);
+      var label = value && value.parentElement && value.parentElement.querySelector('span');
+      if (label) label.title = tooltip;
     }
 
     function updateAccumulationZonePanel(panel, zone) {
@@ -962,20 +1041,50 @@ function renderRawJson() {
       panel.querySelector('.accumulation-zone-heading span').textContent = String(zone.state || 'EMPTY').replace(/_/g, ' ');
       panel.querySelector('.zone-inventory').textContent = formatNumber(zone.inventoryUnits) + ' / ' + formatNumber(zone.capacityUnits) + ' (' + formatNumber(zone.fillPercent) + '%)';
       panel.querySelector('.zone-transit').textContent = formatNumber(zone.inTransitUnits);
-      panel.querySelector('.zone-prime').textContent = zone.prime && zone.prime.configured ? zone.prime.state : 'Not configured';
-      panel.querySelector('.zone-backup').textContent = zone.backup && zone.backup.configured ? zone.backup.state : 'Not configured';
+      panel.querySelector('.zone-waiting').textContent = formatNumber(zone.waitingUnits);
+      panel.querySelector('.zone-prime').textContent = formatPrimeSensorReading(zone.prime);
+      panel.querySelector('.zone-backup').textContent = formatBackupSensorReading(zone.backup);
       panel.querySelector('.zone-geometry').textContent = geometry.usableLengthMm && geometry.productPitchMm
         ? formatNumber(geometry.usableLengthMm) + ' mm / ' + formatNumber(geometry.productPitchMm) + ' mm'
         : 'Not available';
       panel.querySelector('.zone-travel').textContent = geometry.travelSeconds > 0
         ? formatNumber(geometry.travelSeconds) + ' s'
         : '—';
+      panel.querySelector('.zone-sensor-timing').textContent = formatSensorTiming(geometry);
       panel.querySelector('.zone-overflow').textContent = formatNumber(zone.overflowUnits);
       panel.querySelector('.zone-caption').textContent = zoneOriginLabel(zone.modelOrigin) + ' · Capacity: floor(length / pitch) = ' +
         formatNumber(zone.capacityUnits) + ' units · Controls upstream: ' + zone.upstreamControlEquipmentId +
         ' · Starts downstream: ' + zone.downstreamControlEquipmentId;
       panel.querySelector('.zone-assumptions').textContent = summarizeGeometrySources(zone.geometrySources, zone.formatAssumptions);
       updateZoneEngineeringAudit(panel, zone);
+    }
+
+    function formatPrimeSensorReading(prime) {
+      if (!prime || !prime.configured) return 'Not configured';
+      if (prime.state === 'PULSING') return 'PULSING · product passing';
+      if (prime.state === 'BLOCKED') return 'BLOCKED · queue present';
+      return prime.latched ? 'CLEAR · start sent' : 'CLEAR · waiting';
+    }
+
+    function formatBackupSensorReading(backup) {
+      if (!backup || !backup.configured) return 'Not configured';
+      if (backup.state === 'PULSING') return 'PULSING · normal flow';
+      if (backup.state === 'BLOCKED') {
+        return backup.controlActive
+          ? 'BLOCKED · control active'
+          : 'BLOCKED ' + formatSeconds(backup.blockedCandidateSeconds) + ' / ' + formatSeconds(backup.blockedTimeDelaySeconds);
+      }
+      if (backup.controlActive && backup.clearCandidateSeconds > 0) {
+        return 'CLEAR ' + formatSeconds(backup.clearCandidateSeconds) + ' / ' + formatSeconds(backup.clearTimeDelaySeconds);
+      }
+      return backup.controlActive ? 'CLEAR · awaiting delay' : 'CLEAR';
+    }
+
+    function formatSensorTiming(geometry) {
+      if (!geometry) return '—';
+      var pulse = formatSeconds(geometry.packagePassSensorSeconds);
+      var gap = formatSeconds(geometry.sensorClearGapSeconds);
+      return pulse === '—' && gap === '—' ? '—' : pulse + ' / ' + gap;
     }
 
     function zoneOriginLabel(origin) {
@@ -1001,6 +1110,9 @@ function renderRawJson() {
       host.querySelector('.zone-anti-starve').textContent = engineeringNumber(calculated.antiStarveSeconds, ' s');
       host.querySelector('.zone-anti-block').textContent = engineeringNumber(calculated.antiBlockSeconds, ' s');
       host.querySelector('.zone-recommended-speed').textContent = engineeringNumber(calculated.recommendedInfeedConveyorSpeedMmPerSecond, ' mm/s');
+      host.querySelector('.zone-sensor-pulse').textContent = engineeringNumber(calculated.packagePassSensorSeconds, ' s');
+      host.querySelector('.zone-sensor-gap').textContent = engineeringNumber(calculated.sensorClearGapSeconds, ' s');
+      host.querySelector('.zone-insurance').textContent = engineeringNumber(engineering.input.insuranceFactorUnits, ' units');
       host.querySelector('.zone-audit-goals').textContent = engineering.audit.goals.map(function(goal) {
         return goal.id.replace(/_/g, ' ') + ': ' + goal.status.replace(/_/g, ' ') + ' — ' + goal.message;
       }).join(' · ');
@@ -1267,6 +1379,10 @@ function summarizeGeometrySources(sources, assumptions) {
 
     function formatNumber(value) {
       return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    function formatSeconds(value) {
+      return isFiniteNumber(value) ? formatNumber(value) + ' s' : '—';
     }
 
     function formatRatePerMinute(ratePerSecond) {

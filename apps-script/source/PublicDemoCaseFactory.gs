@@ -28,7 +28,7 @@ function createPublicDemoCaseRequest_() {
       designThroughputBottlesPerHour: 24000,
       packConfiguration: { bottlesPerCase: 12, casesPerLayer: 10, layersPerPallet: 6 },
       reliabilityModel: 'Seeded exponential time-to-failure with fixed MTTR repair duration',
-      accumulationControlModel: 'FlowPilot physical conveyor engineering with Prime and Back-up photocell logic, overflow margin, and recovery audit'
+      accumulationControlModel: 'FlowPilot physical conveyor engineering with package-pulse photoeyes, sustained Back-up debounce, overflow margin, and recovery audit'
     },
     equipment: equipment
   };
@@ -114,8 +114,8 @@ function createPublicDemoMetadata_() {
       'All generic-engine rates are equivalent bottles per minute; the current MVP does not yet transform bottles into cases or pallets.',
       'MTBF produces seeded exponential time-to-failure intervals. MTTR is represented as a fixed repair duration.',
       'The public demo uses transparent synthetic L_act, L_p, runout lengths, sensor delays, insurance, and sensor positions. They are not plant measurements or recommendations.',
-      'Every conveyor derives pitch, conveyor velocity, Population %, Prime location, Back-up margin, usable accumulation, recovery length, and anti-starve / anti-block time from the named FlowPilot inputs.',
-      'Prime is modeled as leading-product travel to the downstream photocell. Back-up is modeled from downstream waiting inventory; it confirms Blocked / Clear delays, requests a controlled stop upstream, and records residual-discharge overflow separately.'
+      'Every conveyor derives pitch, conveyor velocity, Population %, normal photoeye pulse/gap timing, Prime location, Back-up margin, usable accumulation, recovery length, and anti-starve / anti-block time from the named FlowPilot inputs.',
+      'Prime is modeled as leading-product travel to the downstream photocell. Back-up receives normal product pulses, but it requests an upstream stop only after a queue holds the photocell continuously blocked for its configured delay; its clear delay is also continuous.'
     ]
   };
 }

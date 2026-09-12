@@ -117,6 +117,12 @@ function resolveFlowPilotConveyor(owner, format, upstreamControl, downstreamCont
   assignIfDefined(definition, 'gapMm', derived.productGapMm, sources, 'calculated: effective pitch - package length');
   assignIfDefined(definition, 'productPitchMm', derived.effectiveProductPitchMm, sources, 'calculated: package length / population');
   assignIfDefined(definition, 'conveyorSpeedMmPerSecond', derived.conveyorSpeedMmPerSecond, sources, 'calculated: discharge velocity × (1 + speed factor)');
+  assignIfDefined(definition, 'packagePassSensorSeconds', derived.packagePassSensorSeconds, sources,
+    'calculated: package length / conveyor speed');
+  assignIfDefined(definition, 'sensorClearGapSeconds', derived.sensorClearGapSeconds, sources,
+    'calculated: product gap / conveyor speed');
+  assignIfDefined(definition, 'sensorCycleSeconds', derived.sensorCycleSeconds, sources,
+    'calculated: product pitch / conveyor speed');
   assignIfDefined(definition, 'primeSensorPositionMm', derived.primeSensorPositionMm, sources, 'calculated: L_act - L_p');
   assignIfDefined(definition, 'backupSensorPositionMm', derived.actualBackupSensorPositionMm, sources,
     isDefined(format.backupSensorPositionMm) ? 'processData.accumulation.backupSensorPositionMm' : 'calculated: required overflow length L_bu');
@@ -232,11 +238,8 @@ function hasFlowPilotInputs(owner, format) {
   return [
     owner.processData?.geometry?.lactMm,
     owner.processData?.geometry?.lpPrimeMm,
-    format.dischargeRunoutLengthMm,
-    format.rejectRunoutLengthMm,
-    format.blockedTimeDelaySeconds,
-    format.clearTimeDelaySeconds,
-    format.insuranceFactorUnits
+    format.conveyorSpeedFactorPercent,
+    owner.processData?.speedAndSensors?.conveyorSpeedFactorVsDischargeVelocityPercent
   ].some(isDefined);
 }
 

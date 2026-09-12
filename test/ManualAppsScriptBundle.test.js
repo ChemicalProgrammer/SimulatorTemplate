@@ -92,3 +92,15 @@ test('manual bundle makes FlowPilot conveyor geometry mandatory and exposes Case
   assert.match(index, /Delete Case/);
   assert.match(code, /function deleteCase\(/);
 });
+
+test('manual bundle exposes photoeye pulses, sustained Back-up timers, and Waiting material', () => {
+  const output = buildManualAppsScriptBundle(repositoryRoot);
+  const index = fs.readFileSync(output.indexPath, 'utf8');
+
+  assert.match(index, /normal photoeye pulse/);
+  assert.match(index, /Back-up blocked delay/);
+  assert.match(index, /Back-up clear delay/);
+  assert.match(index, /PULSING · normal flow/);
+  assert.match(index, /Waiting/);
+  assert.match(index, /SENSOR_DEBOUNCE/);
+});

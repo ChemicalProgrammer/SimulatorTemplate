@@ -119,11 +119,20 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     gapMm: physical?.gapMm || null,
     conveyorSpeedMmPerSecond: physical?.conveyorSpeedMmPerSecond || null,
     travelSeconds: physical?.travelSeconds || 0,
+    packagePassSensorSeconds: physical?.packagePassSensorSeconds ?? null,
+    sensorClearGapSeconds: physical?.sensorClearGapSeconds ?? null,
+    sensorCycleSeconds: physical?.sensorCycleSeconds ?? null,
     primeSensorPositionMm: physical?.primeSensorPositionMm ?? null,
     primeTravelSeconds: physical?.primeTravelSeconds ?? null,
+    primeTriggerWaitingUnits: physical?.primeTriggerWaitingUnits ?? null,
     hasPrimeSensor: physical?.hasPrimeSensor || false,
     primeDetected: false,
     primeDetectedAtVirtualSecond: null,
+    primeTriggerCount: 0,
+    primeSignalState: 'CLEAR',
+    primePulseUntilVirtualSecond: 0,
+    primePassedUnits: 0,
+    primeLastPassAtVirtualSecond: null,
     downstreamRampUpSeconds: physical?.downstreamRampUpSeconds || 0,
     backupSensorPositionMm: physical?.backupSensorPositionMm ?? null,
     backupRestartPositionMm: physical?.backupRestartPositionMm ?? null,
@@ -131,6 +140,10 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     backupRestartWaitingUnits: physical?.backupRestartWaitingUnits ?? null,
     hasBackupSensor: physical?.hasBackupSensor || false,
     backupActive: false,
+    backupSignalState: 'CLEAR',
+    backupPulseUntilVirtualSecond: 0,
+    backupPassedUnits: 0,
+    backupLastPassAtVirtualSecond: null,
     backupBlockedCandidateSeconds: 0,
     backupClearCandidateSeconds: 0,
     backupTriggeredAtVirtualSecond: null,
@@ -144,7 +157,14 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     transit: [],
     waitingUnits: 0,
     overflowUnits: 0,
-    overflowEvents: 0
+    overflowEvents: 0,
+    inventoryIntegralUnitSeconds: 0,
+    minimumInventoryUnits: 0,
+    maximumInventoryUnits: 0,
+    emptyInventorySeconds: 0,
+    backupSignalBlockedSeconds: 0,
+    backupSignalPulsingSeconds: 0,
+    backupSignalClearSeconds: 0
   };
 }
 
@@ -158,6 +178,8 @@ function normalizePhysicalZone(definition) {
   const usableLengthMm = definition.usableLengthMm;
   const capacityUnits = Math.floor(usableLengthMm / productPitchMm);
   const conveyorSpeedMmPerSecond = definition.conveyorSpeedMmPerSecond;
+  const productLengthMm = definition.productLengthMm ?? null;
+  const gapMm = definition.gapMm ?? (isFiniteNumber(productLengthMm) ? productPitchMm - productLengthMm : null);
   const hasPrimeSensor = definition.primeSensorPositionMm !== undefined && definition.primeSensorPositionMm !== null;
   const hasBackupSensor = definition.backupSensorPositionMm !== undefined && definition.backupSensorPositionMm !== null;
   const backupRestartPositionMm = hasBackupSensor
@@ -167,14 +189,29 @@ function normalizePhysicalZone(definition) {
     engineering: definition.engineering || null,
     usableLengthMm,
     productPitchMm,
-    productLengthMm: definition.productLengthMm ?? null,
-    gapMm: definition.gapMm ?? null,
+    productLengthMm,
+    gapMm,
     conveyorSpeedMmPerSecond,
     capacityUnits,
     travelSeconds: usableLengthMm / conveyorSpeedMmPerSecond,
+    packagePassSensorSeconds: firstFinite(
+      definition.packagePassSensorSeconds,
+      safePositiveDivide(productLengthMm, conveyorSpeedMmPerSecond)
+    ),
+    sensorClearGapSeconds: firstFinite(
+      definition.sensorClearGapSeconds,
+      safeNonNegativeDivide(gapMm, conveyorSpeedMmPerSecond)
+    ),
+    sensorCycleSeconds: firstFinite(
+      definition.sensorCycleSeconds,
+      safePositiveDivide(productPitchMm, conveyorSpeedMmPerSecond)
+    ),
     hasPrimeSensor,
     primeSensorPositionMm: hasPrimeSensor ? definition.primeSensorPositionMm : null,
     primeTravelSeconds: hasPrimeSensor ? definition.primeSensorPositionMm / conveyorSpeedMmPerSecond : null,
+    primeTriggerWaitingUnits: hasPrimeSensor
+      ? Math.max(1, Math.ceil((usableLengthMm - definition.primeSensorPositionMm) / productPitchMm))
+      : null,
     hasBackupSensor,
     backupSensorPositionMm: hasBackupSensor ? definition.backupSensorPositionMm : null,
     backupRestartPositionMm,
@@ -201,10 +238,22 @@ function executeTicks(runtime) {
     updateMicroStops(runtime);
     advanceAccumulationZones(runtime);
     processLineFromDownstream(runtime);
+    recordZoneStatistics(runtime);
     advanceEquipmentControlTimers(runtime);
     runtime.virtualSecond += runtime.run.tickSeconds;
     addSampleIfDue(runtime);
   }
+}
+
+function recordZoneStatistics(runtime) {
+  runtime.zones.forEach((zone) => {
+    if (!zone.visible) return;
+    const inventoryUnits = getZoneInventory(zone);
+    zone.inventoryIntegralUnitSeconds += inventoryUnits * runtime.run.tickSeconds;
+    zone.minimumInventoryUnits = Math.min(zone.minimumInventoryUnits, inventoryUnits);
+    zone.maximumInventoryUnits = Math.max(zone.maximumInventoryUnits, inventoryUnits);
+    if (inventoryUnits <= 0) zone.emptyInventorySeconds += runtime.run.tickSeconds;
+  });
 }
 
 function initializeInitialMaterialStates(runtime) {
@@ -237,17 +286,21 @@ function advanceAccumulationZones(runtime) {
     const conveyorStopped = zone.physicalModelEnabled && owner && !isAvailable(owner);
     if (conveyorStopped) {
       zone.transit.forEach((packet) => {
-        packet.primeAtVirtualSecond += runtime.run.tickSeconds;
-        packet.arrivesAtVirtualSecond += runtime.run.tickSeconds;
+        delayTransitPacket(packet, runtime.run.tickSeconds);
       });
-      updateBackupSensor(runtime, zone);
+      updateZonePhotoeyes(runtime, zone);
       return;
     }
 
     const remainingTransit = [];
     zone.transit.forEach((packet) => {
+      if (!packet.backupDetected && zone.hasBackupSensor && packet.backupAtVirtualSecond <= runtime.virtualSecond) {
+        packet.backupDetected = true;
+        recordNormalPhotoeyePass(runtime, zone, 'backup', packet.units);
+      }
       if (!packet.primeDetected && zone.hasPrimeSensor && packet.primeAtVirtualSecond <= runtime.virtualSecond) {
         packet.primeDetected = true;
+        recordNormalPhotoeyePass(runtime, zone, 'prime', packet.units);
         triggerPrimeSensor(runtime, zone);
       }
       if (packet.arrivesAtVirtualSecond <= runtime.virtualSecond) {
@@ -257,14 +310,56 @@ function advanceAccumulationZones(runtime) {
       }
     });
     zone.transit = remainingTransit;
-    updateBackupSensor(runtime, zone);
+    updateZonePhotoeyes(runtime, zone);
   });
+}
+
+function delayTransitPacket(packet, tickSeconds) {
+  if (packet.backupAtVirtualSecond !== null) packet.backupAtVirtualSecond += tickSeconds;
+  if (packet.primeAtVirtualSecond !== null) packet.primeAtVirtualSecond += tickSeconds;
+  packet.arrivesAtVirtualSecond += tickSeconds;
+}
+
+function updateZonePhotoeyes(runtime, zone) {
+  updatePrimeSensorSignal(runtime, zone);
+  updateBackupSensor(runtime, zone);
+}
+
+function updatePrimeSensorSignal(runtime, zone) {
+  if (!zone.hasPrimeSensor) return;
+  const queueCoversPrime = zone.waitingUnits >= zone.primeTriggerWaitingUnits;
+  zone.primeSignalState = queueCoversPrime
+    ? 'BLOCKED'
+    : isNormalPulseActive(zone.primePulseUntilVirtualSecond, runtime.virtualSecond)
+      ? 'PULSING'
+      : 'CLEAR';
+}
+
+function recordNormalPhotoeyePass(runtime, zone, sensor, units) {
+  const duration = sensorBlockedDurationSeconds(zone, units);
+  const prefix = sensor === 'prime' ? 'prime' : 'backup';
+  zone[prefix + 'PassedUnits'] += units;
+  zone[prefix + 'LastPassAtVirtualSecond'] = runtime.virtualSecond;
+  if (!(duration > 0)) return;
+  const untilField = prefix + 'PulseUntilVirtualSecond';
+  zone[untilField] = Math.max(runtime.virtualSecond, zone[untilField] || 0) + duration;
+}
+
+function sensorBlockedDurationSeconds(zone, units) {
+  return isFiniteNumber(zone.packagePassSensorSeconds) && units > 0
+    ? zone.packagePassSensorSeconds * units
+    : 0;
+}
+
+function isNormalPulseActive(pulseUntilVirtualSecond, virtualSecond) {
+  return isFiniteNumber(pulseUntilVirtualSecond) && pulseUntilVirtualSecond > virtualSecond;
 }
 
 function triggerPrimeSensor(runtime, zone) {
   if (zone.primeDetected) return;
   zone.primeDetected = true;
   zone.primeDetectedAtVirtualSecond = runtime.virtualSecond;
+  zone.primeTriggerCount += 1;
   const downstream = getEquipment(runtime, zone.downstreamControlEquipmentId);
   if (downstream) {
     downstream.primeStartAuthorized = true;
@@ -283,7 +378,19 @@ function triggerPrimeSensor(runtime, zone) {
 
 function updateBackupSensor(runtime, zone) {
   if (!zone.hasBackupSensor) return;
-  if (!zone.backupActive && zone.waitingUnits >= zone.backupTriggerWaitingUnits) {
+  const queueCoversBackup = zone.waitingUnits >= zone.backupTriggerWaitingUnits;
+  const signalState = queueCoversBackup
+    ? 'BLOCKED'
+    : isNormalPulseActive(zone.backupPulseUntilVirtualSecond, runtime.virtualSecond)
+      ? 'PULSING'
+      : 'CLEAR';
+  zone.backupSignalState = signalState;
+  recordBackupSignalDuration(zone, signalState, runtime.run.tickSeconds);
+
+  // A normal stream can pulse the photoeye on every product.  Only a queue
+  // covering the sensor creates a continuously BLOCKED signal and starts the
+  // blocked-delay timer.
+  if (!zone.backupActive && signalState === 'BLOCKED') {
     zone.backupBlockedCandidateSeconds += runtime.run.tickSeconds;
     if (zone.backupBlockedCandidateSeconds < zone.blockedTimeDelaySeconds) return;
     zone.backupActive = true;
@@ -316,7 +423,9 @@ function updateBackupSensor(runtime, zone) {
     return;
   }
 
-  if (zone.backupActive && zone.waitingUnits <= zone.backupRestartWaitingUnits) {
+  // The signal must stay continuously clear. A passing package restarts the
+  // clear timer instead of releasing an upstream stop from one normal gap.
+  if (zone.backupActive && signalState === 'CLEAR' && zone.waitingUnits <= zone.backupRestartWaitingUnits) {
     zone.backupClearCandidateSeconds += runtime.run.tickSeconds;
     if (zone.backupClearCandidateSeconds < zone.clearTimeDelaySeconds) return;
     zone.backupActive = false;
@@ -347,6 +456,12 @@ function updateBackupSensor(runtime, zone) {
   }
 
   zone.backupClearCandidateSeconds = 0;
+}
+
+function recordBackupSignalDuration(zone, signalState, tickSeconds) {
+  if (signalState === 'BLOCKED') zone.backupSignalBlockedSeconds += tickSeconds;
+  else if (signalState === 'PULSING') zone.backupSignalPulsingSeconds += tickSeconds;
+  else zone.backupSignalClearSeconds += tickSeconds;
 }
 
 function advanceEquipmentControlTimers(runtime) {
@@ -613,6 +728,22 @@ function firstNonNegative(...values) {
   return 0;
 }
 
+function firstFinite(...values) {
+  return values.find(isFiniteNumber) ?? null;
+}
+
+function safePositiveDivide(numerator, denominator) {
+  return isFiniteNumber(numerator) && numerator > 0 && isFiniteNumber(denominator) && denominator > 0
+    ? numerator / denominator
+    : null;
+}
+
+function safeNonNegativeDivide(numerator, denominator) {
+  return isFiniteNumber(numerator) && numerator >= 0 && isFiniteNumber(denominator) && denominator > 0
+    ? numerator / denominator
+    : null;
+}
+
 function getDownstreamSpace(runtime, index) {
   if (index === runtime.equipment.length - 1) return Number.POSITIVE_INFINITY;
   const zone = runtime.zones[index];
@@ -638,14 +769,24 @@ function addFlowToZone(runtime, zone, flow, allowOverflow) {
   if (accepted > 0) {
     if (zone.travelSeconds <= 0) {
       zone.waitingUnits += accepted;
-      if (zone.hasPrimeSensor && !zone.primeDetected && zone.primeTravelSeconds <= 0) {
+      if (zone.hasBackupSensor && zone.backupSensorPositionMm <= 0) {
+        recordNormalPhotoeyePass(runtime, zone, 'backup', accepted);
+      }
+      if (zone.hasPrimeSensor && zone.primeTravelSeconds <= 0) {
+        recordNormalPhotoeyePass(runtime, zone, 'prime', accepted);
         triggerPrimeSensor(runtime, zone);
       }
     } else {
       zone.transit.push({
         units: accepted,
+        backupDetected: false,
+        backupAtVirtualSecond: zone.hasBackupSensor
+          ? runtime.virtualSecond + zone.backupSensorPositionMm / zone.conveyorSpeedMmPerSecond
+          : null,
         primeDetected: false,
-        primeAtVirtualSecond: runtime.virtualSecond + zone.primeTravelSeconds,
+        primeAtVirtualSecond: zone.hasPrimeSensor
+          ? runtime.virtualSecond + zone.primeTravelSeconds
+          : null,
         arrivesAtVirtualSecond: runtime.virtualSecond + zone.travelSeconds
       });
     }
@@ -805,6 +946,9 @@ function createZoneSample(zone) {
       gapMm: zone.gapMm,
       conveyorSpeedMmPerSecond: zone.conveyorSpeedMmPerSecond,
       travelSeconds: round(zone.travelSeconds),
+      packagePassSensorSeconds: zone.packagePassSensorSeconds,
+      sensorClearGapSeconds: zone.sensorClearGapSeconds,
+      sensorCycleSeconds: zone.sensorCycleSeconds,
       capacityFormula: zone.physicalModelEnabled ? 'floor(usableLengthMm / productPitchMm)' : null
     },
     inventoryUnits: round(inventoryUnits),
@@ -814,18 +958,29 @@ function createZoneSample(zone) {
     fillPercent: zone.capacityUnits > 0 ? round(inventoryUnits / zone.capacityUnits * 100) : 0,
     prime: {
       configured: zone.hasPrimeSensor,
-      state: zone.primeDetected ? 'DETECTED' : 'CLEAR',
+      state: zone.primeSignalState,
+      latched: zone.primeDetected,
       positionMm: zone.primeSensorPositionMm,
-      detectedAtVirtualSecond: zone.primeDetectedAtVirtualSecond
+      thresholdUnits: zone.primeTriggerWaitingUnits,
+      detectedAtVirtualSecond: zone.primeDetectedAtVirtualSecond,
+      triggerCount: zone.primeTriggerCount,
+      passedUnits: round(zone.primePassedUnits),
+      lastPassAtVirtualSecond: zone.primeLastPassAtVirtualSecond
     },
     backup: {
       configured: zone.hasBackupSensor,
-      state: zone.backupActive ? 'BLOCKED' : 'CLEAR',
+      state: zone.backupSignalState,
+      controlActive: zone.backupActive,
       positionMm: zone.backupSensorPositionMm,
       restartPositionMm: zone.backupRestartPositionMm,
       thresholdUnits: zone.backupTriggerWaitingUnits,
       restartThresholdUnits: zone.backupRestartWaitingUnits,
-      triggerCount: zone.backupTriggerCount
+      triggerCount: zone.backupTriggerCount,
+      passedUnits: round(zone.backupPassedUnits),
+      blockedTimeDelaySeconds: zone.blockedTimeDelaySeconds,
+      clearTimeDelaySeconds: zone.clearTimeDelaySeconds,
+      blockedCandidateSeconds: round(zone.backupBlockedCandidateSeconds),
+      clearCandidateSeconds: round(zone.backupClearCandidateSeconds)
     },
     overflowUnits: round(zone.overflowUnits),
     overflowEvents: zone.overflowEvents,
@@ -848,7 +1003,10 @@ function createResult(runtime) {
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),
     equipmentMetrics: Object.fromEntries(runtime.equipment.map((item) => [item.id, createEquipmentMetrics(item, runtime.run.durationSeconds)])),
-    accumulationZoneMetrics: Object.fromEntries(runtime.zones.filter((zone) => zone.visible).map((zone) => [zone.id, createZoneMetrics(zone)])),
+    accumulationZoneMetrics: Object.fromEntries(runtime.zones.filter((zone) => zone.visible).map((zone) => [
+      zone.id,
+      createZoneMetrics(zone, runtime.run.durationSeconds)
+    ])),
     events: runtime.events,
     samples: runtime.samples
   };
@@ -885,7 +1043,7 @@ function createEquipmentMetrics(equipment, durationSeconds) {
   };
 }
 
-function createZoneMetrics(zone) {
+function createZoneMetrics(zone, durationSeconds) {
   return {
     capacityUnits: round(zone.capacityUnits),
     modelOrigin: zone.modelOrigin,
@@ -893,9 +1051,21 @@ function createZoneMetrics(zone) {
     finalInventoryUnits: round(getZoneInventory(zone)),
     finalWaitingUnits: round(zone.waitingUnits),
     finalInTransitUnits: round(sum(zone.transit.map((packet) => packet.units))),
+    minimumInventoryUnits: round(zone.minimumInventoryUnits),
+    averageInventoryUnits: round(zone.inventoryIntegralUnitSeconds / Math.max(1, durationSeconds)),
+    maximumInventoryUnits: round(zone.maximumInventoryUnits),
+    emptyInventorySeconds: round(zone.emptyInventorySeconds),
     overflowUnits: round(zone.overflowUnits),
     overflowEvents: zone.overflowEvents,
+    primeSignalState: zone.primeSignalState,
     backupTriggerCount: zone.backupTriggerCount,
+    backupSignalState: zone.backupSignalState,
+    backupSignalBlockedSeconds: round(zone.backupSignalBlockedSeconds),
+    backupSignalPulsingSeconds: round(zone.backupSignalPulsingSeconds),
+    backupSignalClearSeconds: round(zone.backupSignalClearSeconds),
+    primeTriggerCount: zone.primeTriggerCount,
+    primePassedUnits: round(zone.primePassedUnits),
+    backupPassedUnits: round(zone.backupPassedUnits),
     primeDetected: zone.primeDetected,
     engineering: zone.engineering
   };
@@ -917,6 +1087,9 @@ function randomDuration(random, profile) {
 }
 function randomExponentialSeconds(random, meanSeconds) {
   return -Math.log(1 - Math.max(random.next(), 1e-12)) * meanSeconds;
+}
+function isFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value);
 }
 function sum(values) {
   return values.reduce((total, value) => total + value, 0);

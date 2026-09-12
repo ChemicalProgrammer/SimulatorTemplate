@@ -276,7 +276,7 @@
           </div>
 
           <div class="notice model-boundary">
-            At 1×, one virtual second takes one real second. The engine integrates at 0.25 s; the display interval only controls replay detail and result size. Every conveyor uses FlowPilot physical geometry by default: L_act, L_p, package pitch, speed factor, runout, sensor delays, and insurance derive capacity, travel, Prime / Back-up control, recovery, and design audits. Abstract buffers are not used.
+            At 1×, one virtual second takes one real second. The engine integrates at 0.25 s; the display interval only controls replay detail and result size. Every conveyor uses FlowPilot physical geometry by default: L_act, L_p, package pitch, speed factor, runout, sensor delays, and insurance derive capacity, travel, normal photoeye pulses, Prime / Back-up control, recovery, and design audits. Abstract buffers are not used.
           </div>
 
           <div class="editor-subheading compact-heading">
@@ -414,6 +414,12 @@ function calculate(values) {
   const productGapMm = isFiniteNumber(effectiveProductPitchMm) && isFiniteNumber(values.packageLengthMm)
     ? effectiveProductPitchMm - values.packageLengthMm
     : undefined;
+  // A photoeye normally sees short occupied and clear intervals as packages
+  // pass.  These are design values, not the continuous Back-up condition
+  // produced by a queue reaching the sensor.
+  const packagePassSensorSeconds = safeDivide(values.packageLengthMm, conveyorSpeedMmPerSecond);
+  const sensorClearGapSeconds = safeDivide(productGapMm, conveyorSpeedMmPerSecond);
+  const sensorCycleSeconds = safeDivide(effectiveProductPitchMm, conveyorSpeedMmPerSecond);
   const downstreamConsumptionRateMmPerSecond = multiplyAndDivide(
     values.downstreamHighSpeedBpm,
     values.packageLengthMm,
@@ -479,6 +485,9 @@ function calculate(values) {
     populationPercent,
     effectiveProductPitchMm,
     productGapMm,
+    packagePassSensorSeconds,
+    sensorClearGapSeconds,
+    sensorCycleSeconds,
     downstreamConsumptionRateMmPerSecond,
     packagesDuringBlockedDelay,
     totalOverflowPackages,
@@ -522,6 +531,12 @@ function createAudit(values, calculated) {
   const recoveryEvaluated = isFiniteNumber(calculated.recoveryLengthMm);
   const backupPositionEvaluated = isFiniteNumber(calculated.actualBackupSensorPositionMm) &&
     isFiniteNumber(calculated.recommendedBackupSensorPositionMm);
+  const sensorTimingEvaluated = isFiniteNumber(calculated.packagePassSensorSeconds) &&
+    isFiniteNumber(calculated.sensorClearGapSeconds);
+  const blockedDebounceAdequate = sensorTimingEvaluated &&
+    values.blockedTimeDelaySeconds > calculated.packagePassSensorSeconds;
+  const clearDebounceAdequate = sensorTimingEvaluated &&
+    values.clearTimeDelaySeconds > calculated.sensorClearGapSeconds;
 
   const goals = [
     goal(
@@ -557,6 +572,15 @@ function createAudit(values, calculated) {
         : calculated.actualBackupSensorPositionMm >= calculated.recommendedBackupSensorPositionMm
           ? 'Back-up position leaves the calculated overflow margin.'
           : 'Back-up is too close to the upstream machine for the calculated residual flow.'
+    ),
+    goal(
+      'SENSOR_DEBOUNCE',
+      !sensorTimingEvaluated ? 'NOT_EVALUATED' : blockedDebounceAdequate && clearDebounceAdequate ? 'PASS' : 'WARNING',
+      !sensorTimingEvaluated
+        ? 'Sensor pulse timing cannot be evaluated until package length, pitch, and conveyor speed are available.'
+        : blockedDebounceAdequate && clearDebounceAdequate
+          ? 'Back-up blocked and clear delays exceed the normal package pulse and gap at the configured belt speed.'
+          : 'At least one Back-up delay is no longer than a normal package pulse or gap; the control can chatter or react to normal product spacing.'
     )
   ];
 
@@ -748,6 +772,12 @@ function resolveFlowPilotConveyor(owner, format, upstreamControl, downstreamCont
   assignIfDefined(definition, 'gapMm', derived.productGapMm, sources, 'calculated: effective pitch - package length');
   assignIfDefined(definition, 'productPitchMm', derived.effectiveProductPitchMm, sources, 'calculated: package length / population');
   assignIfDefined(definition, 'conveyorSpeedMmPerSecond', derived.conveyorSpeedMmPerSecond, sources, 'calculated: discharge velocity × (1 + speed factor)');
+  assignIfDefined(definition, 'packagePassSensorSeconds', derived.packagePassSensorSeconds, sources,
+    'calculated: package length / conveyor speed');
+  assignIfDefined(definition, 'sensorClearGapSeconds', derived.sensorClearGapSeconds, sources,
+    'calculated: product gap / conveyor speed');
+  assignIfDefined(definition, 'sensorCycleSeconds', derived.sensorCycleSeconds, sources,
+    'calculated: product pitch / conveyor speed');
   assignIfDefined(definition, 'primeSensorPositionMm', derived.primeSensorPositionMm, sources, 'calculated: L_act - L_p');
   assignIfDefined(definition, 'backupSensorPositionMm', derived.actualBackupSensorPositionMm, sources,
     isDefined(format.backupSensorPositionMm) ? 'processData.accumulation.backupSensorPositionMm' : 'calculated: required overflow length L_bu');
@@ -863,11 +893,8 @@ function hasFlowPilotInputs(owner, format) {
   return [
     owner.processData?.geometry?.lactMm,
     owner.processData?.geometry?.lpPrimeMm,
-    format.dischargeRunoutLengthMm,
-    format.rejectRunoutLengthMm,
-    format.blockedTimeDelaySeconds,
-    format.clearTimeDelaySeconds,
-    format.insuranceFactorUnits
+    format.conveyorSpeedFactorPercent,
+    owner.processData?.speedAndSensors?.conveyorSpeedFactorVsDischargeVelocityPercent
   ].some(isDefined);
 }
 
@@ -1301,11 +1328,20 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     gapMm: physical?.gapMm || null,
     conveyorSpeedMmPerSecond: physical?.conveyorSpeedMmPerSecond || null,
     travelSeconds: physical?.travelSeconds || 0,
+    packagePassSensorSeconds: physical?.packagePassSensorSeconds ?? null,
+    sensorClearGapSeconds: physical?.sensorClearGapSeconds ?? null,
+    sensorCycleSeconds: physical?.sensorCycleSeconds ?? null,
     primeSensorPositionMm: physical?.primeSensorPositionMm ?? null,
     primeTravelSeconds: physical?.primeTravelSeconds ?? null,
+    primeTriggerWaitingUnits: physical?.primeTriggerWaitingUnits ?? null,
     hasPrimeSensor: physical?.hasPrimeSensor || false,
     primeDetected: false,
     primeDetectedAtVirtualSecond: null,
+    primeTriggerCount: 0,
+    primeSignalState: 'CLEAR',
+    primePulseUntilVirtualSecond: 0,
+    primePassedUnits: 0,
+    primeLastPassAtVirtualSecond: null,
     downstreamRampUpSeconds: physical?.downstreamRampUpSeconds || 0,
     backupSensorPositionMm: physical?.backupSensorPositionMm ?? null,
     backupRestartPositionMm: physical?.backupRestartPositionMm ?? null,
@@ -1313,6 +1349,10 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     backupRestartWaitingUnits: physical?.backupRestartWaitingUnits ?? null,
     hasBackupSensor: physical?.hasBackupSensor || false,
     backupActive: false,
+    backupSignalState: 'CLEAR',
+    backupPulseUntilVirtualSecond: 0,
+    backupPassedUnits: 0,
+    backupLastPassAtVirtualSecond: null,
     backupBlockedCandidateSeconds: 0,
     backupClearCandidateSeconds: 0,
     backupTriggeredAtVirtualSecond: null,
@@ -1326,7 +1366,14 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     transit: [],
     waitingUnits: 0,
     overflowUnits: 0,
-    overflowEvents: 0
+    overflowEvents: 0,
+    inventoryIntegralUnitSeconds: 0,
+    minimumInventoryUnits: 0,
+    maximumInventoryUnits: 0,
+    emptyInventorySeconds: 0,
+    backupSignalBlockedSeconds: 0,
+    backupSignalPulsingSeconds: 0,
+    backupSignalClearSeconds: 0
   };
 }
 
@@ -1340,6 +1387,8 @@ function normalizePhysicalZone(definition) {
   const usableLengthMm = definition.usableLengthMm;
   const capacityUnits = Math.floor(usableLengthMm / productPitchMm);
   const conveyorSpeedMmPerSecond = definition.conveyorSpeedMmPerSecond;
+  const productLengthMm = definition.productLengthMm ?? null;
+  const gapMm = definition.gapMm ?? (isFiniteNumber(productLengthMm) ? productPitchMm - productLengthMm : null);
   const hasPrimeSensor = definition.primeSensorPositionMm !== undefined && definition.primeSensorPositionMm !== null;
   const hasBackupSensor = definition.backupSensorPositionMm !== undefined && definition.backupSensorPositionMm !== null;
   const backupRestartPositionMm = hasBackupSensor
@@ -1349,14 +1398,29 @@ function normalizePhysicalZone(definition) {
     engineering: definition.engineering || null,
     usableLengthMm,
     productPitchMm,
-    productLengthMm: definition.productLengthMm ?? null,
-    gapMm: definition.gapMm ?? null,
+    productLengthMm,
+    gapMm,
     conveyorSpeedMmPerSecond,
     capacityUnits,
     travelSeconds: usableLengthMm / conveyorSpeedMmPerSecond,
+    packagePassSensorSeconds: firstFinite(
+      definition.packagePassSensorSeconds,
+      safePositiveDivide(productLengthMm, conveyorSpeedMmPerSecond)
+    ),
+    sensorClearGapSeconds: firstFinite(
+      definition.sensorClearGapSeconds,
+      safeNonNegativeDivide(gapMm, conveyorSpeedMmPerSecond)
+    ),
+    sensorCycleSeconds: firstFinite(
+      definition.sensorCycleSeconds,
+      safePositiveDivide(productPitchMm, conveyorSpeedMmPerSecond)
+    ),
     hasPrimeSensor,
     primeSensorPositionMm: hasPrimeSensor ? definition.primeSensorPositionMm : null,
     primeTravelSeconds: hasPrimeSensor ? definition.primeSensorPositionMm / conveyorSpeedMmPerSecond : null,
+    primeTriggerWaitingUnits: hasPrimeSensor
+      ? Math.max(1, Math.ceil((usableLengthMm - definition.primeSensorPositionMm) / productPitchMm))
+      : null,
     hasBackupSensor,
     backupSensorPositionMm: hasBackupSensor ? definition.backupSensorPositionMm : null,
     backupRestartPositionMm,
@@ -1383,10 +1447,22 @@ function executeTicks(runtime) {
     updateMicroStops(runtime);
     advanceAccumulationZones(runtime);
     processLineFromDownstream(runtime);
+    recordZoneStatistics(runtime);
     advanceEquipmentControlTimers(runtime);
     runtime.virtualSecond += runtime.run.tickSeconds;
     addSampleIfDue(runtime);
   }
+}
+
+function recordZoneStatistics(runtime) {
+  runtime.zones.forEach((zone) => {
+    if (!zone.visible) return;
+    const inventoryUnits = getZoneInventory(zone);
+    zone.inventoryIntegralUnitSeconds += inventoryUnits * runtime.run.tickSeconds;
+    zone.minimumInventoryUnits = Math.min(zone.minimumInventoryUnits, inventoryUnits);
+    zone.maximumInventoryUnits = Math.max(zone.maximumInventoryUnits, inventoryUnits);
+    if (inventoryUnits <= 0) zone.emptyInventorySeconds += runtime.run.tickSeconds;
+  });
 }
 
 function initializeInitialMaterialStates(runtime) {
@@ -1419,17 +1495,21 @@ function advanceAccumulationZones(runtime) {
     const conveyorStopped = zone.physicalModelEnabled && owner && !isAvailable(owner);
     if (conveyorStopped) {
       zone.transit.forEach((packet) => {
-        packet.primeAtVirtualSecond += runtime.run.tickSeconds;
-        packet.arrivesAtVirtualSecond += runtime.run.tickSeconds;
+        delayTransitPacket(packet, runtime.run.tickSeconds);
       });
-      updateBackupSensor(runtime, zone);
+      updateZonePhotoeyes(runtime, zone);
       return;
     }
 
     const remainingTransit = [];
     zone.transit.forEach((packet) => {
+      if (!packet.backupDetected && zone.hasBackupSensor && packet.backupAtVirtualSecond <= runtime.virtualSecond) {
+        packet.backupDetected = true;
+        recordNormalPhotoeyePass(runtime, zone, 'backup', packet.units);
+      }
       if (!packet.primeDetected && zone.hasPrimeSensor && packet.primeAtVirtualSecond <= runtime.virtualSecond) {
         packet.primeDetected = true;
+        recordNormalPhotoeyePass(runtime, zone, 'prime', packet.units);
         triggerPrimeSensor(runtime, zone);
       }
       if (packet.arrivesAtVirtualSecond <= runtime.virtualSecond) {
@@ -1439,14 +1519,56 @@ function advanceAccumulationZones(runtime) {
       }
     });
     zone.transit = remainingTransit;
-    updateBackupSensor(runtime, zone);
+    updateZonePhotoeyes(runtime, zone);
   });
+}
+
+function delayTransitPacket(packet, tickSeconds) {
+  if (packet.backupAtVirtualSecond !== null) packet.backupAtVirtualSecond += tickSeconds;
+  if (packet.primeAtVirtualSecond !== null) packet.primeAtVirtualSecond += tickSeconds;
+  packet.arrivesAtVirtualSecond += tickSeconds;
+}
+
+function updateZonePhotoeyes(runtime, zone) {
+  updatePrimeSensorSignal(runtime, zone);
+  updateBackupSensor(runtime, zone);
+}
+
+function updatePrimeSensorSignal(runtime, zone) {
+  if (!zone.hasPrimeSensor) return;
+  const queueCoversPrime = zone.waitingUnits >= zone.primeTriggerWaitingUnits;
+  zone.primeSignalState = queueCoversPrime
+    ? 'BLOCKED'
+    : isNormalPulseActive(zone.primePulseUntilVirtualSecond, runtime.virtualSecond)
+      ? 'PULSING'
+      : 'CLEAR';
+}
+
+function recordNormalPhotoeyePass(runtime, zone, sensor, units) {
+  const duration = sensorBlockedDurationSeconds(zone, units);
+  const prefix = sensor === 'prime' ? 'prime' : 'backup';
+  zone[prefix + 'PassedUnits'] += units;
+  zone[prefix + 'LastPassAtVirtualSecond'] = runtime.virtualSecond;
+  if (!(duration > 0)) return;
+  const untilField = prefix + 'PulseUntilVirtualSecond';
+  zone[untilField] = Math.max(runtime.virtualSecond, zone[untilField] || 0) + duration;
+}
+
+function sensorBlockedDurationSeconds(zone, units) {
+  return isFiniteNumber(zone.packagePassSensorSeconds) && units > 0
+    ? zone.packagePassSensorSeconds * units
+    : 0;
+}
+
+function isNormalPulseActive(pulseUntilVirtualSecond, virtualSecond) {
+  return isFiniteNumber(pulseUntilVirtualSecond) && pulseUntilVirtualSecond > virtualSecond;
 }
 
 function triggerPrimeSensor(runtime, zone) {
   if (zone.primeDetected) return;
   zone.primeDetected = true;
   zone.primeDetectedAtVirtualSecond = runtime.virtualSecond;
+  zone.primeTriggerCount += 1;
   const downstream = getEquipment(runtime, zone.downstreamControlEquipmentId);
   if (downstream) {
     downstream.primeStartAuthorized = true;
@@ -1465,7 +1587,19 @@ function triggerPrimeSensor(runtime, zone) {
 
 function updateBackupSensor(runtime, zone) {
   if (!zone.hasBackupSensor) return;
-  if (!zone.backupActive && zone.waitingUnits >= zone.backupTriggerWaitingUnits) {
+  const queueCoversBackup = zone.waitingUnits >= zone.backupTriggerWaitingUnits;
+  const signalState = queueCoversBackup
+    ? 'BLOCKED'
+    : isNormalPulseActive(zone.backupPulseUntilVirtualSecond, runtime.virtualSecond)
+      ? 'PULSING'
+      : 'CLEAR';
+  zone.backupSignalState = signalState;
+  recordBackupSignalDuration(zone, signalState, runtime.run.tickSeconds);
+
+  // A normal stream can pulse the photoeye on every product.  Only a queue
+  // covering the sensor creates a continuously BLOCKED signal and starts the
+  // blocked-delay timer.
+  if (!zone.backupActive && signalState === 'BLOCKED') {
     zone.backupBlockedCandidateSeconds += runtime.run.tickSeconds;
     if (zone.backupBlockedCandidateSeconds < zone.blockedTimeDelaySeconds) return;
     zone.backupActive = true;
@@ -1498,7 +1632,9 @@ function updateBackupSensor(runtime, zone) {
     return;
   }
 
-  if (zone.backupActive && zone.waitingUnits <= zone.backupRestartWaitingUnits) {
+  // The signal must stay continuously clear. A passing package restarts the
+  // clear timer instead of releasing an upstream stop from one normal gap.
+  if (zone.backupActive && signalState === 'CLEAR' && zone.waitingUnits <= zone.backupRestartWaitingUnits) {
     zone.backupClearCandidateSeconds += runtime.run.tickSeconds;
     if (zone.backupClearCandidateSeconds < zone.clearTimeDelaySeconds) return;
     zone.backupActive = false;
@@ -1529,6 +1665,12 @@ function updateBackupSensor(runtime, zone) {
   }
 
   zone.backupClearCandidateSeconds = 0;
+}
+
+function recordBackupSignalDuration(zone, signalState, tickSeconds) {
+  if (signalState === 'BLOCKED') zone.backupSignalBlockedSeconds += tickSeconds;
+  else if (signalState === 'PULSING') zone.backupSignalPulsingSeconds += tickSeconds;
+  else zone.backupSignalClearSeconds += tickSeconds;
 }
 
 function advanceEquipmentControlTimers(runtime) {
@@ -1795,6 +1937,22 @@ function firstNonNegative(...values) {
   return 0;
 }
 
+function firstFinite(...values) {
+  return values.find(isFiniteNumber) ?? null;
+}
+
+function safePositiveDivide(numerator, denominator) {
+  return isFiniteNumber(numerator) && numerator > 0 && isFiniteNumber(denominator) && denominator > 0
+    ? numerator / denominator
+    : null;
+}
+
+function safeNonNegativeDivide(numerator, denominator) {
+  return isFiniteNumber(numerator) && numerator >= 0 && isFiniteNumber(denominator) && denominator > 0
+    ? numerator / denominator
+    : null;
+}
+
 function getDownstreamSpace(runtime, index) {
   if (index === runtime.equipment.length - 1) return Number.POSITIVE_INFINITY;
   const zone = runtime.zones[index];
@@ -1820,14 +1978,24 @@ function addFlowToZone(runtime, zone, flow, allowOverflow) {
   if (accepted > 0) {
     if (zone.travelSeconds <= 0) {
       zone.waitingUnits += accepted;
-      if (zone.hasPrimeSensor && !zone.primeDetected && zone.primeTravelSeconds <= 0) {
+      if (zone.hasBackupSensor && zone.backupSensorPositionMm <= 0) {
+        recordNormalPhotoeyePass(runtime, zone, 'backup', accepted);
+      }
+      if (zone.hasPrimeSensor && zone.primeTravelSeconds <= 0) {
+        recordNormalPhotoeyePass(runtime, zone, 'prime', accepted);
         triggerPrimeSensor(runtime, zone);
       }
     } else {
       zone.transit.push({
         units: accepted,
+        backupDetected: false,
+        backupAtVirtualSecond: zone.hasBackupSensor
+          ? runtime.virtualSecond + zone.backupSensorPositionMm / zone.conveyorSpeedMmPerSecond
+          : null,
         primeDetected: false,
-        primeAtVirtualSecond: runtime.virtualSecond + zone.primeTravelSeconds,
+        primeAtVirtualSecond: zone.hasPrimeSensor
+          ? runtime.virtualSecond + zone.primeTravelSeconds
+          : null,
         arrivesAtVirtualSecond: runtime.virtualSecond + zone.travelSeconds
       });
     }
@@ -1987,6 +2155,9 @@ function createZoneSample(zone) {
       gapMm: zone.gapMm,
       conveyorSpeedMmPerSecond: zone.conveyorSpeedMmPerSecond,
       travelSeconds: round(zone.travelSeconds),
+      packagePassSensorSeconds: zone.packagePassSensorSeconds,
+      sensorClearGapSeconds: zone.sensorClearGapSeconds,
+      sensorCycleSeconds: zone.sensorCycleSeconds,
       capacityFormula: zone.physicalModelEnabled ? 'floor(usableLengthMm / productPitchMm)' : null
     },
     inventoryUnits: round(inventoryUnits),
@@ -1996,18 +2167,29 @@ function createZoneSample(zone) {
     fillPercent: zone.capacityUnits > 0 ? round(inventoryUnits / zone.capacityUnits * 100) : 0,
     prime: {
       configured: zone.hasPrimeSensor,
-      state: zone.primeDetected ? 'DETECTED' : 'CLEAR',
+      state: zone.primeSignalState,
+      latched: zone.primeDetected,
       positionMm: zone.primeSensorPositionMm,
-      detectedAtVirtualSecond: zone.primeDetectedAtVirtualSecond
+      thresholdUnits: zone.primeTriggerWaitingUnits,
+      detectedAtVirtualSecond: zone.primeDetectedAtVirtualSecond,
+      triggerCount: zone.primeTriggerCount,
+      passedUnits: round(zone.primePassedUnits),
+      lastPassAtVirtualSecond: zone.primeLastPassAtVirtualSecond
     },
     backup: {
       configured: zone.hasBackupSensor,
-      state: zone.backupActive ? 'BLOCKED' : 'CLEAR',
+      state: zone.backupSignalState,
+      controlActive: zone.backupActive,
       positionMm: zone.backupSensorPositionMm,
       restartPositionMm: zone.backupRestartPositionMm,
       thresholdUnits: zone.backupTriggerWaitingUnits,
       restartThresholdUnits: zone.backupRestartWaitingUnits,
-      triggerCount: zone.backupTriggerCount
+      triggerCount: zone.backupTriggerCount,
+      passedUnits: round(zone.backupPassedUnits),
+      blockedTimeDelaySeconds: zone.blockedTimeDelaySeconds,
+      clearTimeDelaySeconds: zone.clearTimeDelaySeconds,
+      blockedCandidateSeconds: round(zone.backupBlockedCandidateSeconds),
+      clearCandidateSeconds: round(zone.backupClearCandidateSeconds)
     },
     overflowUnits: round(zone.overflowUnits),
     overflowEvents: zone.overflowEvents,
@@ -2030,7 +2212,10 @@ function createResult(runtime) {
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),
     equipmentMetrics: Object.fromEntries(runtime.equipment.map((item) => [item.id, createEquipmentMetrics(item, runtime.run.durationSeconds)])),
-    accumulationZoneMetrics: Object.fromEntries(runtime.zones.filter((zone) => zone.visible).map((zone) => [zone.id, createZoneMetrics(zone)])),
+    accumulationZoneMetrics: Object.fromEntries(runtime.zones.filter((zone) => zone.visible).map((zone) => [
+      zone.id,
+      createZoneMetrics(zone, runtime.run.durationSeconds)
+    ])),
     events: runtime.events,
     samples: runtime.samples
   };
@@ -2067,7 +2252,7 @@ function createEquipmentMetrics(equipment, durationSeconds) {
   };
 }
 
-function createZoneMetrics(zone) {
+function createZoneMetrics(zone, durationSeconds) {
   return {
     capacityUnits: round(zone.capacityUnits),
     modelOrigin: zone.modelOrigin,
@@ -2075,9 +2260,21 @@ function createZoneMetrics(zone) {
     finalInventoryUnits: round(getZoneInventory(zone)),
     finalWaitingUnits: round(zone.waitingUnits),
     finalInTransitUnits: round(sum(zone.transit.map((packet) => packet.units))),
+    minimumInventoryUnits: round(zone.minimumInventoryUnits),
+    averageInventoryUnits: round(zone.inventoryIntegralUnitSeconds / Math.max(1, durationSeconds)),
+    maximumInventoryUnits: round(zone.maximumInventoryUnits),
+    emptyInventorySeconds: round(zone.emptyInventorySeconds),
     overflowUnits: round(zone.overflowUnits),
     overflowEvents: zone.overflowEvents,
+    primeSignalState: zone.primeSignalState,
     backupTriggerCount: zone.backupTriggerCount,
+    backupSignalState: zone.backupSignalState,
+    backupSignalBlockedSeconds: round(zone.backupSignalBlockedSeconds),
+    backupSignalPulsingSeconds: round(zone.backupSignalPulsingSeconds),
+    backupSignalClearSeconds: round(zone.backupSignalClearSeconds),
+    primeTriggerCount: zone.primeTriggerCount,
+    primePassedUnits: round(zone.primePassedUnits),
+    backupPassedUnits: round(zone.backupPassedUnits),
     primeDetected: zone.primeDetected,
     engineering: zone.engineering
   };
@@ -2099,6 +2296,9 @@ function randomDuration(random, profile) {
 }
 function randomExponentialSeconds(random, meanSeconds) {
   return -Math.log(1 - Math.max(random.next(), 1e-12)) * meanSeconds;
+}
+function isFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value);
 }
 function sum(values) {
   return values.reduce((total, value) => total + value, 0);
@@ -2380,6 +2580,7 @@ function renderEditor() {
       card.querySelector('.equipment-noise-profile').value = JSON.stringify(equipment.noiseProfile || {}, null, 2);
       card.querySelector('.equipment-process-data').value = JSON.stringify(equipment.processData || {}, null, 2);
 
+      applyConceptTooltips(card);
       populateFormatZoneInputs(card, equipment);
       updateFormatZoneVisibility(card);
       renderFormatZonePreview(card);
@@ -2400,6 +2601,39 @@ function renderEditor() {
         });
       });
       return card;
+    }
+
+    function applyConceptTooltips(card) {
+      var concepts = [
+        ['.format-zone-lact', 'Total installed conveyor length, measured from the upstream discharge toward the downstream infeed.'],
+        ['.format-zone-lp-prime', 'Reserved downstream length between the Prime photocell and the downstream machine infeed.'],
+        ['.format-zone-package-length', 'Physical package length in the direction of travel. It determines the photoeye occupied time.'],
+        ['.format-zone-discharge-pitch', 'Centre-to-centre distance between packages leaving the upstream machine.'],
+        ['.format-zone-speed-factor', 'Belt-speed increase relative to upstream package discharge velocity. It changes package spacing and population.'],
+        ['.format-zone-backup', 'Installed Back-up photocell position, measured from the upstream discharge. A sustained blocked signal requests the upstream stop.'],
+        ['.format-zone-discharge-runout', 'Length that must be cleared after the upstream discharge before a stop fully takes effect.'],
+        ['.format-zone-reject-runout', 'Additional reject/runout length that must be cleared during an upstream stop.'],
+        ['.format-zone-blocked-delay', 'Continuous Back-up blocked time required before the simulator requests the upstream stop. Normal package pulses do not count.'],
+        ['.format-zone-clear-delay', 'Continuous Back-up clear time required before the simulator releases the upstream stop. Normal product gaps reset this timer.'],
+        ['.format-zone-insurance', 'Extra package margin reserved in the required overflow calculation. It is a design margin, not randomly created material.'],
+        ['.format-zone-stop-response', 'Delay from the upstream stop request until its discharge response is complete.'],
+        ['.format-zone-residual', 'Packages that can still leave the upstream machine after the stop request.'],
+        ['.format-zone-downstream-ramp', 'Time for the downstream machine to ramp after Prime authorizes its start.']
+      ];
+      concepts.forEach(function(entry) {
+        var input = card.querySelector(entry[0]);
+        if (input && input.closest('label')) input.closest('label').title = entry[1];
+      });
+      setFormatFieldLabel(card, '.format-zone-blocked-delay', 'Back-up blocked delay (s)');
+      setFormatFieldLabel(card, '.format-zone-clear-delay', 'Back-up clear delay (s)');
+    }
+
+    function setFormatFieldLabel(card, selector, labelText) {
+      var input = card.querySelector(selector);
+      var label = input && input.closest('label');
+      if (label && label.firstChild && label.firstChild.nodeType === Node.TEXT_NODE) {
+        label.firstChild.nodeValue = labelText;
+      }
     }
 
 function populateFormatZoneInputs(card, equipment) {
@@ -2480,7 +2714,9 @@ function updateFormatZoneVisibility(card) {
         formatNumber(derived.effectiveProductPitchMm) + ' mm pitch · ' + formatNumber(derived.conveyorCapacityUnits) +
         ' units · Prime ' + formatNumber(derived.primeSensorPositionMm) + ' mm · required Back-up ≥ ' +
         formatNumber(derived.recommendedBackupSensorPositionMm) + ' mm · L_rec ' +
-        formatNumber(derived.recoveryLengthMm) + ' mm (' + calculation.audit.status + ').';
+        formatNumber(derived.recoveryLengthMm) + ' mm · normal photoeye pulse ' +
+        formatSeconds(derived.packagePassSensorSeconds) + ' · normal clear gap ' +
+        formatSeconds(derived.sensorClearGapSeconds) + ' (' + calculation.audit.status + ').';
     }
 
 function readFormatZoneInputs(card) {
@@ -3051,7 +3287,7 @@ function renderRawJson() {
 
     function updateAccumulationZoneDetailsContent(details, zone) {
       details.querySelector('.accumulation-zone-summary-name').textContent = (zone.name || 'Accumulation zone') + ' · physical accumulation';
-      details.querySelector('.accumulation-zone-summary-reading').textContent = formatNumber(zone.inventoryUnits) + ' / ' + formatNumber(zone.capacityUnits) + ' units · ' + formatNumber(zone.fillPercent) + '%';
+      details.querySelector('.accumulation-zone-summary-reading').textContent = formatNumber(zone.inventoryUnits) + ' / ' + formatNumber(zone.capacityUnits) + ' units · Waiting ' + formatNumber(zone.waitingUnits) + ' · ' + formatNumber(zone.fillPercent) + '%';
       var panel = details.querySelector('.accumulation-zone');
       if (!panel) {
         panel = createAccumulationZonePanel(zone);
@@ -3064,8 +3300,51 @@ function renderRawJson() {
     function createAccumulationZonePanel(zone) {
       var panel = document.createElement('section');
       panel.innerHTML = '<div class="accumulation-zone-heading"><strong></strong><span></span></div><div class="accumulation-zone-stats"><div><span>Inventory</span><b class="zone-inventory"></b></div><div><span>In transit</span><b class="zone-transit"></b></div><div><span>Prime</span><b class="zone-prime"></b></div><div><span>Back-up</span><b class="zone-backup"></b></div><div><span>Geometry</span><b class="zone-geometry"></b></div><div><span>Travel</span><b class="zone-travel"></b></div><div><span>Overflow</span><b class="zone-overflow"></b></div></div><section class="zone-engineering hidden"><div class="zone-engineering-heading"><strong>Conveyor design audit</strong><span class="zone-audit-status"></span></div><div class="zone-engineering-stats"><div><span>Required overflow L_bu</span><b class="zone-overflow-length"></b></div><div><span>Useful accumulation L_ba</span><b class="zone-accumulation-length"></b></div><div><span>Recovery L_rec</span><b class="zone-recovery-length"></b></div><div><span>Anti-starve</span><b class="zone-anti-starve"></b></div><div><span>Anti-block</span><b class="zone-anti-block"></b></div><div><span>Recommended speed</span><b class="zone-recommended-speed"></b></div></div><p class="zone-audit-goals"></p></section><p class="zone-caption"></p><p class="zone-assumptions"></p>';
+      var statistics = panel.querySelector('.accumulation-zone-stats');
+      appendZoneMetric(statistics, 'Waiting', 'zone-waiting', 'Product already at the downstream end of the conveyor and available to the next machine. Inventory equals In transit plus Waiting.');
+      appendZoneMetric(statistics, 'Sensor timing', 'zone-sensor-timing', 'Normal photoeye occupied time and clear gap derived from product length, pitch, and belt speed.');
+      var engineeringStatistics = panel.querySelector('.zone-engineering-stats');
+      appendZoneMetric(engineeringStatistics, 'Normal sensor pulse', 'zone-sensor-pulse', 'Time one package normally blocks a photoeye at the calculated belt speed.');
+      appendZoneMetric(engineeringStatistics, 'Normal clear gap', 'zone-sensor-gap', 'Time the normal gap between packages leaves a photoeye clear.');
+      appendZoneMetric(engineeringStatistics, 'Insurance margin', 'zone-insurance', 'Extra package margin included in the required overflow calculation; it is not material generated during the run.');
+      applyZoneConceptTooltips(panel);
       updateAccumulationZonePanel(panel, zone);
       return panel;
+    }
+
+    function appendZoneMetric(host, labelText, valueClass, tooltip) {
+      if (!host) return;
+      var cell = document.createElement('div');
+      var label = document.createElement('span');
+      var value = document.createElement('b');
+      label.textContent = labelText;
+      label.title = tooltip;
+      value.className = valueClass;
+      cell.appendChild(label);
+      cell.appendChild(value);
+      host.appendChild(cell);
+    }
+
+    function applyZoneConceptTooltips(panel) {
+      setZoneMetricTooltip(panel, '.zone-inventory', 'All material on this physical conveyor: In transit plus Waiting.');
+      setZoneMetricTooltip(panel, '.zone-transit', 'Product moving between the upstream discharge and the downstream end of the conveyor.');
+      setZoneMetricTooltip(panel, '.zone-prime', 'Prime photocell signal. A product pass authorizes the downstream start; a blocked state means a queue has reached the sensor.');
+      setZoneMetricTooltip(panel, '.zone-backup', 'Back-up photocell signal. Only a continuously blocked signal starts the stop timer; normal product pulses do not request a stop.');
+      setZoneMetricTooltip(panel, '.zone-geometry', 'Installed usable length and effective product pitch used to calculate physical capacity.');
+      setZoneMetricTooltip(panel, '.zone-travel', 'Nominal time for material to travel through the physical conveyor.');
+      setZoneMetricTooltip(panel, '.zone-overflow', 'Material that could not enter a full physical zone.');
+      setZoneMetricTooltip(panel, '.zone-overflow-length', 'Required overflow length, including runout, residual discharge, blocked-delay output, and insurance margin.');
+      setZoneMetricTooltip(panel, '.zone-accumulation-length', 'Usable accumulation length after reserving Prime and required overflow space.');
+      setZoneMetricTooltip(panel, '.zone-recovery-length', 'Calculated recovery margin after Back-up clears. Positive values indicate a smoother modeled restart.');
+      setZoneMetricTooltip(panel, '.zone-anti-starve', 'Time the useful accumulation can continue feeding the downstream critical machine.');
+      setZoneMetricTooltip(panel, '.zone-anti-block', 'Time the useful accumulation can accept upstream output before the upstream machine must be stopped.');
+      setZoneMetricTooltip(panel, '.zone-recommended-speed', 'Minimum downstream infeed conveyor speed with the worksheet 5% overspeed margin.');
+    }
+
+    function setZoneMetricTooltip(panel, valueSelector, tooltip) {
+      var value = panel.querySelector(valueSelector);
+      var label = value && value.parentElement && value.parentElement.querySelector('span');
+      if (label) label.title = tooltip;
     }
 
     function updateAccumulationZonePanel(panel, zone) {
@@ -3075,20 +3354,50 @@ function renderRawJson() {
       panel.querySelector('.accumulation-zone-heading span').textContent = String(zone.state || 'EMPTY').replace(/_/g, ' ');
       panel.querySelector('.zone-inventory').textContent = formatNumber(zone.inventoryUnits) + ' / ' + formatNumber(zone.capacityUnits) + ' (' + formatNumber(zone.fillPercent) + '%)';
       panel.querySelector('.zone-transit').textContent = formatNumber(zone.inTransitUnits);
-      panel.querySelector('.zone-prime').textContent = zone.prime && zone.prime.configured ? zone.prime.state : 'Not configured';
-      panel.querySelector('.zone-backup').textContent = zone.backup && zone.backup.configured ? zone.backup.state : 'Not configured';
+      panel.querySelector('.zone-waiting').textContent = formatNumber(zone.waitingUnits);
+      panel.querySelector('.zone-prime').textContent = formatPrimeSensorReading(zone.prime);
+      panel.querySelector('.zone-backup').textContent = formatBackupSensorReading(zone.backup);
       panel.querySelector('.zone-geometry').textContent = geometry.usableLengthMm && geometry.productPitchMm
         ? formatNumber(geometry.usableLengthMm) + ' mm / ' + formatNumber(geometry.productPitchMm) + ' mm'
         : 'Not available';
       panel.querySelector('.zone-travel').textContent = geometry.travelSeconds > 0
         ? formatNumber(geometry.travelSeconds) + ' s'
         : '—';
+      panel.querySelector('.zone-sensor-timing').textContent = formatSensorTiming(geometry);
       panel.querySelector('.zone-overflow').textContent = formatNumber(zone.overflowUnits);
       panel.querySelector('.zone-caption').textContent = zoneOriginLabel(zone.modelOrigin) + ' · Capacity: floor(length / pitch) = ' +
         formatNumber(zone.capacityUnits) + ' units · Controls upstream: ' + zone.upstreamControlEquipmentId +
         ' · Starts downstream: ' + zone.downstreamControlEquipmentId;
       panel.querySelector('.zone-assumptions').textContent = summarizeGeometrySources(zone.geometrySources, zone.formatAssumptions);
       updateZoneEngineeringAudit(panel, zone);
+    }
+
+    function formatPrimeSensorReading(prime) {
+      if (!prime || !prime.configured) return 'Not configured';
+      if (prime.state === 'PULSING') return 'PULSING · product passing';
+      if (prime.state === 'BLOCKED') return 'BLOCKED · queue present';
+      return prime.latched ? 'CLEAR · start sent' : 'CLEAR · waiting';
+    }
+
+    function formatBackupSensorReading(backup) {
+      if (!backup || !backup.configured) return 'Not configured';
+      if (backup.state === 'PULSING') return 'PULSING · normal flow';
+      if (backup.state === 'BLOCKED') {
+        return backup.controlActive
+          ? 'BLOCKED · control active'
+          : 'BLOCKED ' + formatSeconds(backup.blockedCandidateSeconds) + ' / ' + formatSeconds(backup.blockedTimeDelaySeconds);
+      }
+      if (backup.controlActive && backup.clearCandidateSeconds > 0) {
+        return 'CLEAR ' + formatSeconds(backup.clearCandidateSeconds) + ' / ' + formatSeconds(backup.clearTimeDelaySeconds);
+      }
+      return backup.controlActive ? 'CLEAR · awaiting delay' : 'CLEAR';
+    }
+
+    function formatSensorTiming(geometry) {
+      if (!geometry) return '—';
+      var pulse = formatSeconds(geometry.packagePassSensorSeconds);
+      var gap = formatSeconds(geometry.sensorClearGapSeconds);
+      return pulse === '—' && gap === '—' ? '—' : pulse + ' / ' + gap;
     }
 
     function zoneOriginLabel(origin) {
@@ -3114,6 +3423,9 @@ function renderRawJson() {
       host.querySelector('.zone-anti-starve').textContent = engineeringNumber(calculated.antiStarveSeconds, ' s');
       host.querySelector('.zone-anti-block').textContent = engineeringNumber(calculated.antiBlockSeconds, ' s');
       host.querySelector('.zone-recommended-speed').textContent = engineeringNumber(calculated.recommendedInfeedConveyorSpeedMmPerSecond, ' mm/s');
+      host.querySelector('.zone-sensor-pulse').textContent = engineeringNumber(calculated.packagePassSensorSeconds, ' s');
+      host.querySelector('.zone-sensor-gap').textContent = engineeringNumber(calculated.sensorClearGapSeconds, ' s');
+      host.querySelector('.zone-insurance').textContent = engineeringNumber(engineering.input.insuranceFactorUnits, ' units');
       host.querySelector('.zone-audit-goals').textContent = engineering.audit.goals.map(function(goal) {
         return goal.id.replace(/_/g, ' ') + ': ' + goal.status.replace(/_/g, ' ') + ' — ' + goal.message;
       }).join(' · ');
@@ -3380,6 +3692,10 @@ function summarizeGeometrySources(sources, assumptions) {
 
     function formatNumber(value) {
       return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    function formatSeconds(value) {
+      return isFiniteNumber(value) ? formatNumber(value) + ' s' : '—';
     }
 
     function formatRatePerMinute(ratePerSecond) {
