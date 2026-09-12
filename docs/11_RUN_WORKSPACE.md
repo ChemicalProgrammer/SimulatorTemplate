@@ -14,7 +14,7 @@ The browser does not use a separate or rewritten engine. Generate the Apps Scrip
 npm run build:browser-engine
 ```
 
-This writes `apps-script/SimulationEngine.html`, which exposes `window.SimulatorEngine.simulateLine`. `test/BrowserEngineBundle.test.js` executes the generated fragment and verifies that it runs the reference Case.
+This writes `apps-script/source/SimulationEngine.html`, which exposes `window.SimulatorEngine.simulateLine`. `test/BrowserEngineBundle.test.js` executes the generated fragment and verifies that it runs the reference Case.
 
 Whenever a source file under `src/simulation/` changes, regenerate the bundle before `clasp push`.
 

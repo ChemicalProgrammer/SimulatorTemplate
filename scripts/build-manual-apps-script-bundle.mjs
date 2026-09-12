@@ -23,8 +23,9 @@ const htmlIncludes = [
 ];
 
 export function buildManualAppsScriptBundle(rootDirectory = repositoryRoot) {
-  const appsScriptDirectory = path.join(rootDirectory, 'apps-script');
-  const readSource = (file) => fs.readFileSync(path.join(appsScriptDirectory, file), 'utf8').trimEnd();
+  const appsScriptSourceDirectory = path.join(rootDirectory, 'apps-script', 'source');
+  const manualOutputDirectory = path.join(rootDirectory, 'apps-script');
+  const readSource = (file) => fs.readFileSync(path.join(appsScriptSourceDirectory, file), 'utf8').trimEnd();
   const readServerSource = (file) => {
     var source = readSource(file);
     if (file !== 'Main.gs') return source;
@@ -36,11 +37,11 @@ export function buildManualAppsScriptBundle(rootDirectory = repositoryRoot) {
 
   const code = [
     '// MANUAL APPS SCRIPT DEPLOYMENT FILE — copy this file as Code.gs.',
-    '// GENERATED from apps-script/; edit the modular sources, not this file.',
+    '// GENERATED from apps-script/source/; edit the modular sources, not this file.',
     ''
   ].concat(serverFiles.flatMap((file) => [
     '// -----------------------------------------------------------------------------',
-    `// Source: apps-script/${file}`,
+    `// Source: apps-script/source/${file}`,
     '// -----------------------------------------------------------------------------',
     readServerSource(file),
     ''
@@ -50,17 +51,17 @@ export function buildManualAppsScriptBundle(rootDirectory = repositoryRoot) {
   for (const [includeName, sourceFile] of htmlIncludes) {
     const marker = `<?!= include_('${includeName}'); ?>`;
     if (!index.includes(marker)) {
-      throw new Error(`Manual bundle expected ${marker} in apps-script/WebApp.html.`);
+      throw new Error(`Manual bundle expected ${marker} in apps-script/source/WebApp.html.`);
     }
     index = index.replace(marker, readSource(sourceFile));
   }
   if (index.includes('<?')) {
     throw new Error('Manual bundle still contains an unresolved Apps Script template expression.');
   }
-  index = '<!-- MANUAL APPS SCRIPT DEPLOYMENT FILE — copy this file as Index.html. GENERATED from apps-script/; do not edit it directly. -->\n' + index + '\n';
+  index = '<!-- MANUAL APPS SCRIPT DEPLOYMENT FILE — copy this file as Index.html. GENERATED from apps-script/source/; do not edit it directly. -->\n' + index + '\n';
 
-  const codePath = path.join(rootDirectory, 'Code.gs');
-  const indexPath = path.join(rootDirectory, 'Index.html');
+  const codePath = path.join(manualOutputDirectory, 'Code.gs');
+  const indexPath = path.join(manualOutputDirectory, 'Index.html');
   fs.writeFileSync(codePath, code);
   fs.writeFileSync(indexPath, index);
   return { codePath, indexPath };

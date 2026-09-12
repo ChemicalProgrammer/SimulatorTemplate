@@ -256,7 +256,7 @@ function renderEditor() {
       var card = document.createElement('article');
       card.className = 'equipment-card';
       card.dataset.index = String(index);
-      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="BLOWMOLDER">Blowmolder</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PUCKER">Pucker</option><option value="FILLER">Filler</option><option value="DEPUCKER">De-pucker</option><option value="SLEEVER">Sleever</option><option value="CASE_PACKER">Case packer</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><section class="format-zone-setup"><div class="format-zone-heading"><div><strong>Physical accumulation zone</strong><p>Required for every conveyor. These values always determine physical capacity, product travel, and Prime / Back-up control.</p></div></div><div class="format-zone-grid"><label>Usable length (mm)<input class="format-zone-length" type="number" min="0" step="any"></label><label>Product length (mm)<input class="format-zone-product-length" type="number" min="0" step="any"></label><label>Gap (mm)<input class="format-zone-gap" type="number" min="0" step="any"></label><label>Effective pitch (mm)<input class="format-zone-pitch" type="number" min="0" step="any"></label><label>Conveyor speed (mm/s)<input class="format-zone-speed" type="number" min="0" step="any"></label><label>Speed factor (%)<input class="format-zone-speed-factor" type="number" min="0" step="any"></label><label>Prime sensor (mm)<input class="format-zone-prime" type="number" min="0" step="any"></label><label>Back-up sensor (mm)<input class="format-zone-backup" type="number" min="0" step="any"></label><label>Back-up reset (mm)<input class="format-zone-backup-reset" type="number" min="0" step="any"></label><label>Upstream stop response (s)<input class="format-zone-stop-response" type="number" min="0" step="any"></label><label>Units discharged at stop<input class="format-zone-residual" type="number" min="0" step="any"></label><label>Downstream ramp-up (s)<input class="format-zone-downstream-ramp" type="number" min="0" step="any"></label></div><p class="format-zone-preview"></p></section><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label><label class="characteristics-label">Advanced process format JSON (optional)<textarea class="equipment-process-data" spellcheck="false"></textarea></label>';
+      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="BLOWMOLDER">Blowmolder</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PUCKER">Pucker</option><option value="FILLER">Filler</option><option value="DEPUCKER">De-pucker</option><option value="SLEEVER">Sleever</option><option value="CASE_PACKER">Case packer</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><section class="format-zone-setup"><div class="format-zone-heading"><div><strong>FlowPilot conveyor design</strong><p>Required for every conveyor. Geometry is always active: the engine derives conveyor velocity, pitch, capacity, Prime, Back-up margin, recovery, and audit from these named inputs.</p></div></div><div class="format-zone-grid"><label>Installed length L_act (mm)<input class="format-zone-lact" type="number" min="0" step="any"></label><label>Prime reserve L_p (mm)<input class="format-zone-lp-prime" type="number" min="0" step="any"></label><label>Package length (mm)<input class="format-zone-package-length" type="number" min="0" step="any"></label><label>Upstream discharge pitch (mm)<input class="format-zone-discharge-pitch" type="number" min="0" step="any"></label><label>Conveyor speed factor (%)<input class="format-zone-speed-factor" type="number" min="0" step="any"></label><label>Installed Back-up position (mm)<input class="format-zone-backup" type="number" min="0" step="any"></label><label>Discharge runout (mm)<input class="format-zone-discharge-runout" type="number" min="0" step="any"></label><label>Reject runout (mm)<input class="format-zone-reject-runout" type="number" min="0" step="any"></label><label>Blocked time delay (s)<input class="format-zone-blocked-delay" type="number" min="0" step="any"></label><label>Clear time delay (s)<input class="format-zone-clear-delay" type="number" min="0" step="any"></label><label>Insurance factor (units)<input class="format-zone-insurance" type="number" min="0" step="any"></label><label>Upstream stop response (s)<input class="format-zone-stop-response" type="number" min="0" step="any"></label><label>Bottles discharged at stop<input class="format-zone-residual" type="number" min="0" step="any"></label><label>Downstream ramp-up (s)<input class="format-zone-downstream-ramp" type="number" min="0" step="any"></label></div><p class="format-zone-preview"></p></section><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label><label class="characteristics-label">Advanced process format JSON (optional)<textarea class="equipment-process-data" spellcheck="false"></textarea></label>';
       card.querySelector('strong').textContent = 'Step ' + (index + 1);
       card.querySelector('.equipment-id').value = equipment.id || '';
       card.querySelector('.equipment-type').value = equipment.type || 'CUSTOM';
@@ -291,16 +291,20 @@ function renderEditor() {
 
 function populateFormatZoneInputs(card, equipment) {
       var formatZone = equipment.processData?.accumulation || {};
+      var geometry = equipment.processData?.geometry || {};
+      var upstream = equipment.processData?.upstream || {};
       var values = {
-        length: formatZone.usableLengthMm,
-        productLength: firstDefinedValue(formatZone.productLengthMm, equipment.processData?.upstream?.packageLengthMm),
-        gap: formatZone.gapMm,
-        pitch: formatZone.productPitchMm,
-        speed: formatZone.conveyorSpeedMmPerSecond,
+        lact: geometry.lactMm,
+        lpPrime: geometry.lpPrimeMm,
+        packageLength: upstream.packageLengthMm,
+        dischargePitch: upstream.dischargePitchMm,
         speedFactor: firstDefinedValue(formatZone.conveyorSpeedFactorPercent, equipment.processData?.speedAndSensors?.conveyorSpeedFactorVsDischargeVelocityPercent),
-        prime: formatZone.primeSensorPositionMm,
         backup: formatZone.backupSensorPositionMm,
-        backupReset: formatZone.backupRestartPositionMm,
+        dischargeRunout: formatZone.dischargeRunoutLengthMm,
+        rejectRunout: formatZone.rejectRunoutLengthMm,
+        blockedDelay: formatZone.blockedTimeDelaySeconds,
+        clearDelay: formatZone.clearTimeDelaySeconds,
+        insurance: formatZone.insuranceFactorUnits,
         stopResponse: formatZone.upstreamStopResponseSeconds,
         residual: formatZone.bottlesDischargedAtStop,
         downstreamRamp: formatZone.downstreamRampUpSeconds
@@ -326,51 +330,59 @@ function updateFormatZoneVisibility(card) {
 
       var values = readFormatZoneInputs(card);
       var processData = parseJsonForPreview(card.querySelector('.equipment-process-data').value);
-      var packageLength = firstDefinedValue(values.productLengthMm, processData?.upstream?.packageLengthMm);
-      var pitch = firstDefinedValue(
-        values.productPitchMm,
-        isFiniteNumber(packageLength) && isFiniteNumber(values.gapMm) ? packageLength + values.gapMm : undefined
-      );
-      var capacity = isFiniteNumber(values.usableLengthMm) && isFiniteNumber(pitch) && pitch > 0
-        ? Math.floor(values.usableLengthMm / pitch)
-        : undefined;
-      var travel = isFiniteNumber(values.usableLengthMm) && isFiniteNumber(values.conveyorSpeedMmPerSecond) &&
-        values.conveyorSpeedMmPerSecond > 0
-        ? values.usableLengthMm / values.conveyorSpeedMmPerSecond
-        : undefined;
-      var sensorsReady = isFiniteNumber(values.primeSensorPositionMm) &&
-        isFiniteNumber(values.backupSensorPositionMm) &&
-        isFiniteNumber(values.backupRestartPositionMm);
-
-      if (!(capacity >= 1)) {
-        target.textContent = 'Required: usable length plus either effective pitch, or product length and gap.';
+      var index = Number(card.dataset.index);
+      var upstreamMachine = state.activeCase?.equipment?.[index - 1];
+      var downstreamMachine = state.activeCase?.equipment?.[index + 1];
+      var calculator = window.SimulatorEngine?.calculateConveyorEngineering;
+      if (!calculator || !upstreamMachine || !downstreamMachine) {
+        target.textContent = 'FlowPilot preview becomes available when this conveyor sits between an upstream and downstream machine.';
         return;
       }
-      if (travel === undefined) {
-        target.textContent = 'Capacity: ' + formatNumber(capacity) + ' units. Required: physical conveyor speed.';
+      var calculation = calculator({
+        installedLengthMm: values.lactMm,
+        primeReserveMm: values.lpPrimeMm,
+        packageLengthMm: values.packageLengthMm,
+        upstreamDischargePitchMm: values.dischargePitchMm,
+        upstreamNominalSpeedBpm: Number(upstreamMachine.nominalRatePerSecond) * 60,
+        downstreamHighSpeedBpm: firstDefinedValue(downstreamMachine.processData?.equipment?.maximumSpeedBpm, Number(downstreamMachine.nominalRatePerSecond) * 60),
+        downstreamInfeedPitchMm: downstreamMachine.processData?.downstream?.infeedPitchMm,
+        conveyorSpeedFactorPercent: values.conveyorSpeedFactorPercent,
+        dischargeRunoutLengthMm: values.dischargeRunoutLengthMm,
+        rejectRunoutLengthMm: values.rejectRunoutLengthMm,
+        blockedTimeDelaySeconds: values.blockedTimeDelaySeconds,
+        clearTimeDelaySeconds: values.clearTimeDelaySeconds,
+        insuranceFactorUnits: values.insuranceFactorUnits,
+        backupSensorPositionMm: values.backupSensorPositionMm,
+        upstreamStopResponseSeconds: values.upstreamStopResponseSeconds,
+        bottlesDischargedAtStop: values.bottlesDischargedAtStop,
+        downstreamRampUpSeconds: values.downstreamRampUpSeconds,
+        upstreamStartupTimeSeconds: upstreamMachine.processData?.upstream?.startupTimeSeconds
+      });
+      var derived = calculation.calculated;
+      if (!(derived.conveyorCapacityUnits >= 1)) {
+        target.textContent = 'Required: L_act, L_p, package length, upstream discharge pitch, upstream BPM, and conveyor speed factor.';
         return;
       }
-      if (!sensorsReady) {
-        target.textContent = 'Capacity: ' + formatNumber(capacity) + ' units · Travel: ' + formatNumber(travel) + ' s. Required: Prime, Back-up, and Back-up reset positions.';
-        return;
-      }
-
-      target.textContent = 'Physical preview: ' + formatNumber(values.usableLengthMm) + ' mm ÷ ' +
-        formatNumber(pitch) + ' mm pitch = ' + formatNumber(capacity) + ' units · Travel = ' +
-        formatNumber(travel) + ' s. Geometry is active by default.';
+      target.textContent = 'Calculated: ' + formatNumber(derived.conveyorSpeedMmPerSecond) + ' mm/s · ' +
+        formatNumber(derived.effectiveProductPitchMm) + ' mm pitch · ' + formatNumber(derived.conveyorCapacityUnits) +
+        ' units · Prime ' + formatNumber(derived.primeSensorPositionMm) + ' mm · required Back-up ≥ ' +
+        formatNumber(derived.recommendedBackupSensorPositionMm) + ' mm · L_rec ' +
+        formatNumber(derived.recoveryLengthMm) + ' mm (' + calculation.audit.status + ').';
     }
 
 function readFormatZoneInputs(card) {
       return {
-        usableLengthMm: numericInputValue(card.querySelector('.format-zone-length')),
-        productLengthMm: numericInputValue(card.querySelector('.format-zone-product-length')),
-        gapMm: numericInputValue(card.querySelector('.format-zone-gap')),
-        productPitchMm: numericInputValue(card.querySelector('.format-zone-pitch')),
-        conveyorSpeedMmPerSecond: numericInputValue(card.querySelector('.format-zone-speed')),
+        lactMm: numericInputValue(card.querySelector('.format-zone-lact')),
+        lpPrimeMm: numericInputValue(card.querySelector('.format-zone-lp-prime')),
+        packageLengthMm: numericInputValue(card.querySelector('.format-zone-package-length')),
+        dischargePitchMm: numericInputValue(card.querySelector('.format-zone-discharge-pitch')),
         conveyorSpeedFactorPercent: numericInputValue(card.querySelector('.format-zone-speed-factor')),
-        primeSensorPositionMm: numericInputValue(card.querySelector('.format-zone-prime')),
         backupSensorPositionMm: numericInputValue(card.querySelector('.format-zone-backup')),
-        backupRestartPositionMm: numericInputValue(card.querySelector('.format-zone-backup-reset')),
+        dischargeRunoutLengthMm: numericInputValue(card.querySelector('.format-zone-discharge-runout')),
+        rejectRunoutLengthMm: numericInputValue(card.querySelector('.format-zone-reject-runout')),
+        blockedTimeDelaySeconds: numericInputValue(card.querySelector('.format-zone-blocked-delay')),
+        clearTimeDelaySeconds: numericInputValue(card.querySelector('.format-zone-clear-delay')),
+        insuranceFactorUnits: numericInputValue(card.querySelector('.format-zone-insurance')),
         upstreamStopResponseSeconds: numericInputValue(card.querySelector('.format-zone-stop-response')),
         bottlesDischargedAtStop: numericInputValue(card.querySelector('.format-zone-residual')),
         downstreamRampUpSeconds: numericInputValue(card.querySelector('.format-zone-downstream-ramp'))
@@ -379,15 +391,36 @@ function readFormatZoneInputs(card) {
 
     function mergeFormatZoneData(processData, values) {
       var result = Object.assign({}, processData);
-      result.accumulation = Object.assign({}, values);
+      result.geometry = Object.assign({}, result.geometry || {}, {
+        lactMm: values.lactMm,
+        lpPrimeMm: values.lpPrimeMm
+      });
+      result.upstream = Object.assign({}, result.upstream || {}, {
+        packageLengthMm: values.packageLengthMm,
+        dischargePitchMm: values.dischargePitchMm,
+        bottlesDischargedAtStop: values.bottlesDischargedAtStop
+      });
+      result.speedAndSensors = Object.assign({}, result.speedAndSensors || {}, {
+        conveyorSpeedFactorVsDischargeVelocityPercent: values.conveyorSpeedFactorPercent
+      });
+      result.accumulation = Object.assign({}, result.accumulation || {}, {
+        conveyorSpeedFactorPercent: values.conveyorSpeedFactorPercent,
+        backupSensorPositionMm: values.backupSensorPositionMm,
+        dischargeRunoutLengthMm: values.dischargeRunoutLengthMm,
+        rejectRunoutLengthMm: values.rejectRunoutLengthMm,
+        blockedTimeDelaySeconds: values.blockedTimeDelaySeconds,
+        clearTimeDelaySeconds: values.clearTimeDelaySeconds,
+        insuranceFactorUnits: values.insuranceFactorUnits,
+        upstreamStopResponseSeconds: values.upstreamStopResponseSeconds,
+        bottlesDischargedAtStop: values.bottlesDischargedAtStop,
+        downstreamRampUpSeconds: values.downstreamRampUpSeconds
+      });
       Object.keys(result.accumulation).forEach(function(key) {
         if (result.accumulation[key] === undefined) delete result.accumulation[key];
       });
-      if (values.conveyorSpeedFactorPercent !== undefined) {
-        result.speedAndSensors = Object.assign({}, result.speedAndSensors || {}, {
-          conveyorSpeedFactorVsDischargeVelocityPercent: values.conveyorSpeedFactorPercent
-        });
-      }
+      ['usableLengthMm', 'productLengthMm', 'gapMm', 'productPitchMm', 'conveyorSpeedMmPerSecond', 'primeSensorPositionMm', 'backupRestartPositionMm'].forEach(function(key) {
+        delete result.accumulation[key];
+      });
       return result;
     }
 
@@ -607,7 +640,7 @@ function renderRawJson() {
       }
       return {
         durationSeconds: durationSeconds,
-        tickSeconds: 1,
+        tickSeconds: 0.25,
         sampleEverySeconds: sampleEverySeconds,
         seed: seed,
         commands: state.run.commands.map(function(command) {
@@ -917,7 +950,7 @@ function renderRawJson() {
 
     function createAccumulationZonePanel(zone) {
       var panel = document.createElement('section');
-      panel.innerHTML = '<div class="accumulation-zone-heading"><strong></strong><span></span></div><div class="accumulation-zone-stats"><div><span>Inventory</span><b class="zone-inventory"></b></div><div><span>In transit</span><b class="zone-transit"></b></div><div><span>Prime</span><b class="zone-prime"></b></div><div><span>Back-up</span><b class="zone-backup"></b></div><div><span>Geometry</span><b class="zone-geometry"></b></div><div><span>Travel</span><b class="zone-travel"></b></div><div><span>Overflow</span><b class="zone-overflow"></b></div></div><p class="zone-caption"></p><p class="zone-assumptions"></p>';
+      panel.innerHTML = '<div class="accumulation-zone-heading"><strong></strong><span></span></div><div class="accumulation-zone-stats"><div><span>Inventory</span><b class="zone-inventory"></b></div><div><span>In transit</span><b class="zone-transit"></b></div><div><span>Prime</span><b class="zone-prime"></b></div><div><span>Back-up</span><b class="zone-backup"></b></div><div><span>Geometry</span><b class="zone-geometry"></b></div><div><span>Travel</span><b class="zone-travel"></b></div><div><span>Overflow</span><b class="zone-overflow"></b></div></div><section class="zone-engineering hidden"><div class="zone-engineering-heading"><strong>Conveyor design audit</strong><span class="zone-audit-status"></span></div><div class="zone-engineering-stats"><div><span>Required overflow L_bu</span><b class="zone-overflow-length"></b></div><div><span>Useful accumulation L_ba</span><b class="zone-accumulation-length"></b></div><div><span>Recovery L_rec</span><b class="zone-recovery-length"></b></div><div><span>Anti-starve</span><b class="zone-anti-starve"></b></div><div><span>Anti-block</span><b class="zone-anti-block"></b></div><div><span>Recommended speed</span><b class="zone-recommended-speed"></b></div></div><p class="zone-audit-goals"></p></section><p class="zone-caption"></p><p class="zone-assumptions"></p>';
       updateAccumulationZonePanel(panel, zone);
       return panel;
     }
@@ -942,10 +975,39 @@ function renderRawJson() {
         formatNumber(zone.capacityUnits) + ' units · Controls upstream: ' + zone.upstreamControlEquipmentId +
         ' · Starts downstream: ' + zone.downstreamControlEquipmentId;
       panel.querySelector('.zone-assumptions').textContent = summarizeGeometrySources(zone.geometrySources, zone.formatAssumptions);
+      updateZoneEngineeringAudit(panel, zone);
     }
 
     function zoneOriginLabel(origin) {
-      return origin === 'FORMAT_GEOMETRY' ? 'Physical conveyor zone' : 'Physical zone';
+      return origin === 'FLOWPILOT_ENGINEERING'
+        ? 'FlowPilot physical conveyor zone'
+        : origin === 'FORMAT_GEOMETRY' ? 'Direct physical conveyor zone' : 'Physical zone';
+    }
+
+    function updateZoneEngineeringAudit(panel, zone) {
+      var host = panel.querySelector('.zone-engineering');
+      var engineering = state.run.result?.accumulationZoneMetrics?.[zone.id]?.engineering;
+      if (!engineering || !engineering.calculated || !engineering.audit) {
+        host.classList.add('hidden');
+        return;
+      }
+      host.classList.remove('hidden');
+      var calculated = engineering.calculated;
+      host.querySelector('.zone-audit-status').textContent = String(engineering.audit.status || 'NOT_EVALUATED').replace(/_/g, ' ');
+      host.querySelector('.zone-audit-status').className = 'zone-audit-status audit-' + String(engineering.audit.status || 'NOT_EVALUATED').toLowerCase().replace(/_/g, '-');
+      host.querySelector('.zone-overflow-length').textContent = engineeringNumber(calculated.overflowLengthMm, ' mm');
+      host.querySelector('.zone-accumulation-length').textContent = engineeringNumber(calculated.usefulAccumulationLengthMm, ' mm');
+      host.querySelector('.zone-recovery-length').textContent = engineeringNumber(calculated.recoveryLengthMm, ' mm');
+      host.querySelector('.zone-anti-starve').textContent = engineeringNumber(calculated.antiStarveSeconds, ' s');
+      host.querySelector('.zone-anti-block').textContent = engineeringNumber(calculated.antiBlockSeconds, ' s');
+      host.querySelector('.zone-recommended-speed').textContent = engineeringNumber(calculated.recommendedInfeedConveyorSpeedMmPerSecond, ' mm/s');
+      host.querySelector('.zone-audit-goals').textContent = engineering.audit.goals.map(function(goal) {
+        return goal.id.replace(/_/g, ' ') + ': ' + goal.status.replace(/_/g, ' ') + ' — ' + goal.message;
+      }).join(' · ');
+    }
+
+    function engineeringNumber(value, suffix) {
+      return isFiniteNumber(value) ? formatNumber(value) + suffix : '—';
     }
 
 function summarizeGeometrySources(sources, assumptions) {

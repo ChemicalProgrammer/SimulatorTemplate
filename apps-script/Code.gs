@@ -1,8 +1,8 @@
 // MANUAL APPS SCRIPT DEPLOYMENT FILE — copy this file as Code.gs.
-// GENERATED from apps-script/; edit the modular sources, not this file.
+// GENERATED from apps-script/source/; edit the modular sources, not this file.
 
 // -----------------------------------------------------------------------------
-// Source: apps-script/ApiResponse.gs
+// Source: apps-script/source/ApiResponse.gs
 // -----------------------------------------------------------------------------
 function success_(data) {
   return { ok: true, data: data };
@@ -30,7 +30,7 @@ function createSimulatorError_(code, message, details) {
 }
 
 // -----------------------------------------------------------------------------
-// Source: apps-script/AuthService.gs
+// Source: apps-script/source/AuthService.gs
 // -----------------------------------------------------------------------------
 function requireCurrentUser_() {
   var email = Session.getActiveUser().getEmail();
@@ -64,7 +64,7 @@ function getAllowedUserEmails_() {
 }
 
 // -----------------------------------------------------------------------------
-// Source: apps-script/ConfigService.gs
+// Source: apps-script/source/ConfigService.gs
 // -----------------------------------------------------------------------------
 function getUserSettings_() {
   var raw = PropertiesService.getUserProperties().getProperty('USER_SETTINGS_JSON');
@@ -121,7 +121,7 @@ function normalizeUserSettings_(settings) {
 }
 
 // -----------------------------------------------------------------------------
-// Source: apps-script/DriveService.gs
+// Source: apps-script/source/DriveService.gs
 // -----------------------------------------------------------------------------
 function verifyWorkspaceRoot_(folderId) {
   try {
@@ -155,7 +155,7 @@ function getFixedKnowledgeFolder_() {
 }
 
 // -----------------------------------------------------------------------------
-// Source: apps-script/CaseService.gs
+// Source: apps-script/source/CaseService.gs
 // -----------------------------------------------------------------------------
 function listCases_(user) {
   var settings = getUserSettings_();
@@ -392,7 +392,7 @@ function toCaseSummary_(caseData, file) {
 }
 
 // -----------------------------------------------------------------------------
-// Source: apps-script/ReferenceCaseFactory.gs
+// Source: apps-script/source/ReferenceCaseFactory.gs
 // -----------------------------------------------------------------------------
 function createReferenceCaseRequest_() {
   var suffix = new Date().getTime().toString();
@@ -475,23 +475,23 @@ function createReferenceCaseRequest_() {
 }
 
 // -----------------------------------------------------------------------------
-// Source: apps-script/PublicDemoCaseFactory.gs
+// Source: apps-script/source/PublicDemoCaseFactory.gs
 // -----------------------------------------------------------------------------
 function createPublicDemoCaseRequest_() {
   var suffix = new Date().getTime().toString();
   var equipment = [
       createPublicLineUnit_({ id: 'blowmolder-1', type: 'BLOWMOLDER', name: 'Blowmolder', role: 'CRITICAL_MACHINE', nominalRateBpm: 420, maximumSpeedBpm: 450, mtbfMinutes: 720, mttrMinutes: 15, actualDischargeMm: 85, actualCodingMm: 85, packageLengthMm: 66, dischargePitchMm: 85, startupTimeSeconds: 8, bottlesDischargedAtStop: 4, infeedPitchMm: 88, rampUpTimeSeconds: 10, dischargeFactorPercent: 100, codingFactorPercent: 100, microStopProbabilityPerMinute: 0.08, microStopMinSeconds: 3, microStopMaxSeconds: 8 }),
-      createPublicLineUnit_({ id: 'conveyor-1', type: 'CONVEYOR', name: 'Blowmolder discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 480, maximumSpeedBpm: 500, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 88, actualCodingMm: 88, packageLengthMm: 66, dischargePitchMm: 88, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 88, rampUpTimeSeconds: 5, dischargeFactorPercent: 108, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
+      createPublicLineUnit_({ id: 'conveyor-1', type: 'CONVEYOR', name: 'Blowmolder discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 480, maximumSpeedBpm: 500, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 88, actualCodingMm: 88, packageLengthMm: 66, dischargePitchMm: 85, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 88, rampUpTimeSeconds: 5, dischargeFactorPercent: 5, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
       createPublicLineUnit_({ id: 'pucker-1', type: 'PUCKER', name: 'Pucker', role: 'CRITICAL_MACHINE', nominalRateBpm: 415, maximumSpeedBpm: 430, mtbfMinutes: 960, mttrMinutes: 10, actualDischargeMm: 90, actualCodingMm: 90, packageLengthMm: 66, dischargePitchMm: 90, startupTimeSeconds: 7, bottlesDischargedAtStop: 3, infeedPitchMm: 90, rampUpTimeSeconds: 8, dischargeFactorPercent: 102, codingFactorPercent: 100, microStopProbabilityPerMinute: 0.1, microStopMinSeconds: 3, microStopMaxSeconds: 9 }),
-      createPublicLineUnit_({ id: 'conveyor-2', type: 'CONVEYOR', name: 'Pucker discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 480, maximumSpeedBpm: 500, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 90, actualCodingMm: 90, packageLengthMm: 66, dischargePitchMm: 90, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 90, rampUpTimeSeconds: 5, dischargeFactorPercent: 106, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
+      createPublicLineUnit_({ id: 'conveyor-2', type: 'CONVEYOR', name: 'Pucker discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 480, maximumSpeedBpm: 500, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 90, actualCodingMm: 90, packageLengthMm: 66, dischargePitchMm: 90, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 90, rampUpTimeSeconds: 5, dischargeFactorPercent: 5, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
       createPublicLineUnit_({ id: 'filler-1', type: 'FILLER', name: 'Filler', role: 'CRITICAL_MACHINE', nominalRateBpm: 400, maximumSpeedBpm: 420, mtbfMinutes: 600, mttrMinutes: 20, actualDischargeMm: 92, actualCodingMm: 92, packageLengthMm: 66, dischargePitchMm: 92, startupTimeSeconds: 12, bottlesDischargedAtStop: 6, infeedPitchMm: 92, rampUpTimeSeconds: 15, dischargeFactorPercent: 100, codingFactorPercent: 100, microStopProbabilityPerMinute: 0.12, microStopMinSeconds: 4, microStopMaxSeconds: 12 }),
-      createPublicLineUnit_({ id: 'conveyor-3', type: 'CONVEYOR', name: 'Filler discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 480, maximumSpeedBpm: 500, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 92, actualCodingMm: 92, packageLengthMm: 66, dischargePitchMm: 92, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 92, rampUpTimeSeconds: 5, dischargeFactorPercent: 108, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
+      createPublicLineUnit_({ id: 'conveyor-3', type: 'CONVEYOR', name: 'Filler discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 480, maximumSpeedBpm: 500, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 92, actualCodingMm: 92, packageLengthMm: 66, dischargePitchMm: 92, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 92, rampUpTimeSeconds: 5, dischargeFactorPercent: 7, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
       createPublicLineUnit_({ id: 'depucker-1', type: 'DEPUCKER', name: 'De-pucker', role: 'CRITICAL_MACHINE', nominalRateBpm: 410, maximumSpeedBpm: 430, mtbfMinutes: 1000, mttrMinutes: 8, actualDischargeMm: 92, actualCodingMm: 92, packageLengthMm: 66, dischargePitchMm: 92, startupTimeSeconds: 7, bottlesDischargedAtStop: 3, infeedPitchMm: 92, rampUpTimeSeconds: 8, dischargeFactorPercent: 102, codingFactorPercent: 100, microStopProbabilityPerMinute: 0.1, microStopMinSeconds: 3, microStopMaxSeconds: 9 }),
-      createPublicLineUnit_({ id: 'conveyor-4', type: 'CONVEYOR', name: 'De-pucker discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 480, maximumSpeedBpm: 500, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 92, actualCodingMm: 92, packageLengthMm: 66, dischargePitchMm: 92, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 92, rampUpTimeSeconds: 5, dischargeFactorPercent: 108, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
+      createPublicLineUnit_({ id: 'conveyor-4', type: 'CONVEYOR', name: 'De-pucker discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 480, maximumSpeedBpm: 500, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 92, actualCodingMm: 92, packageLengthMm: 66, dischargePitchMm: 92, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 92, rampUpTimeSeconds: 5, dischargeFactorPercent: 6, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
       createPublicLineUnit_({ id: 'sleever-1', type: 'SLEEVER', name: 'Sleever', role: 'CRITICAL_MACHINE', nominalRateBpm: 390, maximumSpeedBpm: 400, mtbfMinutes: 480, mttrMinutes: 15, actualDischargeMm: 94, actualCodingMm: 94, packageLengthMm: 66, dischargePitchMm: 94, startupTimeSeconds: 10, bottlesDischargedAtStop: 4, infeedPitchMm: 94, rampUpTimeSeconds: 12, dischargeFactorPercent: 101, codingFactorPercent: 100, microStopProbabilityPerMinute: 0.14, microStopMinSeconds: 4, microStopMaxSeconds: 12 }),
-      createPublicLineUnit_({ id: 'conveyor-5', type: 'CONVEYOR', name: 'Sleever discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 450, maximumSpeedBpm: 470, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 94, actualCodingMm: 94, packageLengthMm: 66, dischargePitchMm: 94, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 94, rampUpTimeSeconds: 5, dischargeFactorPercent: 106, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
+      createPublicLineUnit_({ id: 'conveyor-5', type: 'CONVEYOR', name: 'Sleever discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 450, maximumSpeedBpm: 470, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 94, actualCodingMm: 94, packageLengthMm: 66, dischargePitchMm: 94, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 94, rampUpTimeSeconds: 5, dischargeFactorPercent: 5, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
       createPublicLineUnit_({ id: 'case-packer-1', type: 'CASE_PACKER', name: 'Case packer', role: 'CRITICAL_MACHINE', nominalRateBpm: 385, maximumSpeedBpm: 400, mtbfMinutes: 720, mttrMinutes: 12, actualDischargeMm: 96, actualCodingMm: 96, packageLengthMm: 66, dischargePitchMm: 96, startupTimeSeconds: 10, bottlesDischargedAtStop: 4, infeedPitchMm: 96, rampUpTimeSeconds: 12, dischargeFactorPercent: 100, codingFactorPercent: 100, microStopProbabilityPerMinute: 0.14, microStopMinSeconds: 4, microStopMaxSeconds: 12 }),
-      createPublicLineUnit_({ id: 'conveyor-6', type: 'CONVEYOR', name: 'Case packer discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 430, maximumSpeedBpm: 450, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 96, actualCodingMm: 96, packageLengthMm: 66, dischargePitchMm: 96, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 96, rampUpTimeSeconds: 5, dischargeFactorPercent: 106, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
+      createPublicLineUnit_({ id: 'conveyor-6', type: 'CONVEYOR', name: 'Case packer discharge conveyor', role: 'CONVEYOR', nominalRateBpm: 430, maximumSpeedBpm: 450, mtbfMinutes: 1440, mttrMinutes: 5, actualDischargeMm: 96, actualCodingMm: 96, packageLengthMm: 66, dischargePitchMm: 96, startupTimeSeconds: 4, bottlesDischargedAtStop: 2, infeedPitchMm: 96, rampUpTimeSeconds: 5, dischargeFactorPercent: 5, codingFactorPercent: 102, microStopProbabilityPerMinute: 0.04, microStopMinSeconds: 2, microStopMaxSeconds: 5 }),
       createPublicLineUnit_({ id: 'palletizer-1', type: 'PALLETIZER', name: 'Palletizer', role: 'CRITICAL_MACHINE', nominalRateBpm: 380, maximumSpeedBpm: 400, mtbfMinutes: 960, mttrMinutes: 20, actualDischargeMm: 96, actualCodingMm: 96, packageLengthMm: 66, dischargePitchMm: 96, startupTimeSeconds: 12, bottlesDischargedAtStop: 3, infeedPitchMm: 96, rampUpTimeSeconds: 15, dischargeFactorPercent: 100, codingFactorPercent: 100, microStopProbabilityPerMinute: 0.1, microStopMinSeconds: 4, microStopMaxSeconds: 10 })
   ];
 
@@ -507,56 +507,76 @@ function createPublicDemoCaseRequest_() {
       designThroughputBottlesPerHour: 24000,
       packConfiguration: { bottlesPerCase: 12, casesPerLayer: 10, layersPerPallet: 6 },
       reliabilityModel: 'Seeded exponential time-to-failure with fixed MTTR repair duration',
-      accumulationControlModel: 'Mandatory physical conveyor geometry with Prime and Back-up photocell logic'
+      accumulationControlModel: 'FlowPilot physical conveyor engineering with Prime and Back-up photocell logic, overflow margin, and recovery audit'
     },
     equipment: equipment
   };
 }
 
 function configurePublicAccumulationZones_(equipment) {
-  setPublicConveyorGeometry_(equipment, 'conveyor-1', {
+  setPublicConveyorEngineering_(equipment, 'conveyor-1', {
     id: 'zone-blowmolder-to-pucker', name: 'Blowmolder discharge accumulation',
-    usableLengthMm: 20000, productLengthMm: 66, gapMm: 22, productPitchMm: 88, conveyorSpeedMmPerSecond: 760,
-    primeSensorPositionMm: 18000, backupSensorPositionMm: 7000, backupRestartPositionMm: 9500,
+    lactMm: 20000, lpPrimeMm: 1500, backupSensorPositionMm: 1600,
+    dischargeRunoutLengthMm: 250, rejectRunoutLengthMm: 350,
+    blockedTimeDelaySeconds: 0.5, clearTimeDelaySeconds: 0.5, insuranceFactorUnits: 2,
     upstreamStopResponseSeconds: 1, bottlesDischargedAtStop: 4, downstreamRampUpSeconds: 8
   });
-  setPublicConveyorGeometry_(equipment, 'conveyor-2', {
+  setPublicConveyorEngineering_(equipment, 'conveyor-2', {
     id: 'zone-pucker-to-filler', name: 'Pucker discharge accumulation',
-    usableLengthMm: 20000, productLengthMm: 66, gapMm: 24, productPitchMm: 90, conveyorSpeedMmPerSecond: 763,
-    primeSensorPositionMm: 18000, backupSensorPositionMm: 7000, backupRestartPositionMm: 9500,
+    lactMm: 20000, lpPrimeMm: 1500, backupSensorPositionMm: 1400,
+    dischargeRunoutLengthMm: 200, rejectRunoutLengthMm: 250,
+    blockedTimeDelaySeconds: 0.5, clearTimeDelaySeconds: 0.5, insuranceFactorUnits: 2,
     upstreamStopResponseSeconds: 1, bottlesDischargedAtStop: 3, downstreamRampUpSeconds: 15
   });
-  setPublicConveyorGeometry_(equipment, 'conveyor-3', {
+  setPublicConveyorEngineering_(equipment, 'conveyor-3', {
     id: 'zone-filler-to-depucker', name: 'Filler discharge accumulation',
-    usableLengthMm: 24000, productLengthMm: 66, gapMm: 26, productPitchMm: 92, conveyorSpeedMmPerSecond: 795,
-    primeSensorPositionMm: 21500, backupSensorPositionMm: 8000, backupRestartPositionMm: 11000,
+    lactMm: 24000, lpPrimeMm: 2000, backupSensorPositionMm: 2600,
+    dischargeRunoutLengthMm: 450, rejectRunoutLengthMm: 600,
+    blockedTimeDelaySeconds: 0.5, clearTimeDelaySeconds: 0.5, insuranceFactorUnits: 3,
     upstreamStopResponseSeconds: 2, bottlesDischargedAtStop: 6, downstreamRampUpSeconds: 8
   });
-  setPublicConveyorGeometry_(equipment, 'conveyor-4', {
+  setPublicConveyorEngineering_(equipment, 'conveyor-4', {
     id: 'zone-depucker-to-sleever', name: 'De-pucker discharge accumulation',
-    usableLengthMm: 24000, productLengthMm: 66, gapMm: 26, productPitchMm: 92, conveyorSpeedMmPerSecond: 795,
-    primeSensorPositionMm: 21500, backupSensorPositionMm: 8000, backupRestartPositionMm: 11000,
+    lactMm: 24000, lpPrimeMm: 2000, backupSensorPositionMm: 1600,
+    dischargeRunoutLengthMm: 250, rejectRunoutLengthMm: 350,
+    blockedTimeDelaySeconds: 0.5, clearTimeDelaySeconds: 0.5, insuranceFactorUnits: 2,
     upstreamStopResponseSeconds: 1, bottlesDischargedAtStop: 3, downstreamRampUpSeconds: 12
   });
-  setPublicConveyorGeometry_(equipment, 'conveyor-5', {
+  setPublicConveyorEngineering_(equipment, 'conveyor-5', {
     id: 'zone-sleever-to-case-packer', name: 'Sleever discharge accumulation',
-    usableLengthMm: 22000, productLengthMm: 66, gapMm: 28, productPitchMm: 94, conveyorSpeedMmPerSecond: 747,
-    primeSensorPositionMm: 19500, backupSensorPositionMm: 7500, backupRestartPositionMm: 10500,
+    lactMm: 22000, lpPrimeMm: 1800, backupSensorPositionMm: 1600,
+    dischargeRunoutLengthMm: 220, rejectRunoutLengthMm: 280,
+    blockedTimeDelaySeconds: 0.5, clearTimeDelaySeconds: 0.5, insuranceFactorUnits: 2,
     upstreamStopResponseSeconds: 1, bottlesDischargedAtStop: 4, downstreamRampUpSeconds: 12
   });
-  setPublicConveyorGeometry_(equipment, 'conveyor-6', {
+  setPublicConveyorEngineering_(equipment, 'conveyor-6', {
     id: 'zone-case-packer-to-palletizer', name: 'Case packer discharge accumulation',
-    usableLengthMm: 18000, productLengthMm: 66, gapMm: 30, productPitchMm: 96, conveyorSpeedMmPerSecond: 729,
-    primeSensorPositionMm: 16000, backupSensorPositionMm: 6000, backupRestartPositionMm: 8500,
+    lactMm: 18000, lpPrimeMm: 1500, backupSensorPositionMm: 1600,
+    dischargeRunoutLengthMm: 220, rejectRunoutLengthMm: 280,
+    blockedTimeDelaySeconds: 0.5, clearTimeDelaySeconds: 0.5, insuranceFactorUnits: 2,
     upstreamStopResponseSeconds: 1, bottlesDischargedAtStop: 4, downstreamRampUpSeconds: 15
   });
 }
 
-function setPublicConveyorGeometry_(equipment, equipmentId, geometry) {
+function setPublicConveyorEngineering_(equipment, equipmentId, design) {
   var owner = equipment.filter(function(unit) { return unit.id === equipmentId; })[0];
   if (!owner) throw new Error('Unknown public demo conveyor: ' + equipmentId);
-  owner.processData.accumulation = geometry;
-  owner.characteristics.accumulationModel = 'Mandatory physical conveyor geometry; positions are measured from upstream discharge toward downstream infeed.';
+  owner.processData.geometry.lactMm = design.lactMm;
+  owner.processData.geometry.lpPrimeMm = design.lpPrimeMm;
+  owner.processData.accumulation = {
+    id: design.id,
+    name: design.name,
+    backupSensorPositionMm: design.backupSensorPositionMm,
+    dischargeRunoutLengthMm: design.dischargeRunoutLengthMm,
+    rejectRunoutLengthMm: design.rejectRunoutLengthMm,
+    blockedTimeDelaySeconds: design.blockedTimeDelaySeconds,
+    clearTimeDelaySeconds: design.clearTimeDelaySeconds,
+    insuranceFactorUnits: design.insuranceFactorUnits,
+    upstreamStopResponseSeconds: design.upstreamStopResponseSeconds,
+    bottlesDischargedAtStop: design.bottlesDischargedAtStop,
+    downstreamRampUpSeconds: design.downstreamRampUpSeconds
+  };
+  owner.characteristics.accumulationModel = 'FlowPilot physical conveyor engineering; L_act, L_p, speed factor, Prime, Back-up, overflow, and recovery are derived with positions measured from upstream discharge toward downstream infeed.';
 }
 
 function createPublicDemoMetadata_() {
@@ -572,9 +592,9 @@ function createPublicDemoMetadata_() {
     modelLimitations: [
       'All generic-engine rates are equivalent bottles per minute; the current MVP does not yet transform bottles into cases or pallets.',
       'MTBF produces seeded exponential time-to-failure intervals. MTTR is represented as a fixed repair duration.',
-      'LACT, LP Prime, and the four unnamed Speed & sensors fields remain unknown rather than being invented.',
-      'Every conveyor has mandatory synthetic length, pitch, speed, Prime, Back-up, stop-response, residual-discharge, and ramp-up inputs. Positions are measured from the upstream discharge toward downstream infeed.',
-      'Prime is modeled as leading-product travel to the downstream photocell. Back-up is modeled from downstream waiting inventory; it requests a controlled stop upstream and records residual-discharge overflow separately.'
+      'The public demo uses transparent synthetic L_act, L_p, runout lengths, sensor delays, insurance, and sensor positions. They are not plant measurements or recommendations.',
+      'Every conveyor derives pitch, conveyor velocity, Population %, Prime location, Back-up margin, usable accumulation, recovery length, and anti-starve / anti-block time from the named FlowPilot inputs.',
+      'Prime is modeled as leading-product travel to the downstream photocell. Back-up is modeled from downstream waiting inventory; it confirms Blocked / Clear delays, requests a controlled stop upstream, and records residual-discharge overflow separately.'
     ]
   };
 }
@@ -634,7 +654,7 @@ function createPublicLineUnit_(definition) {
 }
 
 // -----------------------------------------------------------------------------
-// Source: apps-script/Main.gs
+// Source: apps-script/source/Main.gs
 // -----------------------------------------------------------------------------
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')

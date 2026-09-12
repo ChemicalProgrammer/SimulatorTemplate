@@ -5,11 +5,12 @@ import { fileURLToPath } from 'node:url';
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sourceFiles = [
   'src/simulation/SeededRandom.js',
+  'src/simulation/ConveyorEngineering.js',
   'src/simulation/FormatGeometryAdapter.js',
   'src/simulation/SimulationValidation.js',
   'src/simulation/LineSimulationEngine.js'
 ];
-const targetFile = path.join(repositoryRoot, 'apps-script', 'SimulationEngine.html');
+const targetFile = path.join(repositoryRoot, 'apps-script', 'source', 'SimulationEngine.html');
 
 const source = sourceFiles
   .map((relativePath) => fs.readFileSync(path.join(repositoryRoot, relativePath), 'utf8'))
@@ -23,7 +24,7 @@ const output = `<script>
 
 ${source}
 
-window.SimulatorEngine = { simulateLine: simulateLine };
+window.SimulatorEngine = { simulateLine: simulateLine, calculateConveyorEngineering: calculateConveyorEngineering };
 })(window);
 </script>
 `;

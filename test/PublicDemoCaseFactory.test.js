@@ -11,7 +11,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..');
 test('public demo factory creates a runnable 13-step Case with explicit provenance', () => {
   const factory = vm.createContext({ Date, Array, Object });
   vm.runInContext(
-    fs.readFileSync(path.join(repositoryRoot, 'apps-script', 'PublicDemoCaseFactory.gs'), 'utf8'),
+    fs.readFileSync(path.join(repositoryRoot, 'apps-script', 'source', 'PublicDemoCaseFactory.gs'), 'utf8'),
     factory,
     { filename: 'PublicDemoCaseFactory.gs' }
   );
@@ -29,9 +29,10 @@ test('public demo factory creates a runnable 13-step Case with explicit provenan
   assert.equal(conveyors.length, 6);
   assert.equal(conveyors.every((unit) => {
     const zone = unit.processData.accumulation;
-    return zone && zone.usableLengthMm > 0 && zone.productPitchMm > 0 &&
-      zone.conveyorSpeedMmPerSecond > 0 && zone.primeSensorPositionMm > 0 &&
-      zone.backupSensorPositionMm > 0 && zone.backupRestartPositionMm > zone.backupSensorPositionMm;
+    return zone && unit.processData.geometry.lactMm > 0 && unit.processData.geometry.lpPrimeMm > 0 &&
+      zone.backupSensorPositionMm > 0 && zone.dischargeRunoutLengthMm >= 0 &&
+      zone.rejectRunoutLengthMm >= 0 && zone.blockedTimeDelaySeconds >= 0 &&
+      zone.clearTimeDelaySeconds >= 0 && zone.insuranceFactorUnits >= 0;
   }), true);
 
   for (const unit of caseModel.equipment) {
@@ -41,8 +42,13 @@ test('public demo factory creates a runnable 13-step Case with explicit provenan
     assert.ok(unit.processData.equipment.mtbfMinutes > 0);
     assert.ok(unit.processData.equipment.mttrMinutes > 0);
     assert.ok(unit.processData.equipment.maximumSpeedBpm > 0);
-    assert.equal(unit.processData.geometry.lactMm, null);
-    assert.equal(unit.processData.geometry.lpPrimeMm, null);
+    if (unit.type === 'CONVEYOR') {
+      assert.ok(unit.processData.geometry.lactMm > 0);
+      assert.ok(unit.processData.geometry.lpPrimeMm > 0);
+    } else {
+      assert.equal(unit.processData.geometry.lactMm, null);
+      assert.equal(unit.processData.geometry.lpPrimeMm, null);
+    }
     assert.ok(unit.processData.geometry.actualDischargeMm > 0);
     assert.ok(unit.processData.geometry.actualCodingMm > 0);
     assert.ok(unit.processData.upstream.packageLengthMm > 0);
@@ -62,4 +68,7 @@ test('public demo factory creates a runnable 13-step Case with explicit provenan
   });
   assert.equal(response.ok, true);
   assert.ok(response.result.summary.outputCount > 0);
+  const zoneMetrics = Object.values(response.result.accumulationZoneMetrics);
+  assert.equal(zoneMetrics.every((zone) => zone.modelOrigin === 'FLOWPILOT_ENGINEERING'), true);
+  assert.equal(zoneMetrics.every((zone) => zone.engineering.audit.status !== 'FAIL'), true);
 });

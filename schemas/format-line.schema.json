@@ -11,7 +11,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": "1.1"
+      "const": "1.2"
     },
     "kind": {
       "const": "LINE_FORMAT_TEMPLATE"
@@ -214,7 +214,7 @@
         "object",
         "null"
       ],
-      "description": "Named physical accumulation-zone inputs. Positions are measured from the upstream discharge toward the downstream infeed; LACT and LP Prime are not inferred.",
+      "description": "Named physical accumulation-zone inputs. When L_act and L_p are supplied in geometry, the FlowPilot equations derive capacity, pitch, conveyor speed, Prime, overflow margin, and recovery. Positions are measured from upstream discharge toward downstream infeed.",
       "properties": {
         "id": {
           "type": [
@@ -228,55 +228,43 @@
             "null"
           ]
         },
-        "usableLengthMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "productLengthMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "gapMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "productPitchMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "conveyorSpeedMmPerSecond": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
         "conveyorSpeedFactorPercent": {
           "type": [
             "number",
             "null"
           ]
         },
-        "primeSensorPositionMm": {
+        "dischargeRunoutLengthMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "rejectRunoutLengthMm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "blockedTimeDelaySeconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "clearTimeDelaySeconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "insuranceFactorUnits": {
           "type": [
             "number",
             "null"
           ]
         },
         "backupSensorPositionMm": {
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "backupRestartPositionMm": {
           "type": [
             "number",
             "null"

@@ -8,7 +8,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..');
 const referenceCase = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'examples/reference-line.case.json'), 'utf8'));
 
 test('the Apps Script browser bundle exposes the tested deterministic engine', () => {
-  const bundle = fs.readFileSync(path.join(repositoryRoot, 'apps-script', 'SimulationEngine.html'), 'utf8');
+  const bundle = fs.readFileSync(path.join(repositoryRoot, 'apps-script', 'source', 'SimulationEngine.html'), 'utf8');
   const script = bundle.match(/<script>([\s\S]*)<\/script>/)[1];
   const browser = { SimulatorEngine: null };
   const context = vm.createContext({ window: browser, Math, Number, Array, Object, JSON, isFinite });

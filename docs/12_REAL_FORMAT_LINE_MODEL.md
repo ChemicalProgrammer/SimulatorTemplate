@@ -8,14 +8,17 @@ Blowmolder → Conveyor → Pucker → Conveyor → Filler → Conveyor → De-p
 
 The template is stored in examples/format-line-13.template.json and its contract in schemas/format-line.schema.json.
 
-## Two compatible layers
+## Two model layers
 
 | Layer | Purpose |
 |---|---|
-| Existing simulation fields | nominalRatePerSecond, bufferAfterCapacity, initialMode, and noiseProfile drive the currently runnable deterministic engine. |
-| processData | Preserves the real format, equipment, geometry, and transfer data needed to calibrate the next engine generation. |
+| Simulation fields | nominalRatePerSecond, initialMode, and noiseProfile drive the deterministic equipment model. |
+| `processData` | Holds the format, machine, FlowPilot geometry and transfer inputs used to derive each physical conveyor zone. |
 
-This is deliberate. BPM is not silently treated as bottles per second, and a physical conveyor length is not silently treated as an abstract buffer. An explicit adapter will convert calibrated process data into a simulation-ready State.
+This keeps BPM separate from equivalent-bottle flow while making conveyor
+geometry active by default. The adapter converts the declared FlowPilot inputs
+to a simulation-ready physical zone; it does not turn length into an abstract
+buffer.
 
 ## Critical-machine fields
 
@@ -37,9 +40,16 @@ Every object carries the known field names, all expressed in the stated units:
 - Downstream: infeedPitchMm, rampUpTimeSeconds.
 - Speed and sensors: conveyorSpeedFactorVsDischargeVelocityPercent, codingConveyorSpeedFactorVsPreviousConveyorPercent, and an empty additionalParameters array.
 
-No physical interpretation is assigned to LACT or LP Prime yet. Their labels are preserved literally and their values remain null until their meaning and measurement basis are confirmed.
+The current adapter applies the worksheet interpretation confirmed for this
+project: `L_act` is installed conveyor length and `L_p` is the Prime/infeed
+reserve. With upstream discharge pitch, package length and conveyor speed
+factor, it derives pitch, population, belt speed, Prime position, physical
+capacity and travel time. It also uses runout, sensor delays, residual bottles,
+insurance and Back-up position to audit overflow and recovery.
 
-`packageLengthMm` and `dischargePitchMm` are preserved, but they are not yet used by the engine. There is no independent `gapMm` input in the current contract. A derived gap of `pitch − length` is only valid when both values use the same longitudinal datum and pitch is centre-to-centre; it must not be silently assumed for every machine interface. A geometry-aware model will additionally need the usable conveyor/accumulation length and the belt or discharge velocity to calculate physical capacity and transit time.
+There is no independent manual `gapMm` input. The model derives gap only from
+the worksheet's population calculation; it is exposed as a result, not assumed
+as an unrelated plant measurement.
 
 ## Unknown information
 
@@ -50,13 +60,15 @@ Likewise, every unprovided numeric value in the template is null; it is not fill
 ## Migration sequence
 
 1. Populate the thirteen-object format template from the source data.
-2. Confirm the meaning and units of LACT, LP Prime, and the four remaining sensor fields.
-3. Build a deterministic adapter from populated processData to a simulation State:
-   - BPM → rate in units/second;
+2. Verify `L_act`, `L_p`, pitch, sensor position and timing against the actual line.
+3. Calibrate the deterministic adapter against observed starts, stops and recovery:
+   - BPM → equivalent-bottle rate;
    - reliability inputs → seeded failure/recovery events;
-   - geometry/pitch → physical conveyor capacity;
+   - geometry/pitch → physical conveyor capacity and transit;
    - startup/ramp data → transient speed curves;
    - stop discharge → in-flight material on the transfer.
-4. Calibrate the adapter against historical line behaviour before making optimization or CAPEX claims.
+4. Compare same-seed What-If cases before making optimization or CAPEX claims.
 
-The current UI already preserves processData as editable JSON inside each equipment card. A dedicated form for these fields follows once the remaining terms are confirmed.
+The Case Editor exposes the FlowPilot conveyor inputs directly and preserves
+the remaining process data as editable JSON for fields whose engineering effect
+has not yet been defined.

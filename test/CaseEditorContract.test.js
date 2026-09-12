@@ -128,7 +128,7 @@ function createCaseRuntime() {
   });
 
   ['ApiResponse.gs', 'CaseService.gs'].forEach((file) => {
-    vm.runInContext(fs.readFileSync(path.join(repositoryRoot, 'apps-script', file), 'utf8'), context, { filename: file });
+    vm.runInContext(fs.readFileSync(path.join(repositoryRoot, 'apps-script', 'source', file), 'utf8'), context, { filename: file });
   });
   context.getWorkspaceFolders_ = () => ({ cases: folder });
   return context;

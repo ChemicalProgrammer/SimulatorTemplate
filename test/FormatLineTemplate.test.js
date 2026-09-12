@@ -42,20 +42,21 @@ test('every format object keeps the agreed process-data sections and neutral geo
   }
 });
 
-test('the six conveyor objects expose explicit, still-unknown format-driven zone fields', () => {
+test('the six conveyor objects expose only the named FlowPilot zone controls', () => {
   const template = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'examples/format-line-13.template.json'), 'utf8'));
   const conveyors = template.objects.filter((item) => item.type === 'CONVEYOR');
 
   assert.equal(conveyors.length, 6);
   for (const conveyor of conveyors) {
     assert.deepEqual(Object.keys(conveyor.processData.accumulation).sort(), [
-      'backupRestartPositionMm', 'backupSensorPositionMm', 'bottlesDischargedAtStop',
-      'conveyorSpeedFactorPercent', 'conveyorSpeedMmPerSecond', 'downstreamRampUpSeconds',
-      'gapMm', 'primeSensorPositionMm', 'productLengthMm', 'productPitchMm',
-      'upstreamStopResponseSeconds', 'usableLengthMm'
+      'backupSensorPositionMm', 'blockedTimeDelaySeconds', 'bottlesDischargedAtStop',
+      'clearTimeDelaySeconds', 'conveyorSpeedFactorPercent', 'dischargeRunoutLengthMm',
+      'downstreamRampUpSeconds', 'insuranceFactorUnits', 'rejectRunoutLengthMm',
+      'upstreamStopResponseSeconds'
     ]);
-    assert.equal(conveyor.processData.accumulation.usableLengthMm, null);
-    assert.equal(conveyor.processData.accumulation.productPitchMm, null);
-    assert.equal(conveyor.processData.accumulation.primeSensorPositionMm, null);
+    assert.equal(conveyor.processData.accumulation.conveyorSpeedFactorPercent, null);
+    assert.equal(conveyor.processData.accumulation.backupSensorPositionMm, null);
+    assert.equal(conveyor.processData.accumulation.blockedTimeDelaySeconds, null);
+    assert.equal(conveyor.processData.accumulation.insuranceFactorUnits, null);
   }
 });

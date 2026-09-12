@@ -17,13 +17,17 @@ The engine models every step as an equivalent-bottle flow. The six conveyor obje
 | `noiseProfile.microStop` | Seeded short stops, driven by probability per minute and a duration range. |
 | `noiseProfile.reliability.mtbfMinutes` | Seeded exponential time-to-failure while the unit is operational. |
 | `noiseProfile.reliability.mttrMinutes` | Fixed repair duration after a generated failure. |
-| `processData.accumulation` on each demo conveyor | Mandatory physical capacity from length/pitch, leading-product travel to Prime, Back-up controlled stop, restart hysteresis, and residual-discharge overflow accounting. |
+| FlowPilot fields on each demo conveyor | Mandatory physical capacity, belt speed, leading-product travel to Prime, Back-up controlled stop, restart debounce, residual-discharge overflow accounting, and a design audit. |
 
 Using a fixed random seed makes the same Case and run configuration repeat exactly. Change the seed to observe another plausible realization of the declared assumptions.
 
-## Deliberately unknown fields
+## Synthetic engineering inputs
 
-LACT, LP Prime, and the four unnamed Speed & sensors fields remain `null` or empty. Their meanings were not supplied, so the demo does not invent field definitions or values for them.
+The demo supplies synthetic `L_act`, `L_p`, package length, discharge pitch,
+speed factor, runout, sensor delays, insurance and Back-up positions so it can
+exercise the FlowPilot formulas. They are transparent example values, not
+measurements from any production line. The unnamed Speed & sensors fields still
+remain empty rather than being guessed.
 
 ## Public context references
 

@@ -8,17 +8,17 @@ import { buildManualAppsScriptBundle } from '../scripts/build-manual-apps-script
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('manual Apps Script bundle contains all server modules and resolved HTML includes', () => {
-  const committedCode = fs.readFileSync(path.join(repositoryRoot, 'Code.gs'), 'utf8');
-  const committedIndex = fs.readFileSync(path.join(repositoryRoot, 'Index.html'), 'utf8');
+  const committedCode = fs.readFileSync(path.join(repositoryRoot, 'apps-script', 'Code.gs'), 'utf8');
+  const committedIndex = fs.readFileSync(path.join(repositoryRoot, 'apps-script', 'Index.html'), 'utf8');
   const output = buildManualAppsScriptBundle(repositoryRoot);
   const code = fs.readFileSync(output.codePath, 'utf8');
   const index = fs.readFileSync(output.indexPath, 'utf8');
 
-  assert.equal(committedCode, code, 'root Code.gs must match the manual bundle generated from apps-script/.');
-  assert.equal(committedIndex, index, 'root Index.html must match the manual bundle generated from apps-script/.');
+  assert.equal(committedCode, code, 'apps-script/Code.gs must match the manual bundle generated from apps-script/source/.');
+  assert.equal(committedIndex, index, 'apps-script/Index.html must match the manual bundle generated from apps-script/source/.');
 
   for (const sourceFile of ['ApiResponse.gs', 'AuthService.gs', 'ConfigService.gs', 'DriveService.gs', 'CaseService.gs', 'ReferenceCaseFactory.gs', 'PublicDemoCaseFactory.gs', 'Main.gs']) {
-    assert.match(code, new RegExp(`Source: apps-script/${sourceFile.replace('.', '\\.')}`));
+    assert.match(code, new RegExp(`Source: apps-script/source/${sourceFile.replace('.', '\\.')}`));
   }
   assert.match(code, /function doGet\(\)/);
   assert.match(code, /createTemplateFromFile\('Index'\)/);
@@ -77,13 +77,16 @@ test('manual bundle updates live equipment rows in place to preserve scroll posi
 });
 
 
-test('manual bundle makes physical conveyor geometry mandatory and exposes Case deletion', () => {
+test('manual bundle makes FlowPilot conveyor geometry mandatory and exposes Case deletion', () => {
   const output = buildManualAppsScriptBundle(repositoryRoot);
   const code = fs.readFileSync(output.codePath, 'utf8');
   const index = fs.readFileSync(output.indexPath, 'utf8');
 
-  assert.match(index, /Physical accumulation zone/);
-  assert.match(index, /Geometry is active by default/);
+  assert.match(index, /FlowPilot conveyor design/);
+  assert.match(index, /Installed length L_act/);
+  assert.match(index, /Required overflow L_bu/);
+  assert.match(index, /Conveyor design audit/);
+  assert.match(index, /FlowPilot geometry is active by default/);
   assert.doesNotMatch(index, /Use format fields/);
   assert.doesNotMatch(index, /Explicit accumulation-zone override JSON/);
   assert.match(index, /Delete Case/);

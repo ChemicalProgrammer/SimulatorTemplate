@@ -10,7 +10,7 @@ The product goal is not a generic AI chat. It is a deterministic dynamic simulat
 
 ## Copy/paste Apps Script files
 
-For the browser-only Apps Script workflow, copy only the generated root files directly: [Code.gs](Code.gs) and [Index.html](Index.html). They are self-contained; do not combine them with the modular files in one Apps Script project.
+For the browser-only Apps Script workflow, copy only the generated files in [apps-script/](apps-script/): [Code.gs](apps-script/Code.gs) and [Index.html](apps-script/Index.html). They are self-contained; do not combine them with the files in `apps-script/source/` in one Apps Script project.
 
 ## MVP principles
 

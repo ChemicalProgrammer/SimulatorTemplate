@@ -1,0 +1,270 @@
+/**
+ * Deterministic conveyor-design calculations based on the FlowPilot / CAT
+ * engineering worksheet.  All linear rates below use millimetres per second
+ * so the result can be consumed directly by the event simulation.
+ */
+export function calculateConveyorEngineering(input = {}) {
+  const values = normaliseInput(input);
+  const calculated = calculate(values);
+  const audit = createAudit(values, calculated);
+
+  return { input: values, calculated, audit };
+}
+
+function normaliseInput(input) {
+  return {
+    installedLengthMm: numberOrUndefined(input.installedLengthMm),
+    primeReserveMm: numberOrUndefined(input.primeReserveMm),
+    packageLengthMm: numberOrUndefined(input.packageLengthMm),
+    upstreamDischargePitchMm: numberOrUndefined(input.upstreamDischargePitchMm),
+    upstreamNominalSpeedBpm: numberOrUndefined(input.upstreamNominalSpeedBpm),
+    downstreamHighSpeedBpm: numberOrUndefined(input.downstreamHighSpeedBpm),
+    downstreamInfeedPitchMm: numberOrUndefined(input.downstreamInfeedPitchMm),
+    conveyorSpeedFactorPercent: numberOrUndefined(input.conveyorSpeedFactorPercent),
+    dischargeRunoutLengthMm: nonNegativeOrDefault(input.dischargeRunoutLengthMm, 0),
+    rejectRunoutLengthMm: nonNegativeOrDefault(input.rejectRunoutLengthMm, 0),
+    blockedTimeDelaySeconds: nonNegativeOrDefault(input.blockedTimeDelaySeconds, 0),
+    clearTimeDelaySeconds: nonNegativeOrDefault(input.clearTimeDelaySeconds, 0),
+    insuranceFactorUnits: nonNegativeOrDefault(input.insuranceFactorUnits, 0),
+    backupSensorPositionMm: numberOrUndefined(input.backupSensorPositionMm),
+    upstreamStopResponseSeconds: nonNegativeOrDefault(input.upstreamStopResponseSeconds, 0),
+    bottlesDischargedAtStop: nonNegativeOrDefault(input.bottlesDischargedAtStop, 0),
+    downstreamRampUpSeconds: nonNegativeOrDefault(input.downstreamRampUpSeconds, 0),
+    upstreamStartupTimeSeconds: nonNegativeOrDefault(input.upstreamStartupTimeSeconds, 0)
+  };
+}
+
+function calculate(values) {
+  const upstreamDischargeVelocityMmPerSecond = multiplyAndDivide(
+    values.upstreamNominalSpeedBpm,
+    values.upstreamDischargePitchMm,
+    60
+  );
+  const machineOutputRateMmPerSecond = multiplyAndDivide(
+    values.upstreamNominalSpeedBpm,
+    values.packageLengthMm,
+    60
+  );
+  const conveyorSpeedMmPerSecond = isFiniteNumber(upstreamDischargeVelocityMmPerSecond) &&
+    isFiniteNumber(values.conveyorSpeedFactorPercent)
+    ? upstreamDischargeVelocityMmPerSecond * (1 + values.conveyorSpeedFactorPercent / 100)
+    : undefined;
+  const populationPercent = safeDivide(machineOutputRateMmPerSecond, conveyorSpeedMmPerSecond, 100);
+  const effectiveProductPitchMm = safeDivide(values.packageLengthMm, populationPercent, 100);
+  const productGapMm = isFiniteNumber(effectiveProductPitchMm) && isFiniteNumber(values.packageLengthMm)
+    ? effectiveProductPitchMm - values.packageLengthMm
+    : undefined;
+  const downstreamConsumptionRateMmPerSecond = multiplyAndDivide(
+    values.downstreamHighSpeedBpm,
+    values.packageLengthMm,
+    60
+  );
+  const packagesDuringBlockedDelay = multiplyAndDivide(
+    values.upstreamNominalSpeedBpm,
+    values.blockedTimeDelaySeconds,
+    60
+  );
+  const totalOverflowPackages = sumIfFinite(
+    packagesDuringBlockedDelay,
+    values.bottlesDischargedAtStop,
+    values.insuranceFactorUnits
+  );
+  const overflowProductLengthMm = multiplyIfFinite(totalOverflowPackages, effectiveProductPitchMm);
+  const overflowLengthMm = sumIfFinite(
+    values.dischargeRunoutLengthMm,
+    values.rejectRunoutLengthMm,
+    overflowProductLengthMm
+  );
+  const usefulAccumulationLengthMm = subtractIfFinite(
+    values.installedLengthMm,
+    values.primeReserveMm,
+    overflowLengthMm
+  );
+  const primeSensorPositionMm = subtractIfFinite(values.installedLengthMm, values.primeReserveMm);
+  const actualBackupSensorPositionMm = firstDefined(values.backupSensorPositionMm, overflowLengthMm);
+  const conveyorCapacityUnits = safeFloorDivide(values.installedLengthMm, effectiveProductPitchMm);
+  const primeTravelSeconds = safeDivide(primeSensorPositionMm, conveyorSpeedMmPerSecond);
+  const totalTravelSeconds = safeDivide(values.installedLengthMm, conveyorSpeedMmPerSecond);
+  const overflowTransitSeconds = safeDivide(overflowLengthMm, conveyorSpeedMmPerSecond);
+  const recoveryToBackupSeconds = sumIfFinite(
+    values.clearTimeDelaySeconds,
+    values.upstreamStartupTimeSeconds,
+    overflowTransitSeconds
+  );
+  const queueReductionOneMm = multiplyIfFinite(downstreamConsumptionRateMmPerSecond, recoveryToBackupSeconds);
+  const remainingAccumulationMm = subtractIfFinite(usefulAccumulationLengthMm, queueReductionOneMm);
+  const timeToQueueSeconds = isFiniteNumber(remainingAccumulationMm) && remainingAccumulationMm > 0
+    ? safeDivide(remainingAccumulationMm, sumIfFinite(conveyorSpeedMmPerSecond, downstreamConsumptionRateMmPerSecond))
+    : 0;
+  const queueReductionTwoMm = multiplyIfFinite(downstreamConsumptionRateMmPerSecond, timeToQueueSeconds);
+  const recoveryLengthMm = subtractIfFinite(usefulAccumulationLengthMm, queueReductionOneMm, queueReductionTwoMm);
+  const antiStarveSeconds = multiplyAndDivide(usefulAccumulationLengthMm, populationPercent, 100 * downstreamConsumptionRateMmPerSecond);
+  const antiBlockSeconds = isFiniteNumber(usefulAccumulationLengthMm) && isFiniteNumber(populationPercent)
+    ? safeDivide(usefulAccumulationLengthMm * (1 - populationPercent / 100), machineOutputRateMmPerSecond)
+    : undefined;
+  const recommendedInfeedConveyorSpeedMmPerSecond = multiplyAndDivide(
+    values.downstreamHighSpeedBpm,
+    values.downstreamInfeedPitchMm,
+    60 / 1.05
+  );
+  const recommendedConveyorSpeedFactorPercent = isFiniteNumber(recommendedInfeedConveyorSpeedMmPerSecond) &&
+    isFiniteNumber(upstreamDischargeVelocityMmPerSecond) && upstreamDischargeVelocityMmPerSecond > 0
+    ? (recommendedInfeedConveyorSpeedMmPerSecond / upstreamDischargeVelocityMmPerSecond - 1) * 100
+    : undefined;
+
+  return compact({
+    upstreamDischargeVelocityMmPerSecond,
+    machineOutputRateMmPerSecond,
+    conveyorSpeedMmPerSecond,
+    populationPercent,
+    effectiveProductPitchMm,
+    productGapMm,
+    downstreamConsumptionRateMmPerSecond,
+    packagesDuringBlockedDelay,
+    totalOverflowPackages,
+    overflowProductLengthMm,
+    overflowLengthMm,
+    usefulAccumulationLengthMm,
+    primeSensorPositionMm,
+    recommendedBackupSensorPositionMm: overflowLengthMm,
+    actualBackupSensorPositionMm,
+    conveyorCapacityUnits,
+    primeTravelSeconds,
+    totalTravelSeconds,
+    overflowTransitSeconds,
+    recoveryToBackupSeconds,
+    queueReductionOneMm,
+    timeToQueueSeconds,
+    queueReductionTwoMm,
+    recoveryLengthMm,
+    antiStarveSeconds,
+    antiBlockSeconds,
+    recommendedInfeedConveyorSpeedMmPerSecond,
+    recommendedConveyorSpeedFactorPercent
+  });
+}
+
+function createAudit(values, calculated) {
+  const inputFields = [
+    values.installedLengthMm,
+    values.primeReserveMm,
+    values.packageLengthMm,
+    values.upstreamDischargePitchMm,
+    values.upstreamNominalSpeedBpm,
+    values.conveyorSpeedFactorPercent
+  ];
+  const inputsReady = inputFields.every((value) => isFiniteNumber(value) && value >= 0) &&
+    values.installedLengthMm > 0 && values.packageLengthMm > 0 &&
+    values.upstreamDischargePitchMm > 0 && values.upstreamNominalSpeedBpm > 0;
+  const installedLengthValid = isFiniteNumber(values.installedLengthMm) &&
+    isFiniteNumber(values.primeReserveMm) && isFiniteNumber(calculated.overflowLengthMm) &&
+    values.installedLengthMm > values.primeReserveMm + calculated.overflowLengthMm;
+  const recoveryEvaluated = isFiniteNumber(calculated.recoveryLengthMm);
+  const backupPositionEvaluated = isFiniteNumber(calculated.actualBackupSensorPositionMm) &&
+    isFiniteNumber(calculated.recommendedBackupSensorPositionMm);
+
+  const goals = [
+    goal(
+      'INPUT_INTEGRITY',
+      inputsReady ? 'PASS' : 'NOT_EVALUATED',
+      inputsReady
+        ? 'Required FlowPilot inputs are physically usable.'
+        : 'Installed length, Prime reserve, package length, upstream discharge pitch, upstream BPM, and conveyor speed factor are required.'
+    ),
+    goal(
+      'SMOOTH_RECOVERY',
+      !recoveryEvaluated ? 'NOT_EVALUATED' : calculated.recoveryLengthMm > 0 ? 'PASS' : 'WARNING',
+      !recoveryEvaluated
+        ? 'Recovery length cannot be evaluated until downstream high speed and infeed pitch are available.'
+        : calculated.recoveryLengthMm > 0
+          ? 'Recovery length is positive; the modeled restart has physical margin.'
+          : 'Recovery length is zero or negative; this configuration can create unstable or stuttering restarts.'
+    ),
+    goal(
+      'INSTALLED_LENGTH',
+      !isFiniteNumber(calculated.overflowLengthMm) ? 'NOT_EVALUATED' : installedLengthValid ? 'PASS' : 'FAIL',
+      !isFiniteNumber(calculated.overflowLengthMm)
+        ? 'Overflow length cannot be evaluated until the upstream flow inputs are complete.'
+        : installedLengthValid
+          ? 'Installed length exceeds Prime reserve plus required overflow length.'
+          : 'Installed length is insufficient for the Prime reserve and required overflow length.'
+    ),
+    goal(
+      'BACKUP_POSITION',
+      !backupPositionEvaluated ? 'NOT_EVALUATED' : calculated.actualBackupSensorPositionMm >= calculated.recommendedBackupSensorPositionMm ? 'PASS' : 'WARNING',
+      !backupPositionEvaluated
+        ? 'Back-up position is not available.'
+        : calculated.actualBackupSensorPositionMm >= calculated.recommendedBackupSensorPositionMm
+          ? 'Back-up position leaves the calculated overflow margin.'
+          : 'Back-up is too close to the upstream machine for the calculated residual flow.'
+    )
+  ];
+
+  return {
+    status: aggregateAuditStatus(goals),
+    goals
+  };
+}
+
+function goal(id, status, message) {
+  return { id, status, message };
+}
+
+function aggregateAuditStatus(goals) {
+  if (goals.some((item) => item.status === 'FAIL')) return 'FAIL';
+  if (goals.some((item) => item.status === 'WARNING')) return 'WARNING';
+  if (goals.some((item) => item.status === 'NOT_EVALUATED')) return 'NOT_EVALUATED';
+  return 'PASS';
+}
+
+function compact(object) {
+  return Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined));
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null);
+}
+
+function numberOrUndefined(value) {
+  return isFiniteNumber(value) ? value : undefined;
+}
+
+function nonNegativeOrDefault(value, fallback) {
+  return isFiniteNumber(value) && value >= 0 ? value : fallback;
+}
+
+function isFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function multiplyAndDivide(left, right, divisor) {
+  return isFiniteNumber(left) && isFiniteNumber(right) && isFiniteNumber(divisor) && divisor !== 0
+    ? left * right / divisor
+    : undefined;
+}
+
+function multiplyIfFinite(left, right) {
+  return isFiniteNumber(left) && isFiniteNumber(right) ? left * right : undefined;
+}
+
+function safeDivide(numerator, denominator, multiplier = 1) {
+  return isFiniteNumber(numerator) && isFiniteNumber(denominator) && denominator > 0
+    ? numerator / denominator * multiplier
+    : undefined;
+}
+
+function safeFloorDivide(numerator, denominator) {
+  return isFiniteNumber(numerator) && isFiniteNumber(denominator) && denominator > 0
+    ? Math.floor(numerator / denominator)
+    : undefined;
+}
+
+function sumIfFinite(...values) {
+  return values.every(isFiniteNumber) ? values.reduce((total, value) => total + value, 0) : undefined;
+}
+
+function subtractIfFinite(first, ...rest) {
+  return isFiniteNumber(first) && rest.every(isFiniteNumber)
+    ? rest.reduce((total, value) => total - value, first)
+    : undefined;
+}

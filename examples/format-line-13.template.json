@@ -1,11 +1,11 @@
 {
-  "schemaVersion": "1.1",
+  "schemaVersion": "1.2",
   "kind": "LINE_FORMAT_TEMPLATE",
   "unitOfFlow": "bottles",
   "knownGaps": [
-    "The engineering meaning of LACT and LP Prime has not yet been defined.",
+    "The confirmed FlowPilot interpretation is: L_act is installed conveyor length and L_p is the Prime/infeed reserve.",
     "Four additional Speed & sensors fields have not yet been named.",
-    "Physical conveyor geometry and sensors use processData.accumulation; LACT and LP Prime are not mapped automatically."
+    "Every conveyor requires FlowPilot geometry, upstream package/discharge data, and named accumulation controls before it can run."
   ],
   "objects": [
     {
@@ -79,15 +79,13 @@
           "additionalParameters": []
         },
         "accumulation": {
-          "usableLengthMm": null,
-          "productLengthMm": null,
-          "gapMm": null,
-          "productPitchMm": null,
-          "conveyorSpeedMmPerSecond": null,
           "conveyorSpeedFactorPercent": null,
-          "primeSensorPositionMm": null,
+          "dischargeRunoutLengthMm": null,
+          "rejectRunoutLengthMm": null,
+          "blockedTimeDelaySeconds": null,
+          "clearTimeDelaySeconds": null,
+          "insuranceFactorUnits": null,
           "backupSensorPositionMm": null,
-          "backupRestartPositionMm": null,
           "upstreamStopResponseSeconds": null,
           "bottlesDischargedAtStop": null,
           "downstreamRampUpSeconds": null
@@ -165,15 +163,13 @@
           "additionalParameters": []
         },
         "accumulation": {
-          "usableLengthMm": null,
-          "productLengthMm": null,
-          "gapMm": null,
-          "productPitchMm": null,
-          "conveyorSpeedMmPerSecond": null,
           "conveyorSpeedFactorPercent": null,
-          "primeSensorPositionMm": null,
+          "dischargeRunoutLengthMm": null,
+          "rejectRunoutLengthMm": null,
+          "blockedTimeDelaySeconds": null,
+          "clearTimeDelaySeconds": null,
+          "insuranceFactorUnits": null,
           "backupSensorPositionMm": null,
-          "backupRestartPositionMm": null,
           "upstreamStopResponseSeconds": null,
           "bottlesDischargedAtStop": null,
           "downstreamRampUpSeconds": null
@@ -251,15 +247,13 @@
           "additionalParameters": []
         },
         "accumulation": {
-          "usableLengthMm": null,
-          "productLengthMm": null,
-          "gapMm": null,
-          "productPitchMm": null,
-          "conveyorSpeedMmPerSecond": null,
           "conveyorSpeedFactorPercent": null,
-          "primeSensorPositionMm": null,
+          "dischargeRunoutLengthMm": null,
+          "rejectRunoutLengthMm": null,
+          "blockedTimeDelaySeconds": null,
+          "clearTimeDelaySeconds": null,
+          "insuranceFactorUnits": null,
           "backupSensorPositionMm": null,
-          "backupRestartPositionMm": null,
           "upstreamStopResponseSeconds": null,
           "bottlesDischargedAtStop": null,
           "downstreamRampUpSeconds": null
@@ -337,15 +331,13 @@
           "additionalParameters": []
         },
         "accumulation": {
-          "usableLengthMm": null,
-          "productLengthMm": null,
-          "gapMm": null,
-          "productPitchMm": null,
-          "conveyorSpeedMmPerSecond": null,
           "conveyorSpeedFactorPercent": null,
-          "primeSensorPositionMm": null,
+          "dischargeRunoutLengthMm": null,
+          "rejectRunoutLengthMm": null,
+          "blockedTimeDelaySeconds": null,
+          "clearTimeDelaySeconds": null,
+          "insuranceFactorUnits": null,
           "backupSensorPositionMm": null,
-          "backupRestartPositionMm": null,
           "upstreamStopResponseSeconds": null,
           "bottlesDischargedAtStop": null,
           "downstreamRampUpSeconds": null
@@ -423,15 +415,13 @@
           "additionalParameters": []
         },
         "accumulation": {
-          "usableLengthMm": null,
-          "productLengthMm": null,
-          "gapMm": null,
-          "productPitchMm": null,
-          "conveyorSpeedMmPerSecond": null,
           "conveyorSpeedFactorPercent": null,
-          "primeSensorPositionMm": null,
+          "dischargeRunoutLengthMm": null,
+          "rejectRunoutLengthMm": null,
+          "blockedTimeDelaySeconds": null,
+          "clearTimeDelaySeconds": null,
+          "insuranceFactorUnits": null,
           "backupSensorPositionMm": null,
-          "backupRestartPositionMm": null,
           "upstreamStopResponseSeconds": null,
           "bottlesDischargedAtStop": null,
           "downstreamRampUpSeconds": null
@@ -509,15 +499,13 @@
           "additionalParameters": []
         },
         "accumulation": {
-          "usableLengthMm": null,
-          "productLengthMm": null,
-          "gapMm": null,
-          "productPitchMm": null,
-          "conveyorSpeedMmPerSecond": null,
           "conveyorSpeedFactorPercent": null,
-          "primeSensorPositionMm": null,
+          "dischargeRunoutLengthMm": null,
+          "rejectRunoutLengthMm": null,
+          "blockedTimeDelaySeconds": null,
+          "clearTimeDelaySeconds": null,
+          "insuranceFactorUnits": null,
           "backupSensorPositionMm": null,
-          "backupRestartPositionMm": null,
           "upstreamStopResponseSeconds": null,
           "bottlesDischargedAtStop": null,
           "downstreamRampUpSeconds": null

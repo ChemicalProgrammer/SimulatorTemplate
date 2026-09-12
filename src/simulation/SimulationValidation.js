@@ -100,7 +100,7 @@ function validateConveyorGeometry(allEquipment, index, path, details) {
 }
 
 function validatePhysicalZone(zone, path, details) {
-  if (!zone || zone.kind !== 'FORMAT_GEOMETRY') {
+  if (!zone || !['FORMAT_GEOMETRY', 'FLOWPILOT_ENGINEERING'].includes(zone.kind)) {
     details.push(invalid(path, 'could not resolve a physical conveyor zone'));
     return;
   }
@@ -148,6 +148,8 @@ function validatePhysicalZone(zone, path, details) {
   validateRequiredNonNegative(zone.upstreamStopResponseSeconds, path + '.upstreamStopResponseSeconds', details);
   validateRequiredNonNegative(zone.bottlesDischargedAtStop, path + '.bottlesDischargedAtStop', details);
   validateRequiredNonNegative(zone.downstreamRampUpSeconds, path + '.downstreamRampUpSeconds', details);
+  validateOptionalNonNegative(zone.blockedTimeDelaySeconds, path + '.blockedTimeDelaySeconds', details);
+  validateOptionalNonNegative(zone.clearTimeDelaySeconds, path + '.clearTimeDelaySeconds', details);
   if (!nonEmptyString(zone.upstreamControlEquipmentId)) details.push(required(path + '.upstreamControlEquipmentId'));
   if (!nonEmptyString(zone.downstreamControlEquipmentId)) details.push(required(path + '.downstreamControlEquipmentId'));
 }

@@ -1,3 +1,5 @@
+import { calculateConveyorEngineering } from './ConveyorEngineering.js';
+
 export function resolveAccumulationZoneDefinition(allEquipment, ownerIndex) {
   const equipment = Array.isArray(allEquipment) ? allEquipment : [];
   const owner = equipment[ownerIndex];
@@ -42,8 +44,109 @@ function resolveConveyorZone(equipment, owner, ownerIndex) {
   const format = owner.processData?.accumulation || {};
   const upstreamControl = findNearestNonConveyor(equipment, ownerIndex - 1, -1);
   const downstreamControl = findNearestNonConveyor(equipment, ownerIndex + 1, 1);
-  const sources = {};
+  return hasFlowPilotInputs(owner, format)
+    ? resolveFlowPilotConveyor(owner, format, upstreamControl, downstreamControl)
+    : resolveDirectPhysicalConveyor(owner, format, upstreamControl, downstreamControl);
+}
 
+function resolveFlowPilotConveyor(owner, format, upstreamControl, downstreamControl) {
+  const sources = {};
+  const packageLength = selectValue([
+    sourceValue(owner.processData?.upstream?.packageLengthMm, 'processData.upstream.packageLengthMm'),
+    sourceValue(upstreamControl?.processData?.upstream?.packageLengthMm, 'upstream processData.upstream.packageLengthMm')
+  ]);
+  const dischargePitch = selectValue([
+    sourceValue(owner.processData?.upstream?.dischargePitchMm, 'processData.upstream.dischargePitchMm'),
+    sourceValue(upstreamControl?.processData?.upstream?.dischargePitchMm, 'upstream processData.upstream.dischargePitchMm')
+  ]);
+  const conveyorSpeedFactor = selectValue([
+    sourceValue(format.conveyorSpeedFactorPercent, 'processData.accumulation.conveyorSpeedFactorPercent'),
+    sourceValue(owner.processData?.speedAndSensors?.conveyorSpeedFactorVsDischargeVelocityPercent, 'processData.speedAndSensors.conveyorSpeedFactorVsDischargeVelocityPercent')
+  ]);
+  const installedLength = sourceValue(owner.processData?.geometry?.lactMm, 'processData.geometry.lactMm');
+  const primeReserve = sourceValue(owner.processData?.geometry?.lpPrimeMm, 'processData.geometry.lpPrimeMm');
+  const downstreamHighSpeed = selectValue([
+    sourceValue(downstreamControl?.processData?.equipment?.maximumSpeedBpm, 'downstream processData.equipment.maximumSpeedBpm'),
+    sourceValue(rateBpm(downstreamControl), 'downstream nominalRatePerSecond')
+  ]);
+  const downstreamInfeedPitch = selectValue([
+    sourceValue(downstreamControl?.processData?.downstream?.infeedPitchMm, 'downstream processData.downstream.infeedPitchMm'),
+    sourceValue(owner.processData?.downstream?.infeedPitchMm, 'processData.downstream.infeedPitchMm')
+  ]);
+  const upstreamStopResponse = sourceValue(format.upstreamStopResponseSeconds, 'processData.accumulation.upstreamStopResponseSeconds');
+  const bottlesDischargedAtStop = selectValue([
+    sourceValue(format.bottlesDischargedAtStop, 'processData.accumulation.bottlesDischargedAtStop'),
+    sourceValue(upstreamControl?.processData?.upstream?.bottlesDischargedAtStop, 'upstream processData.upstream.bottlesDischargedAtStop')
+  ]);
+  const downstreamRampUp = selectValue([
+    sourceValue(format.downstreamRampUpSeconds, 'processData.accumulation.downstreamRampUpSeconds'),
+    sourceValue(downstreamControl?.processData?.downstream?.rampUpTimeSeconds, 'downstream processData.downstream.rampUpTimeSeconds')
+  ]);
+  const calculation = calculateConveyorEngineering({
+    installedLengthMm: installedLength.value,
+    primeReserveMm: primeReserve.value,
+    packageLengthMm: packageLength.value,
+    upstreamDischargePitchMm: dischargePitch.value,
+    upstreamNominalSpeedBpm: rateBpm(upstreamControl),
+    downstreamHighSpeedBpm: downstreamHighSpeed.value,
+    downstreamInfeedPitchMm: downstreamInfeedPitch.value,
+    conveyorSpeedFactorPercent: conveyorSpeedFactor.value,
+    dischargeRunoutLengthMm: format.dischargeRunoutLengthMm,
+    rejectRunoutLengthMm: format.rejectRunoutLengthMm,
+    blockedTimeDelaySeconds: format.blockedTimeDelaySeconds,
+    clearTimeDelaySeconds: format.clearTimeDelaySeconds,
+    insuranceFactorUnits: format.insuranceFactorUnits,
+    backupSensorPositionMm: format.backupSensorPositionMm,
+    upstreamStopResponseSeconds: upstreamStopResponse.value,
+    bottlesDischargedAtStop: bottlesDischargedAtStop.value,
+    downstreamRampUpSeconds: downstreamRampUp.value,
+    upstreamStartupTimeSeconds: upstreamControl?.processData?.upstream?.startupTimeSeconds
+  });
+  const derived = calculation.calculated;
+  const definition = {
+    kind: 'FLOWPILOT_ENGINEERING',
+    id: format.id || owner.id + '--physical-zone',
+    name: format.name || (owner.name || owner.id) + ' accumulation',
+    upstreamControlEquipmentId: upstreamControl?.id,
+    downstreamControlEquipmentId: downstreamControl?.id,
+    engineering: calculation
+  };
+
+  assignIfDefined(definition, 'usableLengthMm', calculation.input.installedLengthMm, sources, installedLength.source);
+  assignIfDefined(definition, 'productLengthMm', packageLength.value, sources, packageLength.source);
+  assignIfDefined(definition, 'gapMm', derived.productGapMm, sources, 'calculated: effective pitch - package length');
+  assignIfDefined(definition, 'productPitchMm', derived.effectiveProductPitchMm, sources, 'calculated: package length / population');
+  assignIfDefined(definition, 'conveyorSpeedMmPerSecond', derived.conveyorSpeedMmPerSecond, sources, 'calculated: discharge velocity × (1 + speed factor)');
+  assignIfDefined(definition, 'primeSensorPositionMm', derived.primeSensorPositionMm, sources, 'calculated: L_act - L_p');
+  assignIfDefined(definition, 'backupSensorPositionMm', derived.actualBackupSensorPositionMm, sources,
+    isDefined(format.backupSensorPositionMm) ? 'processData.accumulation.backupSensorPositionMm' : 'calculated: required overflow length L_bu');
+  assignIfDefined(definition, 'backupRestartPositionMm', derived.actualBackupSensorPositionMm, sources,
+    'same Back-up position; Clear Time Delay provides the restart debounce');
+  assignIfDefined(definition, 'blockedTimeDelaySeconds', calculation.input.blockedTimeDelaySeconds, sources,
+    'processData.accumulation.blockedTimeDelaySeconds');
+  assignIfDefined(definition, 'clearTimeDelaySeconds', calculation.input.clearTimeDelaySeconds, sources,
+    'processData.accumulation.clearTimeDelaySeconds');
+  assignIfDefined(definition, 'upstreamStopResponseSeconds', calculation.input.upstreamStopResponseSeconds, sources,
+    upstreamStopResponse.source);
+  assignIfDefined(definition, 'bottlesDischargedAtStop', calculation.input.bottlesDischargedAtStop, sources,
+    bottlesDischargedAtStop.source);
+  assignIfDefined(definition, 'downstreamRampUpSeconds', calculation.input.downstreamRampUpSeconds, sources,
+    downstreamRampUp.source);
+
+  return {
+    definition,
+    origin: 'FLOWPILOT_ENGINEERING',
+    sources,
+    assumptions: [
+      'FlowPilot geometry is active by default: L_act, L_p, package pitch, speed factor, and sensor delays are converted to the physical zone.',
+      'Positions are measured from upstream discharge toward downstream infeed.',
+      'Prime is L_act - L_p. If no installed Back-up position is supplied, L_bu is used as the calculated recommendation.'
+    ]
+  };
+}
+
+function resolveDirectPhysicalConveyor(owner, format, upstreamControl, downstreamControl) {
+  const sources = {};
   const usableLength = selectValue([
     sourceValue(format.usableLengthMm, 'processData.accumulation.usableLengthMm')
   ]);
@@ -76,9 +179,7 @@ function resolveConveyorZone(equipment, owner, ownerIndex) {
   const backupRestart = selectValue([
     sourceValue(format.backupRestartPositionMm, 'processData.accumulation.backupRestartPositionMm')
   ]);
-  const upstreamStopResponse = selectValue([
-    sourceValue(format.upstreamStopResponseSeconds, 'processData.accumulation.upstreamStopResponseSeconds')
-  ]);
+  const upstreamStopResponse = sourceValue(format.upstreamStopResponseSeconds, 'processData.accumulation.upstreamStopResponseSeconds');
   const bottlesDischargedAtStop = selectValue([
     sourceValue(format.bottlesDischargedAtStop, 'processData.accumulation.bottlesDischargedAtStop'),
     sourceValue(
@@ -109,6 +210,8 @@ function resolveConveyorZone(equipment, owner, ownerIndex) {
   assignIfDefined(definition, 'primeSensorPositionMm', primeSensor.value, sources, primeSensor.source);
   assignIfDefined(definition, 'backupSensorPositionMm', backupSensor.value, sources, backupSensor.source);
   assignIfDefined(definition, 'backupRestartPositionMm', backupRestart.value, sources, backupRestart.source);
+  assignIfDefined(definition, 'blockedTimeDelaySeconds', format.blockedTimeDelaySeconds, sources, 'processData.accumulation.blockedTimeDelaySeconds');
+  assignIfDefined(definition, 'clearTimeDelaySeconds', format.clearTimeDelaySeconds, sources, 'processData.accumulation.clearTimeDelaySeconds');
   assignIfDefined(definition, 'upstreamStopResponseSeconds', upstreamStopResponse.value, sources, upstreamStopResponse.source);
   assignIfDefined(definition, 'bottlesDischargedAtStop', bottlesDischargedAtStop.value, sources, bottlesDischargedAtStop.source);
   assignIfDefined(definition, 'downstreamRampUpSeconds', downstreamRampUp.value, sources, downstreamRampUp.source);
@@ -118,11 +221,23 @@ function resolveConveyorZone(equipment, owner, ownerIndex) {
     origin: 'FORMAT_GEOMETRY',
     sources,
     assumptions: [
-      'This conveyor always uses its named physical geometry.',
-      'Prime and Back-up positions are explicit; LACT and LP Prime are not inferred.',
+      'This conveyor uses direct named physical geometry.',
+      'Prime and Back-up positions are explicit; FlowPilot L_act and L_p are not available on this Case.',
       'The upstream and downstream controlled equipment are inferred from the line sequence.'
     ]
   };
+}
+
+function hasFlowPilotInputs(owner, format) {
+  return [
+    owner.processData?.geometry?.lactMm,
+    owner.processData?.geometry?.lpPrimeMm,
+    format.dischargeRunoutLengthMm,
+    format.rejectRunoutLengthMm,
+    format.blockedTimeDelaySeconds,
+    format.clearTimeDelaySeconds,
+    format.insuranceFactorUnits
+  ].some(isDefined);
 }
 
 function findNearestNonConveyor(equipment, startIndex, direction) {
@@ -131,6 +246,10 @@ function findNearestNonConveyor(equipment, startIndex, direction) {
     if (candidate && !isConveyorEquipment(candidate)) return candidate;
   }
   return undefined;
+}
+
+function rateBpm(equipment) {
+  return isFiniteNumber(equipment?.nominalRatePerSecond) ? equipment.nominalRatePerSecond * 60 : undefined;
 }
 
 function selectValue(candidates) {

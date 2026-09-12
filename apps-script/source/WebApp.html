@@ -107,13 +107,13 @@
           <div class="field-grid run-fields">
             <label>Duration mode<select id="duration-mode"><option value="FIXED">Fixed virtual duration</option><option value="INDEFINITE">Indefinite (safety ceiling)</option></select></label>
             <label>Virtual duration / safety ceiling (s)<input id="run-duration" type="number" min="1" step="1" value="300"></label>
-            <label>Display sample interval (s)<input id="run-sample-interval" type="number" min="1" step="1" value="1"></label>
+            <label>Display sample interval (s)<input id="run-sample-interval" type="number" min="1" step="1" value="5"></label>
             <label>Random seed<input id="run-seed" type="number" min="0" step="1" value="20260909"></label>
             <label>Playback speed (virtual / real)<select id="run-playback-rate"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="5">5×</option><option value="10">10×</option></select></label>
           </div>
 
           <div class="notice model-boundary">
-            At 1×, one virtual second takes one real second. Every conveyor uses named physical geometry: capacity is derived from usable length and product pitch, product travel from conveyor speed, and Prime / Back-up control from its configured sensor positions. Abstract buffers and accumulation-zone overrides are not used.
+            At 1×, one virtual second takes one real second. The engine integrates at 0.25 s; the display interval only controls replay detail and result size. Every conveyor uses FlowPilot physical geometry by default: L_act, L_p, package pitch, speed factor, runout, sensor delays, and insurance derive capacity, travel, Prime / Back-up control, recovery, and design audits. Abstract buffers are not used.
           </div>
 
           <div class="editor-subheading compact-heading">

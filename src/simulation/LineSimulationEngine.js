@@ -111,6 +111,7 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     modelOrigin: resolvedDefinition.origin,
     geometrySources: resolvedDefinition.sources || {},
     formatAssumptions: resolvedDefinition.assumptions || [],
+    engineering: physical?.engineering || null,
     capacityUnits,
     usableLengthMm: physical?.usableLengthMm || null,
     productPitchMm: physical?.productPitchMm || null,
@@ -130,8 +131,12 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     backupRestartWaitingUnits: physical?.backupRestartWaitingUnits ?? null,
     hasBackupSensor: physical?.hasBackupSensor || false,
     backupActive: false,
+    backupBlockedCandidateSeconds: 0,
+    backupClearCandidateSeconds: 0,
     backupTriggeredAtVirtualSecond: null,
     backupTriggerCount: 0,
+    blockedTimeDelaySeconds: physical?.blockedTimeDelaySeconds || 0,
+    clearTimeDelaySeconds: physical?.clearTimeDelaySeconds || 0,
     upstreamStopResponseSeconds: physical?.upstreamStopResponseSeconds || 0,
     bottlesDischargedAtStop: physical?.bottlesDischargedAtStop || 0,
     upstreamRestartDelaySeconds: physical?.upstreamRestartDelaySeconds ?? null,
@@ -156,9 +161,10 @@ function normalizePhysicalZone(definition) {
   const hasPrimeSensor = definition.primeSensorPositionMm !== undefined && definition.primeSensorPositionMm !== null;
   const hasBackupSensor = definition.backupSensorPositionMm !== undefined && definition.backupSensorPositionMm !== null;
   const backupRestartPositionMm = hasBackupSensor
-    ? definition.backupRestartPositionMm
+    ? definition.backupRestartPositionMm ?? definition.backupSensorPositionMm
     : null;
   return {
+    engineering: definition.engineering || null,
     usableLengthMm,
     productPitchMm,
     productLengthMm: definition.productLengthMm ?? null,
@@ -178,6 +184,8 @@ function normalizePhysicalZone(definition) {
     backupRestartWaitingUnits: hasBackupSensor
       ? Math.max(0, Math.floor((usableLengthMm - backupRestartPositionMm) / productPitchMm))
       : null,
+    blockedTimeDelaySeconds: definition.blockedTimeDelaySeconds || 0,
+    clearTimeDelaySeconds: definition.clearTimeDelaySeconds || 0,
     upstreamStopResponseSeconds: definition.upstreamStopResponseSeconds || 0,
     bottlesDischargedAtStop: definition.bottlesDischargedAtStop || 0,
     downstreamRampUpSeconds: definition.downstreamRampUpSeconds || 0,
@@ -276,7 +284,11 @@ function triggerPrimeSensor(runtime, zone) {
 function updateBackupSensor(runtime, zone) {
   if (!zone.hasBackupSensor) return;
   if (!zone.backupActive && zone.waitingUnits >= zone.backupTriggerWaitingUnits) {
+    zone.backupBlockedCandidateSeconds += runtime.run.tickSeconds;
+    if (zone.backupBlockedCandidateSeconds < zone.blockedTimeDelaySeconds) return;
     zone.backupActive = true;
+    zone.backupBlockedCandidateSeconds = 0;
+    zone.backupClearCandidateSeconds = 0;
     zone.backupTriggeredAtVirtualSecond = runtime.virtualSecond;
     zone.backupTriggerCount += 1;
     const upstream = getEquipment(runtime, zone.upstreamControlEquipmentId);
@@ -299,8 +311,17 @@ function updateBackupSensor(runtime, zone) {
     return;
   }
 
+  if (!zone.backupActive) {
+    zone.backupBlockedCandidateSeconds = 0;
+    return;
+  }
+
   if (zone.backupActive && zone.waitingUnits <= zone.backupRestartWaitingUnits) {
+    zone.backupClearCandidateSeconds += runtime.run.tickSeconds;
+    if (zone.backupClearCandidateSeconds < zone.clearTimeDelaySeconds) return;
     zone.backupActive = false;
+    zone.backupClearCandidateSeconds = 0;
+    zone.backupBlockedCandidateSeconds = 0;
     const upstream = getEquipment(runtime, zone.upstreamControlEquipmentId);
     if (upstream && upstream.backupControl?.zoneId === zone.id) {
       const completedBackupStop = upstream.backupControl.responseRemainingSeconds <= 0 &&
@@ -322,7 +343,10 @@ function updateBackupSensor(runtime, zone) {
       waitingUnits: round(zone.waitingUnits),
       restartThresholdUnits: round(zone.backupRestartWaitingUnits)
     });
+    return;
   }
+
+  zone.backupClearCandidateSeconds = 0;
 }
 
 function advanceEquipmentControlTimers(runtime) {
@@ -819,7 +843,7 @@ function createResult(runtime) {
   return {
     caseId: runtime.caseId,
     unitOfFlow: runtime.unitOfFlow,
-    engineVersion: '0.8.0',
+    engineVersion: '0.9.0',
     seed: runtime.run.seed,
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),
@@ -872,7 +896,8 @@ function createZoneMetrics(zone) {
     overflowUnits: round(zone.overflowUnits),
     overflowEvents: zone.overflowEvents,
     backupTriggerCount: zone.backupTriggerCount,
-    primeDetected: zone.primeDetected
+    primeDetected: zone.primeDetected,
+    engineering: zone.engineering
   };
 }
 

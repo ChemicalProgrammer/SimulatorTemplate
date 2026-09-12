@@ -25,6 +25,280 @@ function normalizeSeed(seed) {
   return seed >>> 0;
 }
 
+
+/**
+ * Deterministic conveyor-design calculations based on the FlowPilot / CAT
+ * engineering worksheet.  All linear rates below use millimetres per second
+ * so the result can be consumed directly by the event simulation.
+ */
+function calculateConveyorEngineering(input = {}) {
+  const values = normaliseInput(input);
+  const calculated = calculate(values);
+  const audit = createAudit(values, calculated);
+
+  return { input: values, calculated, audit };
+}
+
+function normaliseInput(input) {
+  return {
+    installedLengthMm: numberOrUndefined(input.installedLengthMm),
+    primeReserveMm: numberOrUndefined(input.primeReserveMm),
+    packageLengthMm: numberOrUndefined(input.packageLengthMm),
+    upstreamDischargePitchMm: numberOrUndefined(input.upstreamDischargePitchMm),
+    upstreamNominalSpeedBpm: numberOrUndefined(input.upstreamNominalSpeedBpm),
+    downstreamHighSpeedBpm: numberOrUndefined(input.downstreamHighSpeedBpm),
+    downstreamInfeedPitchMm: numberOrUndefined(input.downstreamInfeedPitchMm),
+    conveyorSpeedFactorPercent: numberOrUndefined(input.conveyorSpeedFactorPercent),
+    dischargeRunoutLengthMm: nonNegativeOrDefault(input.dischargeRunoutLengthMm, 0),
+    rejectRunoutLengthMm: nonNegativeOrDefault(input.rejectRunoutLengthMm, 0),
+    blockedTimeDelaySeconds: nonNegativeOrDefault(input.blockedTimeDelaySeconds, 0),
+    clearTimeDelaySeconds: nonNegativeOrDefault(input.clearTimeDelaySeconds, 0),
+    insuranceFactorUnits: nonNegativeOrDefault(input.insuranceFactorUnits, 0),
+    backupSensorPositionMm: numberOrUndefined(input.backupSensorPositionMm),
+    upstreamStopResponseSeconds: nonNegativeOrDefault(input.upstreamStopResponseSeconds, 0),
+    bottlesDischargedAtStop: nonNegativeOrDefault(input.bottlesDischargedAtStop, 0),
+    downstreamRampUpSeconds: nonNegativeOrDefault(input.downstreamRampUpSeconds, 0),
+    upstreamStartupTimeSeconds: nonNegativeOrDefault(input.upstreamStartupTimeSeconds, 0)
+  };
+}
+
+function calculate(values) {
+  const upstreamDischargeVelocityMmPerSecond = multiplyAndDivide(
+    values.upstreamNominalSpeedBpm,
+    values.upstreamDischargePitchMm,
+    60
+  );
+  const machineOutputRateMmPerSecond = multiplyAndDivide(
+    values.upstreamNominalSpeedBpm,
+    values.packageLengthMm,
+    60
+  );
+  const conveyorSpeedMmPerSecond = isFiniteNumber(upstreamDischargeVelocityMmPerSecond) &&
+    isFiniteNumber(values.conveyorSpeedFactorPercent)
+    ? upstreamDischargeVelocityMmPerSecond * (1 + values.conveyorSpeedFactorPercent / 100)
+    : undefined;
+  const populationPercent = safeDivide(machineOutputRateMmPerSecond, conveyorSpeedMmPerSecond, 100);
+  const effectiveProductPitchMm = safeDivide(values.packageLengthMm, populationPercent, 100);
+  const productGapMm = isFiniteNumber(effectiveProductPitchMm) && isFiniteNumber(values.packageLengthMm)
+    ? effectiveProductPitchMm - values.packageLengthMm
+    : undefined;
+  const downstreamConsumptionRateMmPerSecond = multiplyAndDivide(
+    values.downstreamHighSpeedBpm,
+    values.packageLengthMm,
+    60
+  );
+  const packagesDuringBlockedDelay = multiplyAndDivide(
+    values.upstreamNominalSpeedBpm,
+    values.blockedTimeDelaySeconds,
+    60
+  );
+  const totalOverflowPackages = sumIfFinite(
+    packagesDuringBlockedDelay,
+    values.bottlesDischargedAtStop,
+    values.insuranceFactorUnits
+  );
+  const overflowProductLengthMm = multiplyIfFinite(totalOverflowPackages, effectiveProductPitchMm);
+  const overflowLengthMm = sumIfFinite(
+    values.dischargeRunoutLengthMm,
+    values.rejectRunoutLengthMm,
+    overflowProductLengthMm
+  );
+  const usefulAccumulationLengthMm = subtractIfFinite(
+    values.installedLengthMm,
+    values.primeReserveMm,
+    overflowLengthMm
+  );
+  const primeSensorPositionMm = subtractIfFinite(values.installedLengthMm, values.primeReserveMm);
+  const actualBackupSensorPositionMm = firstDefined(values.backupSensorPositionMm, overflowLengthMm);
+  const conveyorCapacityUnits = safeFloorDivide(values.installedLengthMm, effectiveProductPitchMm);
+  const primeTravelSeconds = safeDivide(primeSensorPositionMm, conveyorSpeedMmPerSecond);
+  const totalTravelSeconds = safeDivide(values.installedLengthMm, conveyorSpeedMmPerSecond);
+  const overflowTransitSeconds = safeDivide(overflowLengthMm, conveyorSpeedMmPerSecond);
+  const recoveryToBackupSeconds = sumIfFinite(
+    values.clearTimeDelaySeconds,
+    values.upstreamStartupTimeSeconds,
+    overflowTransitSeconds
+  );
+  const queueReductionOneMm = multiplyIfFinite(downstreamConsumptionRateMmPerSecond, recoveryToBackupSeconds);
+  const remainingAccumulationMm = subtractIfFinite(usefulAccumulationLengthMm, queueReductionOneMm);
+  const timeToQueueSeconds = isFiniteNumber(remainingAccumulationMm) && remainingAccumulationMm > 0
+    ? safeDivide(remainingAccumulationMm, sumIfFinite(conveyorSpeedMmPerSecond, downstreamConsumptionRateMmPerSecond))
+    : 0;
+  const queueReductionTwoMm = multiplyIfFinite(downstreamConsumptionRateMmPerSecond, timeToQueueSeconds);
+  const recoveryLengthMm = subtractIfFinite(usefulAccumulationLengthMm, queueReductionOneMm, queueReductionTwoMm);
+  const antiStarveSeconds = multiplyAndDivide(usefulAccumulationLengthMm, populationPercent, 100 * downstreamConsumptionRateMmPerSecond);
+  const antiBlockSeconds = isFiniteNumber(usefulAccumulationLengthMm) && isFiniteNumber(populationPercent)
+    ? safeDivide(usefulAccumulationLengthMm * (1 - populationPercent / 100), machineOutputRateMmPerSecond)
+    : undefined;
+  const recommendedInfeedConveyorSpeedMmPerSecond = multiplyAndDivide(
+    values.downstreamHighSpeedBpm,
+    values.downstreamInfeedPitchMm,
+    60 / 1.05
+  );
+  const recommendedConveyorSpeedFactorPercent = isFiniteNumber(recommendedInfeedConveyorSpeedMmPerSecond) &&
+    isFiniteNumber(upstreamDischargeVelocityMmPerSecond) && upstreamDischargeVelocityMmPerSecond > 0
+    ? (recommendedInfeedConveyorSpeedMmPerSecond / upstreamDischargeVelocityMmPerSecond - 1) * 100
+    : undefined;
+
+  return compact({
+    upstreamDischargeVelocityMmPerSecond,
+    machineOutputRateMmPerSecond,
+    conveyorSpeedMmPerSecond,
+    populationPercent,
+    effectiveProductPitchMm,
+    productGapMm,
+    downstreamConsumptionRateMmPerSecond,
+    packagesDuringBlockedDelay,
+    totalOverflowPackages,
+    overflowProductLengthMm,
+    overflowLengthMm,
+    usefulAccumulationLengthMm,
+    primeSensorPositionMm,
+    recommendedBackupSensorPositionMm: overflowLengthMm,
+    actualBackupSensorPositionMm,
+    conveyorCapacityUnits,
+    primeTravelSeconds,
+    totalTravelSeconds,
+    overflowTransitSeconds,
+    recoveryToBackupSeconds,
+    queueReductionOneMm,
+    timeToQueueSeconds,
+    queueReductionTwoMm,
+    recoveryLengthMm,
+    antiStarveSeconds,
+    antiBlockSeconds,
+    recommendedInfeedConveyorSpeedMmPerSecond,
+    recommendedConveyorSpeedFactorPercent
+  });
+}
+
+function createAudit(values, calculated) {
+  const inputFields = [
+    values.installedLengthMm,
+    values.primeReserveMm,
+    values.packageLengthMm,
+    values.upstreamDischargePitchMm,
+    values.upstreamNominalSpeedBpm,
+    values.conveyorSpeedFactorPercent
+  ];
+  const inputsReady = inputFields.every((value) => isFiniteNumber(value) && value >= 0) &&
+    values.installedLengthMm > 0 && values.packageLengthMm > 0 &&
+    values.upstreamDischargePitchMm > 0 && values.upstreamNominalSpeedBpm > 0;
+  const installedLengthValid = isFiniteNumber(values.installedLengthMm) &&
+    isFiniteNumber(values.primeReserveMm) && isFiniteNumber(calculated.overflowLengthMm) &&
+    values.installedLengthMm > values.primeReserveMm + calculated.overflowLengthMm;
+  const recoveryEvaluated = isFiniteNumber(calculated.recoveryLengthMm);
+  const backupPositionEvaluated = isFiniteNumber(calculated.actualBackupSensorPositionMm) &&
+    isFiniteNumber(calculated.recommendedBackupSensorPositionMm);
+
+  const goals = [
+    goal(
+      'INPUT_INTEGRITY',
+      inputsReady ? 'PASS' : 'NOT_EVALUATED',
+      inputsReady
+        ? 'Required FlowPilot inputs are physically usable.'
+        : 'Installed length, Prime reserve, package length, upstream discharge pitch, upstream BPM, and conveyor speed factor are required.'
+    ),
+    goal(
+      'SMOOTH_RECOVERY',
+      !recoveryEvaluated ? 'NOT_EVALUATED' : calculated.recoveryLengthMm > 0 ? 'PASS' : 'WARNING',
+      !recoveryEvaluated
+        ? 'Recovery length cannot be evaluated until downstream high speed and infeed pitch are available.'
+        : calculated.recoveryLengthMm > 0
+          ? 'Recovery length is positive; the modeled restart has physical margin.'
+          : 'Recovery length is zero or negative; this configuration can create unstable or stuttering restarts.'
+    ),
+    goal(
+      'INSTALLED_LENGTH',
+      !isFiniteNumber(calculated.overflowLengthMm) ? 'NOT_EVALUATED' : installedLengthValid ? 'PASS' : 'FAIL',
+      !isFiniteNumber(calculated.overflowLengthMm)
+        ? 'Overflow length cannot be evaluated until the upstream flow inputs are complete.'
+        : installedLengthValid
+          ? 'Installed length exceeds Prime reserve plus required overflow length.'
+          : 'Installed length is insufficient for the Prime reserve and required overflow length.'
+    ),
+    goal(
+      'BACKUP_POSITION',
+      !backupPositionEvaluated ? 'NOT_EVALUATED' : calculated.actualBackupSensorPositionMm >= calculated.recommendedBackupSensorPositionMm ? 'PASS' : 'WARNING',
+      !backupPositionEvaluated
+        ? 'Back-up position is not available.'
+        : calculated.actualBackupSensorPositionMm >= calculated.recommendedBackupSensorPositionMm
+          ? 'Back-up position leaves the calculated overflow margin.'
+          : 'Back-up is too close to the upstream machine for the calculated residual flow.'
+    )
+  ];
+
+  return {
+    status: aggregateAuditStatus(goals),
+    goals
+  };
+}
+
+function goal(id, status, message) {
+  return { id, status, message };
+}
+
+function aggregateAuditStatus(goals) {
+  if (goals.some((item) => item.status === 'FAIL')) return 'FAIL';
+  if (goals.some((item) => item.status === 'WARNING')) return 'WARNING';
+  if (goals.some((item) => item.status === 'NOT_EVALUATED')) return 'NOT_EVALUATED';
+  return 'PASS';
+}
+
+function compact(object) {
+  return Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined));
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null);
+}
+
+function numberOrUndefined(value) {
+  return isFiniteNumber(value) ? value : undefined;
+}
+
+function nonNegativeOrDefault(value, fallback) {
+  return isFiniteNumber(value) && value >= 0 ? value : fallback;
+}
+
+function isFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function multiplyAndDivide(left, right, divisor) {
+  return isFiniteNumber(left) && isFiniteNumber(right) && isFiniteNumber(divisor) && divisor !== 0
+    ? left * right / divisor
+    : undefined;
+}
+
+function multiplyIfFinite(left, right) {
+  return isFiniteNumber(left) && isFiniteNumber(right) ? left * right : undefined;
+}
+
+function safeDivide(numerator, denominator, multiplier = 1) {
+  return isFiniteNumber(numerator) && isFiniteNumber(denominator) && denominator > 0
+    ? numerator / denominator * multiplier
+    : undefined;
+}
+
+function safeFloorDivide(numerator, denominator) {
+  return isFiniteNumber(numerator) && isFiniteNumber(denominator) && denominator > 0
+    ? Math.floor(numerator / denominator)
+    : undefined;
+}
+
+function sumIfFinite(...values) {
+  return values.every(isFiniteNumber) ? values.reduce((total, value) => total + value, 0) : undefined;
+}
+
+function subtractIfFinite(first, ...rest) {
+  return isFiniteNumber(first) && rest.every(isFiniteNumber)
+    ? rest.reduce((total, value) => total - value, first)
+    : undefined;
+}
+
+
+
 function resolveAccumulationZoneDefinition(allEquipment, ownerIndex) {
   const equipment = Array.isArray(allEquipment) ? allEquipment : [];
   const owner = equipment[ownerIndex];
@@ -69,8 +343,109 @@ function resolveConveyorZone(equipment, owner, ownerIndex) {
   const format = owner.processData?.accumulation || {};
   const upstreamControl = findNearestNonConveyor(equipment, ownerIndex - 1, -1);
   const downstreamControl = findNearestNonConveyor(equipment, ownerIndex + 1, 1);
-  const sources = {};
+  return hasFlowPilotInputs(owner, format)
+    ? resolveFlowPilotConveyor(owner, format, upstreamControl, downstreamControl)
+    : resolveDirectPhysicalConveyor(owner, format, upstreamControl, downstreamControl);
+}
 
+function resolveFlowPilotConveyor(owner, format, upstreamControl, downstreamControl) {
+  const sources = {};
+  const packageLength = selectValue([
+    sourceValue(owner.processData?.upstream?.packageLengthMm, 'processData.upstream.packageLengthMm'),
+    sourceValue(upstreamControl?.processData?.upstream?.packageLengthMm, 'upstream processData.upstream.packageLengthMm')
+  ]);
+  const dischargePitch = selectValue([
+    sourceValue(owner.processData?.upstream?.dischargePitchMm, 'processData.upstream.dischargePitchMm'),
+    sourceValue(upstreamControl?.processData?.upstream?.dischargePitchMm, 'upstream processData.upstream.dischargePitchMm')
+  ]);
+  const conveyorSpeedFactor = selectValue([
+    sourceValue(format.conveyorSpeedFactorPercent, 'processData.accumulation.conveyorSpeedFactorPercent'),
+    sourceValue(owner.processData?.speedAndSensors?.conveyorSpeedFactorVsDischargeVelocityPercent, 'processData.speedAndSensors.conveyorSpeedFactorVsDischargeVelocityPercent')
+  ]);
+  const installedLength = sourceValue(owner.processData?.geometry?.lactMm, 'processData.geometry.lactMm');
+  const primeReserve = sourceValue(owner.processData?.geometry?.lpPrimeMm, 'processData.geometry.lpPrimeMm');
+  const downstreamHighSpeed = selectValue([
+    sourceValue(downstreamControl?.processData?.equipment?.maximumSpeedBpm, 'downstream processData.equipment.maximumSpeedBpm'),
+    sourceValue(rateBpm(downstreamControl), 'downstream nominalRatePerSecond')
+  ]);
+  const downstreamInfeedPitch = selectValue([
+    sourceValue(downstreamControl?.processData?.downstream?.infeedPitchMm, 'downstream processData.downstream.infeedPitchMm'),
+    sourceValue(owner.processData?.downstream?.infeedPitchMm, 'processData.downstream.infeedPitchMm')
+  ]);
+  const upstreamStopResponse = sourceValue(format.upstreamStopResponseSeconds, 'processData.accumulation.upstreamStopResponseSeconds');
+  const bottlesDischargedAtStop = selectValue([
+    sourceValue(format.bottlesDischargedAtStop, 'processData.accumulation.bottlesDischargedAtStop'),
+    sourceValue(upstreamControl?.processData?.upstream?.bottlesDischargedAtStop, 'upstream processData.upstream.bottlesDischargedAtStop')
+  ]);
+  const downstreamRampUp = selectValue([
+    sourceValue(format.downstreamRampUpSeconds, 'processData.accumulation.downstreamRampUpSeconds'),
+    sourceValue(downstreamControl?.processData?.downstream?.rampUpTimeSeconds, 'downstream processData.downstream.rampUpTimeSeconds')
+  ]);
+  const calculation = calculateConveyorEngineering({
+    installedLengthMm: installedLength.value,
+    primeReserveMm: primeReserve.value,
+    packageLengthMm: packageLength.value,
+    upstreamDischargePitchMm: dischargePitch.value,
+    upstreamNominalSpeedBpm: rateBpm(upstreamControl),
+    downstreamHighSpeedBpm: downstreamHighSpeed.value,
+    downstreamInfeedPitchMm: downstreamInfeedPitch.value,
+    conveyorSpeedFactorPercent: conveyorSpeedFactor.value,
+    dischargeRunoutLengthMm: format.dischargeRunoutLengthMm,
+    rejectRunoutLengthMm: format.rejectRunoutLengthMm,
+    blockedTimeDelaySeconds: format.blockedTimeDelaySeconds,
+    clearTimeDelaySeconds: format.clearTimeDelaySeconds,
+    insuranceFactorUnits: format.insuranceFactorUnits,
+    backupSensorPositionMm: format.backupSensorPositionMm,
+    upstreamStopResponseSeconds: upstreamStopResponse.value,
+    bottlesDischargedAtStop: bottlesDischargedAtStop.value,
+    downstreamRampUpSeconds: downstreamRampUp.value,
+    upstreamStartupTimeSeconds: upstreamControl?.processData?.upstream?.startupTimeSeconds
+  });
+  const derived = calculation.calculated;
+  const definition = {
+    kind: 'FLOWPILOT_ENGINEERING',
+    id: format.id || owner.id + '--physical-zone',
+    name: format.name || (owner.name || owner.id) + ' accumulation',
+    upstreamControlEquipmentId: upstreamControl?.id,
+    downstreamControlEquipmentId: downstreamControl?.id,
+    engineering: calculation
+  };
+
+  assignIfDefined(definition, 'usableLengthMm', calculation.input.installedLengthMm, sources, installedLength.source);
+  assignIfDefined(definition, 'productLengthMm', packageLength.value, sources, packageLength.source);
+  assignIfDefined(definition, 'gapMm', derived.productGapMm, sources, 'calculated: effective pitch - package length');
+  assignIfDefined(definition, 'productPitchMm', derived.effectiveProductPitchMm, sources, 'calculated: package length / population');
+  assignIfDefined(definition, 'conveyorSpeedMmPerSecond', derived.conveyorSpeedMmPerSecond, sources, 'calculated: discharge velocity × (1 + speed factor)');
+  assignIfDefined(definition, 'primeSensorPositionMm', derived.primeSensorPositionMm, sources, 'calculated: L_act - L_p');
+  assignIfDefined(definition, 'backupSensorPositionMm', derived.actualBackupSensorPositionMm, sources,
+    isDefined(format.backupSensorPositionMm) ? 'processData.accumulation.backupSensorPositionMm' : 'calculated: required overflow length L_bu');
+  assignIfDefined(definition, 'backupRestartPositionMm', derived.actualBackupSensorPositionMm, sources,
+    'same Back-up position; Clear Time Delay provides the restart debounce');
+  assignIfDefined(definition, 'blockedTimeDelaySeconds', calculation.input.blockedTimeDelaySeconds, sources,
+    'processData.accumulation.blockedTimeDelaySeconds');
+  assignIfDefined(definition, 'clearTimeDelaySeconds', calculation.input.clearTimeDelaySeconds, sources,
+    'processData.accumulation.clearTimeDelaySeconds');
+  assignIfDefined(definition, 'upstreamStopResponseSeconds', calculation.input.upstreamStopResponseSeconds, sources,
+    upstreamStopResponse.source);
+  assignIfDefined(definition, 'bottlesDischargedAtStop', calculation.input.bottlesDischargedAtStop, sources,
+    bottlesDischargedAtStop.source);
+  assignIfDefined(definition, 'downstreamRampUpSeconds', calculation.input.downstreamRampUpSeconds, sources,
+    downstreamRampUp.source);
+
+  return {
+    definition,
+    origin: 'FLOWPILOT_ENGINEERING',
+    sources,
+    assumptions: [
+      'FlowPilot geometry is active by default: L_act, L_p, package pitch, speed factor, and sensor delays are converted to the physical zone.',
+      'Positions are measured from upstream discharge toward downstream infeed.',
+      'Prime is L_act - L_p. If no installed Back-up position is supplied, L_bu is used as the calculated recommendation.'
+    ]
+  };
+}
+
+function resolveDirectPhysicalConveyor(owner, format, upstreamControl, downstreamControl) {
+  const sources = {};
   const usableLength = selectValue([
     sourceValue(format.usableLengthMm, 'processData.accumulation.usableLengthMm')
   ]);
@@ -103,9 +478,7 @@ function resolveConveyorZone(equipment, owner, ownerIndex) {
   const backupRestart = selectValue([
     sourceValue(format.backupRestartPositionMm, 'processData.accumulation.backupRestartPositionMm')
   ]);
-  const upstreamStopResponse = selectValue([
-    sourceValue(format.upstreamStopResponseSeconds, 'processData.accumulation.upstreamStopResponseSeconds')
-  ]);
+  const upstreamStopResponse = sourceValue(format.upstreamStopResponseSeconds, 'processData.accumulation.upstreamStopResponseSeconds');
   const bottlesDischargedAtStop = selectValue([
     sourceValue(format.bottlesDischargedAtStop, 'processData.accumulation.bottlesDischargedAtStop'),
     sourceValue(
@@ -136,6 +509,8 @@ function resolveConveyorZone(equipment, owner, ownerIndex) {
   assignIfDefined(definition, 'primeSensorPositionMm', primeSensor.value, sources, primeSensor.source);
   assignIfDefined(definition, 'backupSensorPositionMm', backupSensor.value, sources, backupSensor.source);
   assignIfDefined(definition, 'backupRestartPositionMm', backupRestart.value, sources, backupRestart.source);
+  assignIfDefined(definition, 'blockedTimeDelaySeconds', format.blockedTimeDelaySeconds, sources, 'processData.accumulation.blockedTimeDelaySeconds');
+  assignIfDefined(definition, 'clearTimeDelaySeconds', format.clearTimeDelaySeconds, sources, 'processData.accumulation.clearTimeDelaySeconds');
   assignIfDefined(definition, 'upstreamStopResponseSeconds', upstreamStopResponse.value, sources, upstreamStopResponse.source);
   assignIfDefined(definition, 'bottlesDischargedAtStop', bottlesDischargedAtStop.value, sources, bottlesDischargedAtStop.source);
   assignIfDefined(definition, 'downstreamRampUpSeconds', downstreamRampUp.value, sources, downstreamRampUp.source);
@@ -145,11 +520,23 @@ function resolveConveyorZone(equipment, owner, ownerIndex) {
     origin: 'FORMAT_GEOMETRY',
     sources,
     assumptions: [
-      'This conveyor always uses its named physical geometry.',
-      'Prime and Back-up positions are explicit; LACT and LP Prime are not inferred.',
+      'This conveyor uses direct named physical geometry.',
+      'Prime and Back-up positions are explicit; FlowPilot L_act and L_p are not available on this Case.',
       'The upstream and downstream controlled equipment are inferred from the line sequence.'
     ]
   };
+}
+
+function hasFlowPilotInputs(owner, format) {
+  return [
+    owner.processData?.geometry?.lactMm,
+    owner.processData?.geometry?.lpPrimeMm,
+    format.dischargeRunoutLengthMm,
+    format.rejectRunoutLengthMm,
+    format.blockedTimeDelaySeconds,
+    format.clearTimeDelaySeconds,
+    format.insuranceFactorUnits
+  ].some(isDefined);
 }
 
 function findNearestNonConveyor(equipment, startIndex, direction) {
@@ -158,6 +545,10 @@ function findNearestNonConveyor(equipment, startIndex, direction) {
     if (candidate && !isConveyorEquipment(candidate)) return candidate;
   }
   return undefined;
+}
+
+function rateBpm(equipment) {
+  return isFiniteNumber(equipment?.nominalRatePerSecond) ? equipment.nominalRatePerSecond * 60 : undefined;
 }
 
 function selectValue(candidates) {
@@ -188,6 +579,8 @@ function isDefined(value) {
 function isFiniteNumber(value) {
   return typeof value === 'number' && Number.isFinite(value);
 }
+
+
 
 function validateSimulationInput(input) {
   const details = [];
@@ -289,7 +682,7 @@ function validateConveyorGeometry(allEquipment, index, path, details) {
 }
 
 function validatePhysicalZone(zone, path, details) {
-  if (!zone || zone.kind !== 'FORMAT_GEOMETRY') {
+  if (!zone || !['FORMAT_GEOMETRY', 'FLOWPILOT_ENGINEERING'].includes(zone.kind)) {
     details.push(invalid(path, 'could not resolve a physical conveyor zone'));
     return;
   }
@@ -337,6 +730,8 @@ function validatePhysicalZone(zone, path, details) {
   validateRequiredNonNegative(zone.upstreamStopResponseSeconds, path + '.upstreamStopResponseSeconds', details);
   validateRequiredNonNegative(zone.bottlesDischargedAtStop, path + '.bottlesDischargedAtStop', details);
   validateRequiredNonNegative(zone.downstreamRampUpSeconds, path + '.downstreamRampUpSeconds', details);
+  validateOptionalNonNegative(zone.blockedTimeDelaySeconds, path + '.blockedTimeDelaySeconds', details);
+  validateOptionalNonNegative(zone.clearTimeDelaySeconds, path + '.clearTimeDelaySeconds', details);
   if (!nonEmptyString(zone.upstreamControlEquipmentId)) details.push(required(path + '.upstreamControlEquipmentId'));
   if (!nonEmptyString(zone.downstreamControlEquipmentId)) details.push(required(path + '.downstreamControlEquipmentId'));
 }
@@ -455,6 +850,8 @@ function positiveNumber(value) { return typeof value === 'number' && Number.isFi
 function nonNegativeNumber(value) { return typeof value === 'number' && Number.isFinite(value) && value >= 0; }
 function nonEmptyString(value) { return typeof value === 'string' && value.length > 0; }
 
+
+
 function simulateLine(input) {
   const validation = validateSimulationInput(input);
   if (!validation.ok) return validation;
@@ -564,6 +961,7 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     modelOrigin: resolvedDefinition.origin,
     geometrySources: resolvedDefinition.sources || {},
     formatAssumptions: resolvedDefinition.assumptions || [],
+    engineering: physical?.engineering || null,
     capacityUnits,
     usableLengthMm: physical?.usableLengthMm || null,
     productPitchMm: physical?.productPitchMm || null,
@@ -583,8 +981,12 @@ function createAccumulationZoneRuntime(owner, downstreamModel, allEquipment, own
     backupRestartWaitingUnits: physical?.backupRestartWaitingUnits ?? null,
     hasBackupSensor: physical?.hasBackupSensor || false,
     backupActive: false,
+    backupBlockedCandidateSeconds: 0,
+    backupClearCandidateSeconds: 0,
     backupTriggeredAtVirtualSecond: null,
     backupTriggerCount: 0,
+    blockedTimeDelaySeconds: physical?.blockedTimeDelaySeconds || 0,
+    clearTimeDelaySeconds: physical?.clearTimeDelaySeconds || 0,
     upstreamStopResponseSeconds: physical?.upstreamStopResponseSeconds || 0,
     bottlesDischargedAtStop: physical?.bottlesDischargedAtStop || 0,
     upstreamRestartDelaySeconds: physical?.upstreamRestartDelaySeconds ?? null,
@@ -609,9 +1011,10 @@ function normalizePhysicalZone(definition) {
   const hasPrimeSensor = definition.primeSensorPositionMm !== undefined && definition.primeSensorPositionMm !== null;
   const hasBackupSensor = definition.backupSensorPositionMm !== undefined && definition.backupSensorPositionMm !== null;
   const backupRestartPositionMm = hasBackupSensor
-    ? definition.backupRestartPositionMm
+    ? definition.backupRestartPositionMm ?? definition.backupSensorPositionMm
     : null;
   return {
+    engineering: definition.engineering || null,
     usableLengthMm,
     productPitchMm,
     productLengthMm: definition.productLengthMm ?? null,
@@ -631,6 +1034,8 @@ function normalizePhysicalZone(definition) {
     backupRestartWaitingUnits: hasBackupSensor
       ? Math.max(0, Math.floor((usableLengthMm - backupRestartPositionMm) / productPitchMm))
       : null,
+    blockedTimeDelaySeconds: definition.blockedTimeDelaySeconds || 0,
+    clearTimeDelaySeconds: definition.clearTimeDelaySeconds || 0,
     upstreamStopResponseSeconds: definition.upstreamStopResponseSeconds || 0,
     bottlesDischargedAtStop: definition.bottlesDischargedAtStop || 0,
     downstreamRampUpSeconds: definition.downstreamRampUpSeconds || 0,
@@ -729,7 +1134,11 @@ function triggerPrimeSensor(runtime, zone) {
 function updateBackupSensor(runtime, zone) {
   if (!zone.hasBackupSensor) return;
   if (!zone.backupActive && zone.waitingUnits >= zone.backupTriggerWaitingUnits) {
+    zone.backupBlockedCandidateSeconds += runtime.run.tickSeconds;
+    if (zone.backupBlockedCandidateSeconds < zone.blockedTimeDelaySeconds) return;
     zone.backupActive = true;
+    zone.backupBlockedCandidateSeconds = 0;
+    zone.backupClearCandidateSeconds = 0;
     zone.backupTriggeredAtVirtualSecond = runtime.virtualSecond;
     zone.backupTriggerCount += 1;
     const upstream = getEquipment(runtime, zone.upstreamControlEquipmentId);
@@ -752,8 +1161,17 @@ function updateBackupSensor(runtime, zone) {
     return;
   }
 
+  if (!zone.backupActive) {
+    zone.backupBlockedCandidateSeconds = 0;
+    return;
+  }
+
   if (zone.backupActive && zone.waitingUnits <= zone.backupRestartWaitingUnits) {
+    zone.backupClearCandidateSeconds += runtime.run.tickSeconds;
+    if (zone.backupClearCandidateSeconds < zone.clearTimeDelaySeconds) return;
     zone.backupActive = false;
+    zone.backupClearCandidateSeconds = 0;
+    zone.backupBlockedCandidateSeconds = 0;
     const upstream = getEquipment(runtime, zone.upstreamControlEquipmentId);
     if (upstream && upstream.backupControl?.zoneId === zone.id) {
       const completedBackupStop = upstream.backupControl.responseRemainingSeconds <= 0 &&
@@ -775,7 +1193,10 @@ function updateBackupSensor(runtime, zone) {
       waitingUnits: round(zone.waitingUnits),
       restartThresholdUnits: round(zone.backupRestartWaitingUnits)
     });
+    return;
   }
+
+  zone.backupClearCandidateSeconds = 0;
 }
 
 function advanceEquipmentControlTimers(runtime) {
@@ -1272,7 +1693,7 @@ function createResult(runtime) {
   return {
     caseId: runtime.caseId,
     unitOfFlow: runtime.unitOfFlow,
-    engineVersion: '0.8.0',
+    engineVersion: '0.9.0',
     seed: runtime.run.seed,
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),
@@ -1325,7 +1746,8 @@ function createZoneMetrics(zone) {
     overflowUnits: round(zone.overflowUnits),
     overflowEvents: zone.overflowEvents,
     backupTriggerCount: zone.backupTriggerCount,
-    primeDetected: zone.primeDetected
+    primeDetected: zone.primeDetected,
+    engineering: zone.engineering
   };
 }
 
@@ -1353,6 +1775,7 @@ function round(value) {
   return Number(value.toFixed(6));
 }
 
-window.SimulatorEngine = { simulateLine: simulateLine };
+
+window.SimulatorEngine = { simulateLine: simulateLine, calculateConveyorEngineering: calculateConveyorEngineering };
 })(window);
 </script>
