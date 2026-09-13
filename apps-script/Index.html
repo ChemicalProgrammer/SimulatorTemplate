@@ -182,6 +182,12 @@
   .accumulation-zone.state-overflow { background: #fff0ed; border-color: #f0b5a8; border-left-color: #c85a42; }
   .accumulation-zone.state-overflow .accumulation-zone-heading strong,
   .accumulation-zone.state-overflow .accumulation-zone-stats b { color: #a33d28; }
+  .scenario-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .scenario-tab { background: #f3f6fb; border: 1px solid #d7e0ed; color: #40506a; font-size: 12px; margin: 0; padding: 8px 11px; }
+  .scenario-tab-active { background: #e5efff; border-color: #6e98e8; color: #1d5fa8; font-weight: 700; }
+  .equipment-json-details { border-top: 1px solid #dce6f4; margin-top: 12px; padding-top: 10px; }
+  .equipment-json-details summary { color: #40506a; cursor: pointer; font-size: 12px; font-weight: 700; }
+  .equipment-json-details .characteristics-label { margin-top: 10px; }
   .sr-only { height: 1px; margin: -1px; overflow: hidden; position: absolute; width: 1px; }
   @media (max-width: 1260px) { .live-equipment-columns { display: none; } .live-equipment-card__row { align-items: stretch; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-equipment-cell { background: #fff; border-radius: 8px; padding: 8px; } .live-equipment-cell::before { color: #657187; content: attr(data-label); display: block; font-size: 10px; font-weight: 700; letter-spacing: .06em; margin-bottom: 6px; text-transform: uppercase; } .live-equipment-operation { gap: 5px; } .live-equipment-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .live-equipment-controls { align-content: start; } }
   @media (max-width: 760px) { .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .run-fields, .control-event, .format-zone-grid, .zone-engineering-stats { grid-template-columns: 1fr 1fr; } .live-equipment-card__row { grid-template-columns: 1fr; } }
@@ -313,19 +319,23 @@
         <section class="experiment-workspace" aria-labelledby="experiment-title">
           <div class="editor-subheading compact-heading">
             <div>
-              <h3 id="experiment-title">Baseline &amp; What-If</h3>
-              <p>Run compact repetitions with the same seed set. The comparison stores summary metrics only, not replay samples.</p>
+              <h3 id="experiment-title">Simulation scenarios</h3>
+              <p>Create inherited scenario tabs, run them separately, then compare any two completed tabs. Scenario tabs are kept in this browser session.</p>
             </div>
             <div class="button-row">
-              <button id="set-baseline" class="secondary" type="button">Set baseline</button>
-              <button id="compare-baseline" type="button">Compare current</button>
-              <button id="clear-baseline" class="secondary" type="button">Clear</button>
+              <button id="new-scenario" class="secondary" type="button">New simulation</button>
+              <button id="scenario-conveyor-plus-five" type="button">Conveyor +5%</button>
+              <button id="scenario-backup-plus-five-hundred" type="button">Back-up +500 mm</button>
             </div>
           </div>
+          <div id="scenario-tabs" class="scenario-tabs" aria-label="Simulation scenarios"></div>
           <div class="field-grid experiment-fields">
-            <label title="Number of deterministic repetitions. Baseline and candidate use the same sequential seed set.">Replications / seeds<input id="experiment-repetitions" type="number" min="1" max="20" step="1" value="5"></label>
+            <label title="The selected conveyor receives the proposed parameter change in the newly created scenario.">Target conveyor<select id="scenario-conveyor-target"></select></label>
+            <label>Compare A<select id="scenario-compare-left"></select></label>
+            <label>Compare B<select id="scenario-compare-right"></select></label>
+            <label>&nbsp;<button id="compare-scenarios" type="button">Compare selected</button></label>
           </div>
-          <p id="experiment-status" class="experiment-status" aria-live="polite">No baseline has been captured for this browser session.</p>
+          <p id="experiment-status" class="experiment-status" aria-live="polite">Run a scenario to make its results available for comparison.</p>
           <div id="experiment-summary" class="experiment-summary hidden"></div>
         </section>
 
@@ -2668,9 +2678,12 @@ window.SimulatorEngine = {
       scrollRestoreFrame: null,
       scrollRestoreUntil: 0,
       experiment: {
-        baseline: null,
-        candidate: null,
         comparison: null
+      },
+      scenarios: {
+        tabs: [],
+        activeId: null,
+        comparisonPair: { leftId: null, rightId: null }
       },
       run: {
         commands: [],
@@ -2706,9 +2719,10 @@ window.SimulatorEngine = {
       document.getElementById('equipment-list').addEventListener('change', markCaseDirty);
       document.getElementById('add-control-event').addEventListener('click', addControlEvent);
       document.getElementById('run-simulation').addEventListener('click', runSimulation);
-      document.getElementById('set-baseline').addEventListener('click', setExperimentBaseline);
-      document.getElementById('compare-baseline').addEventListener('click', compareCurrentToBaseline);
-      document.getElementById('clear-baseline').addEventListener('click', clearExperimentBaseline);
+      document.getElementById('new-scenario').addEventListener('click', function() { createInheritedScenario('New simulation'); });
+      document.getElementById('scenario-conveyor-plus-five').addEventListener('click', function() { createConveyorScenario('speed'); });
+      document.getElementById('scenario-backup-plus-five-hundred').addEventListener('click', function() { createConveyorScenario('backup'); });
+      document.getElementById('compare-scenarios').addEventListener('click', compareSelectedScenarios);
       document.getElementById('play-simulation').addEventListener('click', startPlayback);
       document.getElementById('pause-simulation').addEventListener('click', pausePlayback);
       document.getElementById('reset-playback').addEventListener('click', resetPlayback);
@@ -2819,6 +2833,7 @@ function openCase(caseId) {
         state.run.result = null;
         state.run.configuration = null;
         resetExperiment();
+        initializeScenarioTabs();
         renderEditor();
         setStatus('Case loaded.');
       });
@@ -2832,8 +2847,9 @@ function openCase(caseId) {
     function markCaseDirty() {
       if (!state.activeCase) return;
       state.isDirty = true;
-      state.experiment.candidate = null;
       state.experiment.comparison = null;
+      var tab = getActiveScenarioTab();
+      if (tab) { tab.result = null; tab.experimentScenario = null; }
       renderEditorMeta();
       renderRunWorkspace();
     }
@@ -2927,7 +2943,7 @@ function renderEditor() {
       var card = document.createElement('article');
       card.className = 'equipment-card';
       card.dataset.index = String(index);
-      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="BLOWMOLDER">Blowmolder</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PUCKER">Pucker</option><option value="FILLER">Filler</option><option value="DEPUCKER">De-pucker</option><option value="SLEEVER">Sleever</option><option value="CASE_PACKER">Case packer</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><section class="format-zone-setup"><div class="format-zone-heading"><div><strong>FlowPilot conveyor design</strong><p>Required for every conveyor. Geometry is always active: the engine derives conveyor velocity, pitch, capacity, Prime, Back-up margin, recovery, and audit from these named inputs.</p></div></div><div class="format-zone-grid"><label>Installed length L_act (mm)<input class="format-zone-lact" type="number" min="0" step="any"></label><label>Prime reserve L_p (mm)<input class="format-zone-lp-prime" type="number" min="0" step="any"></label><label>Package length (mm)<input class="format-zone-package-length" type="number" min="0" step="any"></label><label>Upstream discharge pitch (mm)<input class="format-zone-discharge-pitch" type="number" min="0" step="any"></label><label>Conveyor speed factor (%)<input class="format-zone-speed-factor" type="number" min="0" step="any"></label><label>Installed Back-up position (mm)<input class="format-zone-backup" type="number" min="0" step="any"></label><label>Discharge runout (mm)<input class="format-zone-discharge-runout" type="number" min="0" step="any"></label><label>Reject runout (mm)<input class="format-zone-reject-runout" type="number" min="0" step="any"></label><label>Blocked time delay (s)<input class="format-zone-blocked-delay" type="number" min="0" step="any"></label><label>Clear time delay (s)<input class="format-zone-clear-delay" type="number" min="0" step="any"></label><label>Insurance factor (units)<input class="format-zone-insurance" type="number" min="0" step="any"></label><label>Upstream stop response (s)<input class="format-zone-stop-response" type="number" min="0" step="any"></label><label>Bottles discharged at stop<input class="format-zone-residual" type="number" min="0" step="any"></label><label>Downstream ramp-up (s)<input class="format-zone-downstream-ramp" type="number" min="0" step="any"></label></div><p class="format-zone-preview"></p></section><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label><label class="characteristics-label">Advanced process format JSON (optional)<textarea class="equipment-process-data" spellcheck="false"></textarea></label>';
+      card.innerHTML = '<div class="equipment-header"><strong></strong><div class="button-row"><button class="move-up secondary" type="button">↑</button><button class="move-down secondary" type="button">↓</button><button class="remove-equipment danger" type="button">Remove</button></div></div><div class="equipment-grid"><label>Equipment ID<input class="equipment-id"></label><label>Type<select class="equipment-type"><option value="BLOWER">Blower</option><option value="BLOWMOLDER">Blowmolder</option><option value="CONVEYOR">Conveyor</option><option value="PACEMAKER">Pacemaker</option><option value="PUCKER">Pucker</option><option value="FILLER">Filler</option><option value="DEPUCKER">De-pucker</option><option value="SLEEVER">Sleever</option><option value="CASE_PACKER">Case packer</option><option value="PALLETIZER">Palletizer</option><option value="CUSTOM">Other / custom</option></select></label><label>Name<input class="equipment-name"></label><label>Nominal rate / sec<input class="equipment-rate" type="number" min="0" step="any"></label><label>Initial mode<select class="equipment-mode"><option value="AUTO">Automatic</option><option value="MANUAL">Manual</option><option value="PAUSE">Paused</option><option value="STOP">Stopped</option></select></label></div><section class="format-zone-setup"><div class="format-zone-heading"><div><strong>FlowPilot conveyor design</strong><p>Required for every conveyor. Geometry is always active: the engine derives conveyor velocity, pitch, capacity, Prime, Back-up margin, recovery, and audit from these named inputs.</p></div></div><div class="format-zone-grid"><label>Installed length L_act (mm)<input class="format-zone-lact" type="number" min="0" step="any"></label><label>Prime reserve L_p (mm)<input class="format-zone-lp-prime" type="number" min="0" step="any"></label><label>Package length (mm)<input class="format-zone-package-length" type="number" min="0" step="any"></label><label>Upstream discharge pitch (mm)<input class="format-zone-discharge-pitch" type="number" min="0" step="any"></label><label>Conveyor speed factor (%)<input class="format-zone-speed-factor" type="number" min="0" step="any"></label><label>Installed Back-up position (mm)<input class="format-zone-backup" type="number" min="0" step="any"></label><label>Discharge runout (mm)<input class="format-zone-discharge-runout" type="number" min="0" step="any"></label><label>Reject runout (mm)<input class="format-zone-reject-runout" type="number" min="0" step="any"></label><label>Blocked time delay (s)<input class="format-zone-blocked-delay" type="number" min="0" step="any"></label><label>Clear time delay (s)<input class="format-zone-clear-delay" type="number" min="0" step="any"></label><label>Insurance factor (units)<input class="format-zone-insurance" type="number" min="0" step="any"></label><label>Upstream stop response (s)<input class="format-zone-stop-response" type="number" min="0" step="any"></label><label>Bottles discharged at stop<input class="format-zone-residual" type="number" min="0" step="any"></label><label>Downstream ramp-up (s)<input class="format-zone-downstream-ramp" type="number" min="0" step="any"></label></div><p class="format-zone-preview"></p></section><details class="equipment-json-details"><summary>Advanced JSON fields</summary><label class="characteristics-label">Characteristics JSON (optional)<textarea class="equipment-characteristics" spellcheck="false"></textarea></label><label class="characteristics-label">Noise profile JSON (optional)<textarea class="equipment-noise-profile" spellcheck="false"></textarea></label><label class="characteristics-label">Advanced process format JSON (optional)<textarea class="equipment-process-data" spellcheck="false"></textarea></label></details>';
       card.querySelector('strong').textContent = 'Step ' + (index + 1);
       card.querySelector('.equipment-id').value = equipment.id || '';
       card.querySelector('.equipment-type').value = equipment.type || 'CUSTOM';
@@ -3269,9 +3285,9 @@ function renderRawJson() {
       toggle('run-panel', canRender);
       if (!canRender) return;
       var ready = isRunReady();
-      document.getElementById('run-case-meta').textContent = state.activeCase.name + ' · revision ' + state.activeCase.revision + (state.isDirty ? ' · save changes before running' : '');
-      toggle('run-not-ready', !ready || state.isDirty);
-      document.getElementById('run-simulation').disabled = !ready || state.isDirty;
+      document.getElementById('run-case-meta').textContent = state.activeCase.name + ' · revision ' + state.activeCase.revision + (state.isDirty ? ' · scenario edits not yet saved to Drive' : '');
+      toggle('run-not-ready', !ready);
+      document.getElementById('run-simulation').disabled = !ready;
       renderControlEvents();
       renderExperimentWorkspace();
       if (!state.run.result) toggle('simulation-results', false);
@@ -3282,8 +3298,6 @@ function renderRawJson() {
     }
 
     function resetExperiment() {
-      state.experiment.baseline = null;
-      state.experiment.candidate = null;
       state.experiment.comparison = null;
       renderExperimentWorkspace();
     }
@@ -3291,41 +3305,150 @@ function renderRawJson() {
     function renderExperimentWorkspace() {
       var status = document.getElementById('experiment-status');
       var summary = document.getElementById('experiment-summary');
-      var setBaselineButton = document.getElementById('set-baseline');
-      var compareButton = document.getElementById('compare-baseline');
-      var clearButton = document.getElementById('clear-baseline');
-      if (!status || !summary || !setBaselineButton || !compareButton || !clearButton) return;
-
-      var ready = isRunReady() && !state.isDirty;
-      var baseline = state.experiment.baseline;
-      setBaselineButton.disabled = !ready;
-      compareButton.disabled = !isRunReady() || !baseline;
-      clearButton.disabled = !baseline;
+      var tabsTarget = document.getElementById('scenario-tabs');
+      if (!status || !summary || !tabsTarget) return;
+      ensureScenarioTab();
+      var tabs = state.scenarios.tabs;
+      tabsTarget.textContent = '';
+      tabs.forEach(function(tab) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'scenario-tab' + (tab.id === state.scenarios.activeId ? ' scenario-tab-active' : '');
+        button.textContent = tab.name + (tab.result ? ' ✓' : '');
+        button.title = tab.result ? 'Completed simulation. Click to edit or rerun this scenario.' : 'Inherited scenario awaiting simulation.';
+        button.addEventListener('click', function() { selectScenarioTab(tab.id); });
+        tabsTarget.appendChild(button);
+      });
+      renderScenarioSelectors();
       summary.textContent = '';
-
-      if (!baseline) {
-        status.textContent = state.isDirty
-          ? 'Save the Case before capturing a baseline.'
-          : 'No baseline has been captured for this browser session.';
-        summary.classList.add('hidden');
-        return;
-      }
-
-      var seedText = formatSeedSet(baseline.seedSet);
-      status.textContent = 'Baseline: ' + baseline.caseName + ' · revision ' + baseline.caseRevision + ' · ' +
-        baseline.seedSet.length + ' replications · seeds ' + seedText + '. ' +
-        (state.experiment.comparison
-          ? 'Δ values mean candidate minus baseline using these same seeds.' + (state.experiment.candidate?.unsaved ? ' The candidate has not been saved to Drive.' : '')
-          : state.isDirty
-            ? 'Current edits are an unsaved What-If and can be compared without overwriting the baseline Case.'
-            : 'Edit the Case, then compare the current scenario against this snapshot.');
-      summary.classList.remove('hidden');
-      summary.appendChild(createScenarioOverview('Baseline', baseline.scenario.summary.line));
-      if (state.experiment.comparison && state.experiment.candidate) {
-        summary.appendChild(createScenarioOverview('Current', state.experiment.candidate.scenario.summary.line));
+      var active = getActiveScenarioTab();
+      status.textContent = active
+        ? active.name + (active.result ? ' has completed seed ' + active.run.seed + '.' : ' inherits the active configuration. Run it when ready.')
+        : 'Create or open a Case to begin.';
+      if (state.experiment.comparison) {
+        var pair = state.experiment.comparisonPair;
+        var left = getScenarioTab(pair.leftId);
+        var right = getScenarioTab(pair.rightId);
+        status.textContent = 'Comparing ' + left.name + ' vs. ' + right.name + ' using seed ' + left.run.seed + '.';
+        summary.classList.remove('hidden');
+        summary.appendChild(createScenarioOverview(left.name, left.experimentScenario.summary.line));
+        summary.appendChild(createScenarioOverview(right.name, right.experimentScenario.summary.line));
         summary.appendChild(createComparisonOverview(state.experiment.comparison.summary.line));
         summary.appendChild(createConveyorComparisonTable(state.experiment.comparison.summary.zones));
+      } else {
+        summary.classList.add('hidden');
       }
+    }
+
+    function initializeScenarioTabs() {
+      state.scenarios.tabs = [];
+      state.scenarios.activeId = null;
+      state.scenarios.comparisonPair = { leftId: null, rightId: null };
+      ensureScenarioTab();
+    }
+
+    function ensureScenarioTab() {
+      if (!state.activeCase || state.scenarios.tabs.length) return;
+      var tab = createScenarioTab('Simulation 1', state.activeCase, state.run.commands, readRunConfiguration());
+      state.scenarios.tabs.push(tab);
+      state.scenarios.activeId = tab.id;
+    }
+
+    function createScenarioTab(name, caseSnapshot, commands, run) {
+      return { id: 'scenario-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8), name: name, caseSnapshot: cloneJson(caseSnapshot), commands: cloneJson(commands || []), run: run ? cloneJson(run) : null, result: null, experimentScenario: null };
+    }
+
+    function getScenarioTab(id) { return state.scenarios.tabs.find(function(tab) { return tab.id === id; }); }
+    function getActiveScenarioTab() { return getScenarioTab(state.scenarios.activeId); }
+
+    function snapshotActiveScenarioTab() {
+      var tab = getActiveScenarioTab();
+      if (!tab || !state.activeCase) return;
+      var next = collectCaseEditor();
+      if (next) state.activeCase = next;
+      tab.caseSnapshot = cloneJson(state.activeCase);
+      tab.commands = cloneJson(state.run.commands);
+    }
+
+    function selectScenarioTab(id) {
+      if (id === state.scenarios.activeId) return;
+      snapshotActiveScenarioTab();
+      var tab = getScenarioTab(id);
+      if (!tab) return;
+      stopPlaybackTimer();
+      state.scenarios.activeId = id;
+      state.activeCase = cloneJson(tab.caseSnapshot);
+      state.run.commands = cloneJson(tab.commands || []);
+      applyScenarioRunInputs(tab.run);
+      state.run.result = tab.result ? cloneJson(tab.result) : null;
+      state.isDirty = true;
+      renderEditor();
+      setStatus('Opened scenario: ' + tab.name + '.');
+    }
+
+    function applyScenarioRunInputs(run) {
+      if (!run) return;
+      document.getElementById('run-duration').value = run.durationSeconds;
+      document.getElementById('run-sample-interval').value = run.sampleEverySeconds;
+      document.getElementById('run-seed').value = run.seed;
+    }
+
+    function createInheritedScenario(name, mutate) {
+      snapshotActiveScenarioTab();
+      var base = getActiveScenarioTab();
+      if (!base) return;
+      var nextCase = cloneJson(base.caseSnapshot);
+      if (mutate) mutate(nextCase);
+      var tab = createScenarioTab(name, nextCase, base.commands, base.run);
+      state.scenarios.tabs.push(tab);
+      selectScenarioTab(tab.id);
+    }
+
+    function createConveyorScenario(kind) {
+      snapshotActiveScenarioTab();
+      var targetId = document.getElementById('scenario-conveyor-target').value;
+      var target = state.activeCase.equipment.find(function(equipment) { return equipment.id === targetId; });
+      if (!target) return showError({ code: 'CONVEYOR_REQUIRED', message: 'Select a conveyor before creating this scenario.' });
+      var label = target.name || target.id;
+      createInheritedScenario(kind === 'speed' ? label + ' +5%' : label + ' Back-up +500 mm', function(nextCase) {
+        var conveyor = nextCase.equipment.find(function(equipment) { return equipment.id === targetId; });
+        conveyor.processData = conveyor.processData || {};
+        conveyor.processData.accumulation = conveyor.processData.accumulation || {};
+        var key = kind === 'speed' ? 'conveyorSpeedFactorPercent' : 'backupSensorPositionMm';
+        var previous = Number(conveyor.processData.accumulation[key]);
+        conveyor.processData.accumulation[key] = (Number.isFinite(previous) ? previous : 0) + (kind === 'speed' ? 5 : 500);
+      });
+    }
+
+    function renderScenarioSelectors() {
+      var conveyors = (state.activeCase?.equipment || []).filter(function(equipment) { return equipment.type === 'CONVEYOR'; });
+      var target = document.getElementById('scenario-conveyor-target');
+      var left = document.getElementById('scenario-compare-left');
+      var right = document.getElementById('scenario-compare-right');
+      if (!target || !left || !right) return;
+      var previousTarget = target.value;
+      target.textContent = '';
+      conveyors.forEach(function(equipment) { var option = new Option(equipment.name || equipment.id, equipment.id); target.add(option); });
+      if (conveyors.some(function(item) { return item.id === previousTarget; })) target.value = previousTarget;
+      [left, right].forEach(function(select) { select.textContent = ''; state.scenarios.tabs.forEach(function(tab) { select.add(new Option(tab.name, tab.id)); }); });
+      var pair = state.scenarios.comparisonPair;
+      left.value = pair.leftId || state.scenarios.tabs[0]?.id || '';
+      right.value = pair.rightId || state.scenarios.tabs[1]?.id || left.value;
+    }
+
+    function compareSelectedScenarios() {
+      var leftId = document.getElementById('scenario-compare-left').value;
+      var rightId = document.getElementById('scenario-compare-right').value;
+      var left = getScenarioTab(leftId); var right = getScenarioTab(rightId);
+      if (!left || !right || leftId === rightId) return showError({ code: 'SELECT_TWO_SCENARIOS', message: 'Select two different completed scenarios.' });
+      if (!left.experimentScenario || !right.experimentScenario) return showError({ code: 'SCENARIO_RUN_REQUIRED', message: 'Run both scenarios before comparing them.' });
+      if (left.run.seed !== right.run.seed) return showError({ code: 'SEED_MISMATCH', message: 'These scenarios used different seeds (' + left.run.seed + ' and ' + right.run.seed + '). Rerun one with the same seed for a paired comparison.' });
+      var response = window.SimulatorEngine.compareScenarioExperiments(left.experimentScenario, right.experimentScenario);
+      if (!response.ok) return showError(response.error);
+      state.scenarios.comparisonPair = { leftId: leftId, rightId: rightId };
+      state.experiment.comparisonPair = state.scenarios.comparisonPair;
+      state.experiment.comparison = response.comparison;
+      renderExperimentWorkspace();
     }
 
     function setExperimentBaseline() {
@@ -3616,11 +3739,21 @@ function renderRawJson() {
     }
 
     function runSimulation() {
-      if (state.isDirty) return showError({ code: 'UNSAVED_CASE', message: 'Save the Case before running a simulation.' });
+      if (state.isDirty && !collectCaseEditor()) return;
+      snapshotActiveScenarioTab();
       var run = readRunConfiguration();
       if (!run) return;
       state.run.configuration = copyRunConfiguration(run);
       if (!calculateSimulation(run, 0)) return;
+      var tab = getActiveScenarioTab();
+      if (tab) {
+        var compact = window.SimulatorEngine.runScenarioExperiment({ case: cloneJson(state.activeCase), run: cloneJson(run), seeds: [run.seed] });
+        tab.run = cloneJson(run);
+        tab.result = cloneJson(state.run.result);
+        tab.experimentScenario = compact.ok ? compact.scenario : null;
+      }
+      state.experiment.comparison = null;
+      renderExperimentWorkspace();
       setStatus(state.run.durationMode === 'INDEFINITE'
         ? 'Simulation completed at its virtual safety ceiling. Playback is starting.'
         : 'Simulation completed. Playback is starting.');

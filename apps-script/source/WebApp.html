@@ -129,19 +129,23 @@
         <section class="experiment-workspace" aria-labelledby="experiment-title">
           <div class="editor-subheading compact-heading">
             <div>
-              <h3 id="experiment-title">Baseline &amp; What-If</h3>
-              <p>Run compact repetitions with the same seed set. The comparison stores summary metrics only, not replay samples.</p>
+              <h3 id="experiment-title">Simulation scenarios</h3>
+              <p>Create inherited scenario tabs, run them separately, then compare any two completed tabs. Scenario tabs are kept in this browser session.</p>
             </div>
             <div class="button-row">
-              <button id="set-baseline" class="secondary" type="button">Set baseline</button>
-              <button id="compare-baseline" type="button">Compare current</button>
-              <button id="clear-baseline" class="secondary" type="button">Clear</button>
+              <button id="new-scenario" class="secondary" type="button">New simulation</button>
+              <button id="scenario-conveyor-plus-five" type="button">Conveyor +5%</button>
+              <button id="scenario-backup-plus-five-hundred" type="button">Back-up +500 mm</button>
             </div>
           </div>
+          <div id="scenario-tabs" class="scenario-tabs" aria-label="Simulation scenarios"></div>
           <div class="field-grid experiment-fields">
-            <label title="Number of deterministic repetitions. Baseline and candidate use the same sequential seed set.">Replications / seeds<input id="experiment-repetitions" type="number" min="1" max="20" step="1" value="5"></label>
+            <label title="The selected conveyor receives the proposed parameter change in the newly created scenario.">Target conveyor<select id="scenario-conveyor-target"></select></label>
+            <label>Compare A<select id="scenario-compare-left"></select></label>
+            <label>Compare B<select id="scenario-compare-right"></select></label>
+            <label>&nbsp;<button id="compare-scenarios" type="button">Compare selected</button></label>
           </div>
-          <p id="experiment-status" class="experiment-status" aria-live="polite">No baseline has been captured for this browser session.</p>
+          <p id="experiment-status" class="experiment-status" aria-live="polite">Run a scenario to make its results available for comparison.</p>
           <div id="experiment-summary" class="experiment-summary hidden"></div>
         </section>
 

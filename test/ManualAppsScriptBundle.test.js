@@ -105,15 +105,18 @@ test('manual bundle exposes photoeye pulses, sustained Back-up timers, and Waiti
   assert.match(index, /SENSOR_DEBOUNCE/);
 });
 
-test('manual bundle exposes compact Baseline and What-If comparison controls', () => {
+test('manual bundle exposes inherited simulation scenarios and comparison controls', () => {
   const output = buildManualAppsScriptBundle(repositoryRoot);
   const index = fs.readFileSync(output.indexPath, 'utf8');
 
-  assert.match(index, /Baseline &amp; What-If/);
-  assert.match(index, /Set baseline/);
-  assert.match(index, /Compare current/);
-  assert.match(index, /same seed set/);
-  assert.match(index, /function setExperimentBaseline\(/);
+  assert.match(index, /Simulation scenarios/);
+  assert.match(index, /New simulation/);
+  assert.match(index, /Conveyor \+5%/);
+  assert.match(index, /Back-up \+500 mm/);
+  assert.match(index, /Compare selected/);
+  assert.match(index, /function createInheritedScenario\(/);
+  assert.match(index, /SEED_MISMATCH/);
+  assert.match(index, /Advanced JSON fields/);
   assert.match(index, /runScenarioExperiment/);
   assert.match(index, /compareScenarioExperiments/);
   assert.match(index, /Conveyor comparison/);

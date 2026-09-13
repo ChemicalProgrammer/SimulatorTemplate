@@ -177,6 +177,12 @@
   .accumulation-zone.state-overflow { background: #fff0ed; border-color: #f0b5a8; border-left-color: #c85a42; }
   .accumulation-zone.state-overflow .accumulation-zone-heading strong,
   .accumulation-zone.state-overflow .accumulation-zone-stats b { color: #a33d28; }
+  .scenario-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .scenario-tab { background: #f3f6fb; border: 1px solid #d7e0ed; color: #40506a; font-size: 12px; margin: 0; padding: 8px 11px; }
+  .scenario-tab-active { background: #e5efff; border-color: #6e98e8; color: #1d5fa8; font-weight: 700; }
+  .equipment-json-details { border-top: 1px solid #dce6f4; margin-top: 12px; padding-top: 10px; }
+  .equipment-json-details summary { color: #40506a; cursor: pointer; font-size: 12px; font-weight: 700; }
+  .equipment-json-details .characteristics-label { margin-top: 10px; }
   .sr-only { height: 1px; margin: -1px; overflow: hidden; position: absolute; width: 1px; }
   @media (max-width: 1260px) { .live-equipment-columns { display: none; } .live-equipment-card__row { align-items: stretch; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-equipment-cell { background: #fff; border-radius: 8px; padding: 8px; } .live-equipment-cell::before { color: #657187; content: attr(data-label); display: block; font-size: 10px; font-weight: 700; letter-spacing: .06em; margin-bottom: 6px; text-transform: uppercase; } .live-equipment-operation { gap: 5px; } .live-equipment-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .live-equipment-controls { align-content: start; } }
   @media (max-width: 760px) { .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .run-fields, .control-event, .format-zone-grid, .zone-engineering-stats { grid-template-columns: 1fr 1fr; } .live-equipment-card__row { grid-template-columns: 1fr; } }
