@@ -998,7 +998,7 @@ function createResult(runtime) {
   return {
     caseId: runtime.caseId,
     unitOfFlow: runtime.unitOfFlow,
-    engineVersion: '0.9.0',
+    engineVersion: '0.10.0',
     seed: runtime.run.seed,
     durationSeconds: runtime.run.durationSeconds,
     summary: createSummary(runtime),
@@ -1045,6 +1045,11 @@ function createEquipmentMetrics(equipment, durationSeconds) {
 
 function createZoneMetrics(zone, durationSeconds) {
   return {
+    id: zone.id,
+    name: zone.name,
+    ownerEquipmentId: zone.ownerEquipmentId,
+    upstreamControlEquipmentId: zone.upstreamControlEquipmentId,
+    downstreamControlEquipmentId: zone.downstreamControlEquipmentId,
     capacityUnits: round(zone.capacityUnits),
     modelOrigin: zone.modelOrigin,
     geometrySources: zone.geometrySources,

@@ -8,7 +8,8 @@ const sourceFiles = [
   'src/simulation/ConveyorEngineering.js',
   'src/simulation/FormatGeometryAdapter.js',
   'src/simulation/SimulationValidation.js',
-  'src/simulation/LineSimulationEngine.js'
+  'src/simulation/LineSimulationEngine.js',
+  'src/simulation/ExperimentAnalysis.js'
 ];
 const targetFile = path.join(repositoryRoot, 'apps-script', 'source', 'SimulationEngine.html');
 
@@ -24,7 +25,12 @@ const output = `<script>
 
 ${source}
 
-window.SimulatorEngine = { simulateLine: simulateLine, calculateConveyorEngineering: calculateConveyorEngineering };
+window.SimulatorEngine = {
+  simulateLine: simulateLine,
+  calculateConveyorEngineering: calculateConveyorEngineering,
+  runScenarioExperiment: runScenarioExperiment,
+  compareScenarioExperiments: compareScenarioExperiments
+};
 })(window);
 </script>
 `;

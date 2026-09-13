@@ -104,3 +104,17 @@ test('manual bundle exposes photoeye pulses, sustained Back-up timers, and Waiti
   assert.match(index, /Waiting/);
   assert.match(index, /SENSOR_DEBOUNCE/);
 });
+
+test('manual bundle exposes compact Baseline and What-If comparison controls', () => {
+  const output = buildManualAppsScriptBundle(repositoryRoot);
+  const index = fs.readFileSync(output.indexPath, 'utf8');
+
+  assert.match(index, /Baseline &amp; What-If/);
+  assert.match(index, /Set baseline/);
+  assert.match(index, /Compare current/);
+  assert.match(index, /same seed set/);
+  assert.match(index, /function setExperimentBaseline\(/);
+  assert.match(index, /runScenarioExperiment/);
+  assert.match(index, /compareScenarioExperiments/);
+  assert.match(index, /Conveyor comparison/);
+});

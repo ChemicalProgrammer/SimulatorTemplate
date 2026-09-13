@@ -126,6 +126,25 @@
           <div id="control-events" class="control-events"></div>
         </div>
 
+        <section class="experiment-workspace" aria-labelledby="experiment-title">
+          <div class="editor-subheading compact-heading">
+            <div>
+              <h3 id="experiment-title">Baseline &amp; What-If</h3>
+              <p>Run compact repetitions with the same seed set. The comparison stores summary metrics only, not replay samples.</p>
+            </div>
+            <div class="button-row">
+              <button id="set-baseline" class="secondary" type="button">Set baseline</button>
+              <button id="compare-baseline" type="button">Compare current</button>
+              <button id="clear-baseline" class="secondary" type="button">Clear</button>
+            </div>
+          </div>
+          <div class="field-grid experiment-fields">
+            <label title="Number of deterministic repetitions. Baseline and candidate use the same sequential seed set.">Replications / seeds<input id="experiment-repetitions" type="number" min="1" max="20" step="1" value="5"></label>
+          </div>
+          <p id="experiment-status" class="experiment-status" aria-live="polite">No baseline has been captured for this browser session.</p>
+          <div id="experiment-summary" class="experiment-summary hidden"></div>
+        </section>
+
         <div id="simulation-results" class="hidden">
           <div class="playback-toolbar">
             <button id="play-simulation" class="secondary" type="button">Play</button>

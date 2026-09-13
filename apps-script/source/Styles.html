@@ -65,6 +65,27 @@
   .control-events { display: grid; gap: 10px; margin-top: 12px; }
   .control-event { align-items: end; background: #f8faff; border: 1px solid #e0e6f0; border-radius: 10px; display: grid; gap: 10px; grid-template-columns: 150px minmax(180px, 1fr) minmax(150px, 1fr) auto; padding: 12px; }
   .control-event button { margin: 0; }
+  .experiment-workspace { background: #f8faff; border: 1px solid #d8e5f7; border-radius: 10px; margin-top: 20px; padding: 14px; }
+  .experiment-workspace .compact-heading { margin-top: 0; }
+  .experiment-fields { margin: 12px 0; max-width: 240px; }
+  .experiment-status { color: #4f5d72; font-size: 12px; margin: 10px 0 0; }
+  .experiment-summary { margin-top: 14px; }
+  .experiment-overview { display: grid; gap: 9px; grid-template-columns: repeat(auto-fit, minmax(152px, 1fr)); }
+  .experiment-metric { background: #fff; border: 1px solid #e0e6f0; border-radius: 8px; padding: 9px; }
+  .experiment-metric span { color: #657187; display: block; font-size: 10px; text-transform: uppercase; }
+  .experiment-metric b { color: #264ca7; display: block; font-size: 17px; margin-top: 4px; }
+  .experiment-metric small { color: #657187; display: block; font-size: 10px; margin-top: 4px; }
+  .experiment-delta-positive b { color: #17633d; }
+  .experiment-delta-negative b { color: #a12b2b; }
+  .experiment-table-wrap { margin-top: 14px; overflow-x: auto; }
+  .experiment-table { border-collapse: collapse; font-size: 11px; min-width: 880px; width: 100%; }
+  .experiment-table caption { color: #4f5d72; font-size: 12px; font-weight: 700; padding: 0 0 8px; text-align: left; }
+  .experiment-table th, .experiment-table td { border-bottom: 1px solid #e0e6f0; padding: 8px; text-align: right; vertical-align: top; }
+  .experiment-table th { color: #657187; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
+  .experiment-table th:first-child, .experiment-table td:first-child, .experiment-table td:nth-child(2) { text-align: left; }
+  .experiment-table .audit-pass { color: #17633d; font-weight: 700; }
+  .experiment-table .audit-warning { color: #8a5800; font-weight: 700; }
+  .experiment-table .audit-fail { color: #a12b2b; font-weight: 700; }
   .playback-toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 14px; }
   .playback-toolbar button { margin: 0; }
   #playback-status { color: #576275; font-size: 13px; margin-left: 4px; }

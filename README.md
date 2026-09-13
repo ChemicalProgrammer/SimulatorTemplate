@@ -41,6 +41,7 @@ For the browser-only Apps Script workflow, copy only the generated files in [app
 | [Public demonstration Case](docs/14_PUBLIC_DEMO_CASE.md) | Complete 13-unit test Case with explicit public/synthetic provenance |
 | [Transient states and controls](docs/15_TRANSIENT_STATES_AND_CONTROLS.md) | Empty-line behaviour, live equipment metrics, and scheduled safety scenarios |
 | [Accumulation-zone control](docs/16_ACCUMULATION_ZONE_CONTROL.md) | Physical conveyor capacity, Prime/Back-up sensors, residual discharge, and overflow-risk model |
+| [Experiments and comparison](docs/17_EXPERIMENTS_AND_COMPARISON.md) | Compact Baseline/What-If replications, paired seeds, and interpretation of dynamic versus audit results |
 
 ## Initial technical decision
 

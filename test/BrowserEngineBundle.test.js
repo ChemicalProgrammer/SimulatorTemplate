@@ -22,4 +22,13 @@ test('the Apps Script browser bundle exposes the tested deterministic engine', (
   assert.equal(response.ok, true);
   assert.ok(response.result.summary.outputCount > 0);
   assert.equal(response.result.seed, 7);
+
+  const experiment = browser.SimulatorEngine.runScenarioExperiment({
+    case: referenceCase,
+    run: { durationSeconds: 60, tickSeconds: 1, sampleEverySeconds: 5, seed: 7 },
+    seeds: [7, 8]
+  });
+  assert.equal(experiment.ok, true);
+  assert.equal(experiment.scenario.replicationCount, 2);
+  assert.equal(typeof browser.SimulatorEngine.compareScenarioExperiments, 'function');
 });

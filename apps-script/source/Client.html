@@ -8,6 +8,11 @@
       lastUserScrollAt: 0,
       scrollRestoreFrame: null,
       scrollRestoreUntil: 0,
+      experiment: {
+        baseline: null,
+        candidate: null,
+        comparison: null
+      },
       run: {
         commands: [],
         result: null,
@@ -42,6 +47,9 @@
       document.getElementById('equipment-list').addEventListener('change', markCaseDirty);
       document.getElementById('add-control-event').addEventListener('click', addControlEvent);
       document.getElementById('run-simulation').addEventListener('click', runSimulation);
+      document.getElementById('set-baseline').addEventListener('click', setExperimentBaseline);
+      document.getElementById('compare-baseline').addEventListener('click', compareCurrentToBaseline);
+      document.getElementById('clear-baseline').addEventListener('click', clearExperimentBaseline);
       document.getElementById('play-simulation').addEventListener('click', startPlayback);
       document.getElementById('pause-simulation').addEventListener('click', pausePlayback);
       document.getElementById('reset-playback').addEventListener('click', resetPlayback);
@@ -131,6 +139,7 @@ function createPublicDemoCase() {
           state.run.commands = [];
           state.run.result = null;
           state.run.configuration = null;
+          resetExperiment();
           state.liveZoneDetails = {};
           toggle('editor-panel', false);
           toggle('run-panel', false);
@@ -150,6 +159,7 @@ function openCase(caseId) {
         state.run.commands = [];
         state.run.result = null;
         state.run.configuration = null;
+        resetExperiment();
         renderEditor();
         setStatus('Case loaded.');
       });
@@ -163,6 +173,8 @@ function openCase(caseId) {
     function markCaseDirty() {
       if (!state.activeCase) return;
       state.isDirty = true;
+      state.experiment.candidate = null;
+      state.experiment.comparison = null;
       renderEditorMeta();
       renderRunWorkspace();
     }
@@ -602,11 +614,301 @@ function renderRawJson() {
       toggle('run-not-ready', !ready || state.isDirty);
       document.getElementById('run-simulation').disabled = !ready || state.isDirty;
       renderControlEvents();
+      renderExperimentWorkspace();
       if (!state.run.result) toggle('simulation-results', false);
     }
 
     function isRunReady() {
       return state.activeCase && Array.isArray(state.activeCase.equipment) && state.activeCase.equipment.length >= 2;
+    }
+
+    function resetExperiment() {
+      state.experiment.baseline = null;
+      state.experiment.candidate = null;
+      state.experiment.comparison = null;
+      renderExperimentWorkspace();
+    }
+
+    function renderExperimentWorkspace() {
+      var status = document.getElementById('experiment-status');
+      var summary = document.getElementById('experiment-summary');
+      var setBaselineButton = document.getElementById('set-baseline');
+      var compareButton = document.getElementById('compare-baseline');
+      var clearButton = document.getElementById('clear-baseline');
+      if (!status || !summary || !setBaselineButton || !compareButton || !clearButton) return;
+
+      var ready = isRunReady() && !state.isDirty;
+      var baseline = state.experiment.baseline;
+      setBaselineButton.disabled = !ready;
+      compareButton.disabled = !isRunReady() || !baseline;
+      clearButton.disabled = !baseline;
+      summary.textContent = '';
+
+      if (!baseline) {
+        status.textContent = state.isDirty
+          ? 'Save the Case before capturing a baseline.'
+          : 'No baseline has been captured for this browser session.';
+        summary.classList.add('hidden');
+        return;
+      }
+
+      var seedText = formatSeedSet(baseline.seedSet);
+      status.textContent = 'Baseline: ' + baseline.caseName + ' · revision ' + baseline.caseRevision + ' · ' +
+        baseline.seedSet.length + ' replications · seeds ' + seedText + '. ' +
+        (state.experiment.comparison
+          ? 'Δ values mean candidate minus baseline using these same seeds.' + (state.experiment.candidate?.unsaved ? ' The candidate has not been saved to Drive.' : '')
+          : state.isDirty
+            ? 'Current edits are an unsaved What-If and can be compared without overwriting the baseline Case.'
+            : 'Edit the Case, then compare the current scenario against this snapshot.');
+      summary.classList.remove('hidden');
+      summary.appendChild(createScenarioOverview('Baseline', baseline.scenario.summary.line));
+      if (state.experiment.comparison && state.experiment.candidate) {
+        summary.appendChild(createScenarioOverview('Current', state.experiment.candidate.scenario.summary.line));
+        summary.appendChild(createComparisonOverview(state.experiment.comparison.summary.line));
+        summary.appendChild(createConveyorComparisonTable(state.experiment.comparison.summary.zones));
+      }
+    }
+
+    function setExperimentBaseline() {
+      if (state.isDirty) return showError({ code: 'UNSAVED_CASE', message: 'Save the Case before capturing a baseline.' });
+      var run = readRunConfiguration();
+      var seeds = readExperimentSeeds(run);
+      if (!run || !seeds) return;
+      setExperimentBusy(true);
+      setStatus('Running ' + seeds.length + ' compact baseline replications…');
+      window.setTimeout(function() {
+        try {
+          var response = window.SimulatorEngine.runScenarioExperiment({
+            case: cloneJson(state.activeCase),
+            run: cloneJson(run),
+            seeds: seeds
+          });
+          setExperimentBusy(false);
+          if (!response.ok) return showError(response.error);
+          state.experiment.baseline = {
+            caseName: state.activeCase.name,
+            caseRevision: state.activeCase.revision,
+            caseSnapshot: cloneJson(state.activeCase),
+            run: cloneJson(run),
+            seedSet: seeds,
+            scenario: response.scenario
+          };
+          state.experiment.candidate = null;
+          state.experiment.comparison = null;
+          renderExperimentWorkspace();
+          setStatus('Baseline completed: ' + seeds.length + ' compact replications. Edit and save a What-If, then compare it using the same seeds.');
+        } catch (error) {
+          setExperimentBusy(false);
+          showError({ code: 'EXPERIMENT_ERROR', message: error && error.message ? error.message : 'The baseline experiment could not be completed.' });
+        }
+      }, 0);
+    }
+
+    function compareCurrentToBaseline() {
+      var baseline = state.experiment.baseline;
+      if (!baseline) return showError({ code: 'BASELINE_REQUIRED', message: 'Capture a baseline before comparing the current Case.' });
+      if (state.isDirty && !collectCaseEditor()) return;
+      var run = readRunConfiguration();
+      if (!run) return;
+      if (run.durationSeconds !== baseline.run.durationSeconds || run.tickSeconds !== baseline.run.tickSeconds) {
+        return showError({
+          code: 'INCOMPATIBLE_EXPERIMENT_RUN',
+          message: 'Use the same virtual duration and integration step as the baseline so the paired comparison is meaningful.'
+        });
+      }
+      setExperimentBusy(true);
+      setStatus('Running current scenario against the baseline seed set…');
+      window.setTimeout(function() {
+        try {
+          var candidateResponse = window.SimulatorEngine.runScenarioExperiment({
+            case: cloneJson(state.activeCase),
+            run: cloneJson(run),
+            seeds: baseline.seedSet
+          });
+          setExperimentBusy(false);
+          if (!candidateResponse.ok) return showError(candidateResponse.error);
+          var comparisonResponse = window.SimulatorEngine.compareScenarioExperiments(baseline.scenario, candidateResponse.scenario);
+          if (!comparisonResponse.ok) return showError(comparisonResponse.error);
+          state.experiment.candidate = {
+            caseName: state.activeCase.name,
+            caseRevision: state.activeCase.revision,
+            unsaved: state.isDirty,
+            run: cloneJson(run),
+            scenario: candidateResponse.scenario
+          };
+          state.experiment.comparison = comparisonResponse.comparison;
+          renderExperimentWorkspace();
+          setStatus('Comparison completed. Δ values are candidate minus baseline across the same ' + baseline.seedSet.length + ' seeds.');
+        } catch (error) {
+          setExperimentBusy(false);
+          showError({ code: 'EXPERIMENT_ERROR', message: error && error.message ? error.message : 'The scenario comparison could not be completed.' });
+        }
+      }, 0);
+    }
+
+    function clearExperimentBaseline() {
+      resetExperiment();
+      setStatus('Baseline and comparison cleared from this browser session.');
+    }
+
+    function setExperimentBusy(busy) {
+      ['set-baseline', 'compare-baseline', 'clear-baseline'].forEach(function(id) {
+        var button = document.getElementById(id);
+        if (button) button.disabled = busy || button.disabled;
+      });
+      if (!busy) renderExperimentWorkspace();
+    }
+
+    function readExperimentSeeds(run) {
+      var repetitions = Number(document.getElementById('experiment-repetitions').value);
+      if (!Number.isInteger(repetitions) || repetitions < 1 || repetitions > 20) {
+        showError({ code: 'INVALID_EXPERIMENT_CONFIGURATION', message: 'Replications must be an integer from 1 to 20.' });
+        return null;
+      }
+      if (!Number.isSafeInteger(run.seed) || run.seed < 0 || run.seed + repetitions - 1 > 4294967295) {
+        showError({ code: 'INVALID_EXPERIMENT_CONFIGURATION', message: 'The starting seed must leave room for every sequential 32-bit seed.' });
+        return null;
+      }
+      return Array.from({ length: repetitions }, function(_, index) { return run.seed + index; });
+    }
+
+    function createScenarioOverview(label, metrics) {
+      var section = document.createElement('section');
+      section.className = 'experiment-overview';
+      section.appendChild(createExperimentMetric(label + ' mean output', formatExperimentDistribution(metrics.outputCount, ' units'), 'Mean output; P10–P90: ' + formatExperimentRange(metrics.outputCount, ' units')));
+      section.appendChild(createExperimentMetric(label + ' mean rate', formatExperimentDistribution(metrics.averageOutputRatePerMinute, ' /min'), 'Mean output rate; P10–P90: ' + formatExperimentRange(metrics.averageOutputRatePerMinute, ' /min')));
+      section.appendChild(createExperimentMetric(label + ' mean Starved', formatExperimentDistribution(metrics.starvedMinutes, ' min'), 'Mean total starvation time; P10–P90: ' + formatExperimentRange(metrics.starvedMinutes, ' min')));
+      section.appendChild(createExperimentMetric(label + ' mean Blocked', formatExperimentDistribution(metrics.blockedMinutes, ' min'), 'Mean total blocking time; P10–P90: ' + formatExperimentRange(metrics.blockedMinutes, ' min')));
+      section.appendChild(createExperimentMetric(label + ' mean Overflow', formatExperimentDistribution(metrics.overflowUnits, ' units'), 'Mean overflow loss; P10–P90: ' + formatExperimentRange(metrics.overflowUnits, ' units')));
+      section.appendChild(createExperimentMetric(label + ' worst overflow', formatExperimentMaximum(metrics.overflowUnits, ' units'), 'Highest overflow observed in any replication. The engineering target is zero.'));
+      return section;
+    }
+
+    function createComparisonOverview(metrics) {
+      var section = document.createElement('section');
+      section.className = 'experiment-overview';
+      section.appendChild(createExperimentMetric('Δ output', formatExperimentDelta(metrics.outputCount, ' units'), 'Candidate minus baseline. Positive output is favorable.', metrics.outputCount.mean));
+      section.appendChild(createExperimentMetric('Δ rate', formatExperimentDelta(metrics.averageOutputRatePerMinute, ' /min'), 'Candidate minus baseline. Positive rate is favorable.', metrics.averageOutputRatePerMinute.mean));
+      section.appendChild(createExperimentMetric('Δ Starved', formatExperimentDelta(metrics.starvedMinutes, ' min'), 'Candidate minus baseline. Negative starvation is favorable.', -metrics.starvedMinutes.mean));
+      section.appendChild(createExperimentMetric('Δ Blocked', formatExperimentDelta(metrics.blockedMinutes, ' min'), 'Candidate minus baseline. Negative blocking is favorable.', -metrics.blockedMinutes.mean));
+      section.appendChild(createExperimentMetric('Δ Overflow', formatExperimentDelta(metrics.overflowUnits, ' units'), 'Candidate minus baseline. Negative overflow is favorable; target is zero.', -metrics.overflowUnits.mean));
+      return section;
+    }
+
+    function createExperimentMetric(label, value, description, favorableDirection) {
+      var card = document.createElement('article');
+      card.className = 'experiment-metric';
+      if (isFiniteNumber(favorableDirection) && favorableDirection !== 0) {
+        card.classList.add(favorableDirection > 0 ? 'experiment-delta-positive' : 'experiment-delta-negative');
+      }
+      var heading = document.createElement('span');
+      heading.textContent = label;
+      heading.title = description;
+      var metric = document.createElement('b');
+      metric.textContent = value;
+      card.appendChild(heading);
+      card.appendChild(metric);
+      return card;
+    }
+
+    function createConveyorComparisonTable(zones) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'experiment-table-wrap';
+      var table = document.createElement('table');
+      table.className = 'experiment-table';
+      var caption = document.createElement('caption');
+      caption.textContent = 'Conveyor comparison — Δ is candidate minus baseline; all dynamic values are means across the shared seed set.';
+      table.appendChild(caption);
+      var headings = [
+        ['Conveyor', 'Physical accumulation zone'],
+        ['Audit', 'Baseline audit → candidate audit; this is static design logic, not an average.'],
+        ['Δ avg inventory', 'Candidate minus baseline time-weighted average inventory.'],
+        ['Δ max inventory', 'Candidate minus baseline maximum observed inventory.'],
+        ['Δ empty time', 'Candidate minus baseline empty-conveyor minutes.'],
+        ['Δ overflow', 'Candidate minus baseline overflow units.'],
+        ['Δ Back-up cycles', 'Candidate minus baseline number of Back-up stop requests.'],
+        ['Δ Back-up occupied', 'Candidate minus baseline minutes the Back-up sensor was continuously blocked.']
+      ];
+      var head = document.createElement('thead');
+      var headRow = document.createElement('tr');
+      headings.forEach(function(item) {
+        var cell = document.createElement('th');
+        cell.scope = 'col';
+        cell.textContent = item[0];
+        cell.title = item[1];
+        headRow.appendChild(cell);
+      });
+      head.appendChild(headRow);
+      table.appendChild(head);
+      var body = document.createElement('tbody');
+      Object.values(zones || {}).sort(function(left, right) { return String(left.name).localeCompare(String(right.name)); }).forEach(function(zone) {
+        var row = document.createElement('tr');
+        appendExperimentCell(row, zone.name || zone.id);
+        appendAuditCell(row, zone.baselineDesign?.auditStatus, zone.candidateDesign?.auditStatus, zone.comparable);
+        appendExperimentCell(row, formatExperimentDelta(zone.metrics.averageInventoryUnits, ' units'));
+        appendExperimentCell(row, formatExperimentDelta(zone.metrics.maximumInventoryUnits, ' units'));
+        appendExperimentCell(row, formatExperimentDelta(zone.metrics.emptyMinutes, ' min'));
+        appendExperimentCell(row, formatExperimentDelta(zone.metrics.overflowUnits, ' units'));
+        appendExperimentCell(row, formatExperimentDelta(zone.metrics.backupTriggerCount, ''));
+        appendExperimentCell(row, formatExperimentDelta(zone.metrics.backupBlockedMinutes, ' min'));
+        body.appendChild(row);
+      });
+      table.appendChild(body);
+      wrapper.appendChild(table);
+      return wrapper;
+    }
+
+    function appendExperimentCell(row, text) {
+      var cell = document.createElement('td');
+      cell.textContent = text;
+      row.appendChild(cell);
+    }
+
+    function appendAuditCell(row, baselineStatus, candidateStatus, comparable) {
+      var cell = document.createElement('td');
+      if (!comparable) {
+        cell.textContent = 'Not comparable';
+      } else {
+        var baseline = document.createElement('span');
+        baseline.className = 'audit-' + String(baselineStatus || 'not-evaluated').toLowerCase();
+        baseline.textContent = baselineStatus || 'NOT_EVALUATED';
+        var arrow = document.createTextNode(' → ');
+        var candidate = document.createElement('span');
+        candidate.className = 'audit-' + String(candidateStatus || 'not-evaluated').toLowerCase();
+        candidate.textContent = candidateStatus || 'NOT_EVALUATED';
+        cell.appendChild(baseline);
+        cell.appendChild(arrow);
+        cell.appendChild(candidate);
+      }
+      row.appendChild(cell);
+    }
+
+    function formatExperimentDistribution(distribution, suffix) {
+      return isFiniteNumber(distribution?.mean) ? formatNumber(distribution.mean) + suffix : '—';
+    }
+
+    function formatExperimentRange(distribution, suffix) {
+      return isFiniteNumber(distribution?.p10) && isFiniteNumber(distribution?.p90)
+        ? formatNumber(distribution.p10) + '–' + formatNumber(distribution.p90) + suffix
+        : '—';
+    }
+
+    function formatExperimentMaximum(distribution, suffix) {
+      return isFiniteNumber(distribution?.maximum) ? formatNumber(distribution.maximum) + suffix : '—';
+    }
+
+    function formatExperimentDelta(distribution, suffix) {
+      if (!isFiniteNumber(distribution?.mean)) return '—';
+      return (distribution.mean > 0 ? '+' : '') + formatNumber(distribution.mean) + suffix;
+    }
+
+    function formatSeedSet(seeds) {
+      if (!seeds || !seeds.length) return '—';
+      return seeds.length === 1 ? String(seeds[0]) : seeds[0] + '–' + seeds[seeds.length - 1];
+    }
+
+    function cloneJson(value) {
+      return JSON.parse(JSON.stringify(value));
     }
 
     function addControlEvent() {
